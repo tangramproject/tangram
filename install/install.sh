@@ -250,7 +250,7 @@ install_dependencies() {
 
   fi
   
-  if [ "${DISTRO}" == "centos" || "${DISTRO}" == "almalinux" ] then
+  if [ "${DISTRO}" == "centos" || "${DISTRO}" == "almalinux" ]; then
     if yum -q list installed glibc-devel &> /dev/null; then
       printf "  %b glibc-devel\n" "${TICK}"
     else
