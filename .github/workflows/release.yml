@@ -1,4 +1,4 @@
-name: build cypher node release
+name: build tangram node release
 
 on:
   push:
@@ -66,28 +66,28 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: cypher-cyphernetworknode_${{ env.VERSION }}*.*
+          files: tangram-xtgmnode_${{ env.VERSION }}*.*
           name: Release v${{ env.VERSION }}
 
-  build-windows:
-    needs: validate-version
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
-      - name: Get version
-        id: get_version
-        uses: ./.github/actions/get-version
-
-      - name: Create windows installer
-        uses: ./.github/actions/build-windows
-
-      - name: Create Windows release
-        id: gh-release
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          files: cypher-cypnode_${{ env.VERSION }}*.*
+#  build-windows:
+#    needs: validate-version
+#    runs-on: windows-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#        with:
+#          fetch-depth: 0
+#
+#      - name: Get version
+#        id: get_version
+#        uses: ./.github/actions/get-version
+#
+#      - name: Create windows installer
+#        uses: ./.github/actions/build-windows
+#
+#      - name: Create Windows release
+#        id: gh-release
+#        uses: softprops/action-gh-release@v1
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        with:
+#          files: tangram-xtgmnode_${{ env.VERSION }}*.*

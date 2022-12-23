@@ -1,4 +1,4 @@
-name: build cypher node
+name: build tangram node
 
 on:
   push:
@@ -49,9 +49,9 @@ jobs:
     # - name: Run unit tests
     #  run: dotnet test
       
-    - name: Build cypher
+    - name: Build tangram
       run:  |
-        dotnet restore cypher.sln
+        dotnet restore tangram.sln
         dotnet publish node --output publish/node --configuration Release
         
     - name: Archive build artifacts

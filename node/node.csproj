@@ -2,37 +2,39 @@
 
   <PropertyGroup> 
     <ServerGarbageCollection>true</ServerGarbageCollection> 
-    <AssemblyVersion>0.0.76.0</AssemblyVersion> 
+    <AssemblyVersion>0.0.77.0</AssemblyVersion> 
     <NeutralLanguage>en</NeutralLanguage> 
-    <PackageId>node</PackageId>
+    <PackageId>node</PackageId> 
+    <Company>TangramXtgm</Company> 
+    <Product>xtgmnode</Product>
   </PropertyGroup>
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net6.0</TargetFramework>
     <Platforms>AnyCPU;x64</Platforms>
-    <AssemblyName>cypnode</AssemblyName>
-    <RootNamespace>CypherNetworkNode</RootNamespace>
+    <AssemblyName>xtgmnode</AssemblyName>
+    <RootNamespace>TangramXtgmNode</RootNamespace>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <LangVersion>10</LangVersion>
-    <AssemblyName>cyphernetworknode</AssemblyName>
+    <AssemblyName>xtgmnode</AssemblyName>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LangVersion>10</LangVersion>
-    <AssemblyName>cypnode</AssemblyName>
+    <AssemblyName>xtgmnode</AssemblyName>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <LangVersion>10</LangVersion>
-    <AssemblyName>cypnode</AssemblyName>
+    <AssemblyName>xtgmnode</AssemblyName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LangVersion>10</LangVersion>
-    <AssemblyName>cypnode</AssemblyName>
+    <AssemblyName>xtgamnode</AssemblyName>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(RunConfiguration)' == 'CYPNode' " />
+  <PropertyGroup Condition=" '$(RunConfiguration)' == 'XTGMNode' " />
 
   <!-- Not disabling these implicit analyzers causes a build warning -->
   <PropertyGroup>
@@ -86,11 +88,11 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Update="Runners\cypnode.cmd">
+    <None Update="Runners\xtgmnode.cmd">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </None>
-    <None Update="Runners\cypnode.sh">
+    <None Update="Runners\xtgmnode.sh">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </None>

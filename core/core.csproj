@@ -3,11 +3,12 @@
     <PropertyGroup>
         <TargetFramework>net6.0</TargetFramework>
         <Platforms>AnyCPU;x64</Platforms>
-        <RootNamespace>CypherNetwork</RootNamespace>
-        <AssemblyVersion>0.0.76.0</AssemblyVersion>
-        <Company>CypherNetwork</Company>
+        <RootNamespace>TangramXtgm</RootNamespace>
+        <AssemblyVersion>0.0.77.0</AssemblyVersion>
+        <Company>TangramXtgm</Company>
         <PackageId>core</PackageId>
-        <AssemblyName>cyphernetworkcore</AssemblyName>
+        <AssemblyName>xtgmcore</AssemblyName>
+        <Product>xtgmcore</Product>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
