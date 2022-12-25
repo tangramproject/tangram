@@ -34,7 +34,7 @@ public class P2PDeviceReq : IP2PDeviceReq
     private readonly ISystemCore _systemCore;
     private readonly ILogger _logger;
     private readonly Ping _ping = new();
-    
+
     public P2PDeviceReq(ISystemCore systemCore)
     {
         _systemCore = systemCore;
