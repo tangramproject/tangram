@@ -63,11 +63,11 @@ bash <(curl -sSL https://raw.githubusercontent.com/tangramproject/tangram/master
 ```
 
 ## What is Tangram
-Tangram  is a secure and reliable cryptocurrency platform that is designed to be used by both individuals and businesses alike.  
+Tangram is a revolutionary cryptocurrency that transforms the way we transact. It's fast, fee-less, private and fungible, making it an ideal choice for blockchain transactions. The Tangram network uses a state-of-the-art Pure-Proof-Of-Stake (PPoS) consensus algorithm that is secure, energy-efficient, and decentralized.
 
-The coin has a strong foundation and is backed by the Tangram team, who have a proven track record of success in the cryptocurrency space and large community following.  Additionally, Tangram is a decentralized platform that is built on the principles of privacy, security, and trust.  
+Incorporating advanced cryptographic protocols like Bulletproofs, stealth addresses and RingCT for transaction mixing, Tangram guarantees that users can keep their identity and financial activities completely private.  Plus, its lightning-fast transaction speeds and zero fees make it the perfect choice for everyday payments.  
 
-Incorporating advanced cryptographic protocols like Bulletproofs, stealth addresses and RingCT for transaction mixing, Tangram guarantees that users can keep their identity and financial activities completely private.  Plus, its lightning-fast transaction speeds and zero fees make it the perfect choice for everyday payments.  Tangram's PPoS consensus algorithm is specifically designed to ensure a fair distribution of rewards.  Whether it's a small stake or a large one, Tangram ensures that the rewards are distributed fairly to those who put their precious time and effort into staking.
+Tangram's PPoS consensus algorithm is specifically designed to ensure a fair distribution of rewards.  Whether it's a small stake or a large one, Tangram ensures that the rewards are distributed fairly to those who put their precious time and effort into staking.
 
 ## Security Warning
 Tangram is the first release with consensus and should be treated as an experiment! There are no guarantees and we can expect flaws. Use it at your own risk.
