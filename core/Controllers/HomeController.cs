@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 
-namespace CypherNetwork.Controllers;
+namespace TangramXtgm.Controllers;
 
 public class HomeController : Controller
 {

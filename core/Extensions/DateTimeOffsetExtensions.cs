@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace CypherNetwork.Extensions;
+namespace TangramXtgm.Extensions;
 
 public static class DateTimeOffsetExtensions
 {

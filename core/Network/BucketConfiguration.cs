@@ -1,6 +1,6 @@
 using System;
 
-namespace CypherNetwork.Network;
+namespace TangramXtgm.Network;
 
 public class BucketConfiguration
 {

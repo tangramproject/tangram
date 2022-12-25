@@ -1,31 +1,31 @@
-﻿// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+﻿// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
 using System.Threading.Tasks;
-using CypherNetwork.Extensions;
-using CypherNetwork.Models.Messages;
+using TangramXtgm.Extensions;
 using Dawn;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
+using TangramXtgm.Models.Messages;
 
-namespace CypherNetwork.Controllers;
+namespace TangramXtgm.Controllers;
 
 [Route("chain")]
 [ApiController]
 public class BlockController : Controller
 {
-    private readonly ICypherSystemCore _cypherNetworkCore;
+    private readonly ISystemCore _systemCore;
     private readonly ILogger _logger;
 
     /// <summary>
     /// </summary>
-    /// <param name="cypherNetworkCore"></param>
+    /// <param name="systemCore"></param>
     /// <param name="logger"></param>
-    public BlockController(ICypherSystemCore cypherNetworkCore, ILogger logger)
+    public BlockController(ISystemCore systemCore, ILogger logger)
     {
-        _cypherNetworkCore = cypherNetworkCore;
+        _systemCore = systemCore;
         _logger = logger.ForContext("SourceContext", nameof(BlockController));
     }
 
@@ -40,7 +40,7 @@ public class BlockController : Controller
     {
         try
         {
-            var distribution = await _cypherNetworkCore.Validator().GetRunningDistributionAsync();
+            var distribution = await _systemCore.Validator().GetRunningDistributionAsync();
             return new ObjectResult(new { distribution });
         }
         catch (Exception ex)
@@ -62,7 +62,7 @@ public class BlockController : Controller
         try
         {
             var blockResponse =
-                await _cypherNetworkCore.Graph().GetBlockAsync(new BlockRequest(hash.HexToByte()));
+                await _systemCore.Graph().GetBlockAsync(new BlockRequest(hash.HexToByte()));
             if (blockResponse?.Block is { }) return new ObjectResult(new { blockResponse.Block });
         }
         catch (Exception ex)
@@ -88,7 +88,7 @@ public class BlockController : Controller
         try
         {
             var blocksResponse =
-                await _cypherNetworkCore.Graph().GetBlocksAsync(new BlocksRequest(skip, take));
+                await _systemCore.Graph().GetBlocksAsync(new BlocksRequest(skip, take));
             return new ObjectResult(new { blocksResponse?.Blocks });
         }
         catch (Exception ex)
@@ -110,7 +110,7 @@ public class BlockController : Controller
         try
         {
             var blockResponse =
-                await _cypherNetworkCore.Graph().GetBlockByHeightAsync(new BlockByHeightRequest(height));
+                await _systemCore.Graph().GetBlockByHeightAsync(new BlockByHeightRequest(height));
             if (blockResponse?.Block is { }) return new ObjectResult(new { blockResponse.Block });
         }
         catch (Exception ex)
@@ -134,7 +134,7 @@ public class BlockController : Controller
         try
         {
             var transactionBlock =
-                await _cypherNetworkCore.Graph().GetTransactionBlockAsync(
+                await _systemCore.Graph().GetTransactionBlockAsync(
                     new TransactionIdRequest(hash.HexToByte()));
             return new ObjectResult(new { transactionBlock?.Block });
         }
@@ -156,7 +156,7 @@ public class BlockController : Controller
     {
         try
         {
-            return new ObjectResult(new { height = _cypherNetworkCore.UnitOfWork().HashChainRepository.Count });
+            return new ObjectResult(new { height = _systemCore.UnitOfWork().HashChainRepository.Count });
         }
         catch (Exception ex)
         {
@@ -179,7 +179,7 @@ public class BlockController : Controller
         try
         {
             var transactionResponse =
-                await _cypherNetworkCore.Graph().GetTransactionAsync(new TransactionRequest(hash.HexToByte()));
+                await _systemCore.Graph().GetTransactionAsync(new TransactionRequest(hash.HexToByte()));
             return new ObjectResult(new { transactionResponse?.Transaction });
         }
         catch (Exception ex)
@@ -201,7 +201,7 @@ public class BlockController : Controller
         try
         {
             var safeguardBlocksResponse =
-                await _cypherNetworkCore.Graph().GetSafeguardBlocksAsync(new SafeguardBlocksRequest(147));
+                await _systemCore.Graph().GetSafeguardBlocksAsync(new SafeguardBlocksRequest(147));
             return new ObjectResult(new { safeguardBlocksResponse?.Blocks });
         }
         catch (Exception ex)
@@ -223,7 +223,7 @@ public class BlockController : Controller
     {
         try
         {
-            var distribution = await _cypherNetworkCore.Validator().GetRunningDistributionAsync();
+            var distribution = await _systemCore.Validator().GetRunningDistributionAsync();
             return new ObjectResult(new { emission = Ledger.LedgerConstant.Distribution - distribution });
         }
         catch (Exception ex)

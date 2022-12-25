@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace CypherNetwork.Helper;
+namespace TangramXtgm.Helper;
 
 public interface IBackgroundWorkerQueue
 {

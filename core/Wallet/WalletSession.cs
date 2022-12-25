@@ -1,4 +1,4 @@
-// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
@@ -7,20 +7,20 @@ using System.Linq;
 using System.Reactive.Linq;
 using System.Security;
 using System.Threading.Tasks;
-using CypherNetwork.Extensions;
-using CypherNetwork.Models;
-using CypherNetwork.Models.Messages;
-using CypherNetwork.Persistence;
-using CypherNetwork.Wallet.Models;
+using TangramXtgm.Extensions;
 using Dawn;
 using MessagePack;
 using Microsoft.Extensions.Hosting;
 using NBitcoin;
 using Serilog;
-using Block = CypherNetwork.Models.Block;
-using Transaction = CypherNetwork.Models.Transaction;
+using TangramXtgm.Models;
+using TangramXtgm.Models.Messages;
+using TangramXtgm.Persistence;
+using TangramXtgm.Wallet.Models;
+using Block = TangramXtgm.Models.Block;
+using Transaction = TangramXtgm.Models.Transaction;
 
-namespace CypherNetwork.Wallet;
+namespace TangramXtgm.Wallet;
 
 /// <summary>
 /// 
@@ -49,7 +49,7 @@ public class WalletSession : IWalletSession, IDisposable
     public ulong Change { get; set; }
     public ulong Reward { get; set; }
 
-    private readonly ICypherSystemCore _cypherSystemCore;
+    private readonly ISystemCore _systemCore;
     private readonly IHostApplicationLifetime _applicationLifetime;
     private readonly ILogger _logger;
     private readonly NBitcoin.Network _network;
@@ -57,22 +57,22 @@ public class WalletSession : IWalletSession, IDisposable
     private IDisposable _disposableHandleSafeguardBlocks;
     private IDisposable _disposableHandelConsumed;
     private bool _disposed;
-    private IReadOnlyList<Block> _readOnlySafeGuardBlocks;
+    private IReadOnlyList<TangramXtgm.Models.Block> _readOnlySafeGuardBlocks;
 
     private static readonly object Locking = new();
 
     /// <summary>
     /// 
     /// </summary>
-    /// <param name="cypherSystemCore"></param>
+    /// <param name="systemCore"></param>
     /// <param name="applicationLifetime"></param>
     /// <param name="logger"></param>
-    public WalletSession(ICypherSystemCore cypherSystemCore, IHostApplicationLifetime applicationLifetime, ILogger logger)
+    public WalletSession(ISystemCore systemCore, IHostApplicationLifetime applicationLifetime, ILogger logger)
     {
-        _cypherSystemCore = cypherSystemCore;
+        _systemCore = systemCore;
         _applicationLifetime = applicationLifetime;
         _logger = logger;
-        _network = cypherSystemCore.Node.Network.Environment == Node.Mainnet
+        _network = systemCore.Node.Network.Environment == Node.Mainnet
             ? NBitcoin.Network.Main
             : NBitcoin.Network.TestNet;
         Init();
@@ -91,7 +91,7 @@ public class WalletSession : IWalletSession, IDisposable
     /// 
     /// </summary>
     /// <param name="transactions"></param>
-    public void Notify(Transaction[] transactions)
+    public void Notify(TangramXtgm.Models.Transaction[] transactions)
     {
         if (KeySet is null) return;
         foreach (var consumed in CacheConsumed.GetItems())
@@ -165,7 +165,7 @@ public class WalletSession : IWalletSession, IDisposable
     /// 
     /// </summary>
     /// <returns></returns>
-    public IReadOnlyList<Block> GetSafeGuardBlocks()
+    public IReadOnlyList<TangramXtgm.Models.Block> GetSafeGuardBlocks()
     {
         lock (Locking)
         {
@@ -248,8 +248,8 @@ public class WalletSession : IWalletSession, IDisposable
             {
                 try
                 {
-                    if (_cypherSystemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
-                    var blocksResponse = await _cypherSystemCore.Graph().GetSafeguardBlocksAsync(new SafeguardBlocksRequest(147));
+                    if (_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
+                    var blocksResponse = await _systemCore.Graph().GetSafeguardBlocksAsync(new SafeguardBlocksRequest(147));
                     lock (Locking)
                     {
                         _readOnlySafeGuardBlocks = blocksResponse.Blocks;

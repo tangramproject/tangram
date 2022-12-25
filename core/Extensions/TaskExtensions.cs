@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Serilog;
 
-namespace CypherNetwork.Extensions;
+namespace TangramXtgm.Extensions;
 
 public static class TaskExtensions
 {

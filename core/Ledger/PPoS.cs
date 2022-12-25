@@ -1,4 +1,4 @@
-// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
@@ -11,28 +11,28 @@ using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Blake3;
-using CypherNetwork.Consensus.Models;
-using CypherNetwork.Cryptography;
-using CypherNetwork.Extensions;
-using CypherNetwork.Models;
-using CypherNetwork.Models.Messages;
-using CypherNetwork.Persistence;
+using TangramXtgm.Extensions;
 using Dawn;
 using libsignal.ecc;
 using NBitcoin;
 using Serilog;
-using Block = CypherNetwork.Models.Block;
-using BlockHeader = CypherNetwork.Models.BlockHeader;
-using Transaction = CypherNetwork.Models.Transaction;
+using TangramXtgm.Consensus.Models;
+using TangramXtgm.Cryptography;
+using TangramXtgm.Models;
+using TangramXtgm.Models.Messages;
+using TangramXtgm.Persistence;
+using Block = TangramXtgm.Models.Block;
+using BlockHeader = TangramXtgm.Models.BlockHeader;
+using Transaction = TangramXtgm.Models.Transaction;
 
-namespace CypherNetwork.Ledger;
+namespace TangramXtgm.Ledger;
 
 /// <summary>
 /// </summary>
 public interface IPPoS
 {
     public bool Running { get; }
-    Transaction Get(in byte[] transactionId);
+    Models.Transaction Get(in byte[] transactionId);
     int Count();
 }
 
@@ -40,7 +40,7 @@ public interface IPPoS
 /// </summary>
 internal record CoinStake
 {
-    public Transaction Transaction { get; init; }
+    public Models.Transaction Transaction { get; init; }
     public ulong Solution { get; init; }
     public uint Bits { get; init; }
 }
@@ -58,20 +58,20 @@ internal record Kernel
 /// </summary>
 public class PPoS : IPPoS, IDisposable
 {
-    private readonly ICypherSystemCore _cypherSystemCore;
+    private readonly ISystemCore _systemCore;
     private readonly ILogger _logger;
-    private readonly Caching<Transaction> _syncCacheTransactions = new();
+    private readonly Caching<Models.Transaction> _syncCacheTransactions = new();
     private readonly IDisposable _stakeDisposable;
     private bool _disposed;
     private int _running;
 
     /// <summary>
     /// </summary>
-    /// <param name="cypherSystemCore"></param>
+    /// <param name="systemCore"></param>
     /// <param name="logger"></param>
-    public PPoS(ICypherSystemCore cypherSystemCore, ILogger logger)
+    public PPoS(ISystemCore systemCore, ILogger logger)
     {
-        _cypherSystemCore = cypherSystemCore;
+        _systemCore = systemCore;
         _logger = logger.ForContext("SourceContext", nameof(PPoS));
         _stakeDisposable = Observable.Interval(TimeSpan.FromSeconds(LedgerConstant.BlockProposalTimeFromSeconds))
             .Subscribe(_ => { InitAsync().Wait(); });
@@ -85,7 +85,7 @@ public class PPoS : IPPoS, IDisposable
     /// </summary>
     /// <param name="transactionId"></param>
     /// <returns></returns>
-    public Transaction Get(in byte[] transactionId)
+    public Models.Transaction Get(in byte[] transactionId)
     {
         Guard.Argument(transactionId, nameof(transactionId)).NotNull().MaxCount(32);
         try
@@ -113,15 +113,15 @@ public class PPoS : IPPoS, IDisposable
     /// </summary>
     private async Task InitAsync()
     {
-        if (_cypherSystemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
-        var sync = _cypherSystemCore.Sync();
+        if (_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
+        var sync = _systemCore.Sync();
         if (sync.Running)
         {
             Thread.Sleep(TimeSpan.FromSeconds(LedgerConstant.WaitSyncTimeFromSeconds));
             return;
         }
 
-        if (!_cypherSystemCore.Node.Staking.Enabled)
+        if (!_systemCore.Node.Staking.Enabled)
         {
             Thread.Sleep(TimeSpan.FromSeconds(LedgerConstant.WaitPPoSEnabledTimeFromSeconds));
             return;
@@ -149,7 +149,7 @@ public class PPoS : IPPoS, IDisposable
 
             var kernel = await CreateKernelAsync(prevBlock.Hash, prevBlock.Height + 1);
             if (kernel is null) return;
-            if (_cypherSystemCore.Validator().VerifyKernel(kernel.CalculatedVrfSignature, kernel.Hash) !=
+            if (_systemCore.Validator().VerifyKernel(kernel.CalculatedVrfSignature, kernel.Hash) !=
                 VerifyResult.Succeed) return;
             _logger.Information("KERNEL <selected> for round [{@Round}]",
                 prevBlock.Height + 2); // prev round + current + next round
@@ -162,7 +162,7 @@ public class PPoS : IPPoS, IDisposable
             if (newBlock is null) return;
             var blockGraph = NewBlockGraph(in newBlock, in prevBlock);
             if (blockGraph is null) return;
-            var graph = _cypherSystemCore.Graph();
+            var graph = _systemCore.Graph();
             if (await graph.BlockHeightExistsAsync(new BlockHeightExistsRequest(newBlock.Height)) ==
                 VerifyResult.AlreadyExists) return;
             _logger.Information("Publishing... [BLOCKGRAPH]");
@@ -184,9 +184,9 @@ public class PPoS : IPPoS, IDisposable
     /// <summary>
     /// </summary>
     /// <returns></returns>
-    private async Task<Block> GetPreviousBlockAdjustedTimeAsUnixTimestampAsync()
+    private async Task<Models.Block> GetPreviousBlockAdjustedTimeAsUnixTimestampAsync()
     {
-        if (await _cypherSystemCore.Graph().GetPreviousBlockAsync() is not { } prevBlock) return null;
+        if (await _systemCore.Graph().GetPreviousBlockAsync() is not { } prevBlock) return null;
         return Helper.Util.GetAdjustedTimeAsUnixTimestamp(LedgerConstant.BlockProposalTimeFromSeconds) >
                prevBlock.BlockHeader.Locktime
             ? prevBlock
@@ -196,13 +196,13 @@ public class PPoS : IPPoS, IDisposable
     /// <summary>
     /// </summary>
     /// <returns></returns>
-    private ImmutableArray<Transaction> SortTransactions()
+    private ImmutableArray<Models.Transaction> SortTransactions()
     {
         var transactions = _syncCacheTransactions.GetItems();
-        if (transactions.Length == 0) return ImmutableArray<Transaction>.Empty;
+        if (transactions.Length == 0) return ImmutableArray<Models.Transaction>.Empty;
         if (transactions[0].Vtime == null) return transactions.ToArray().ToImmutableArray();
         var n = transactions.Length;
-        var aux = new Transaction[n];
+        var aux = new Models.Transaction[n];
         for (var i = 0; i < n; i++) aux[i] = transactions.ElementAt(n - 1 - i);
         return aux.ToImmutableArray();
     }
@@ -232,10 +232,10 @@ public class PPoS : IPPoS, IDisposable
     /// <returns></returns>
     private async Task<bool> BlockHeightSynchronizedAsync()
     {
-        var peers = await _cypherSystemCore.PeerDiscovery().GetDiscoveryAsync();
+        var peers = await _systemCore.PeerDiscovery().GetDiscoveryAsync();
         if (!peers.Any()) return true;
         var maxBlockHeight = peers.Max(x => x.BlockCount);
-        return _cypherSystemCore.UnitOfWork().HashChainRepository.Count >= maxBlockHeight;
+        return _systemCore.UnitOfWork().HashChainRepository.Count >= maxBlockHeight;
     }
 
     /// <summary>
@@ -246,30 +246,30 @@ public class PPoS : IPPoS, IDisposable
     private async Task<Kernel> CreateKernelAsync(byte[] prevBlockHash, ulong round)
     {
         Guard.Argument(prevBlockHash, nameof(prevBlockHash)).NotNull().NotEmpty().MaxCount(32);
-        var memPool = _cypherSystemCore.MemPool();
-        var verifiedTransactions = Array.Empty<Transaction>();
-        if (_syncCacheTransactions.Count < _cypherSystemCore.Node.Staking.MaxTransactionsPerBlock)
+        var memPool = _systemCore.MemPool();
+        var verifiedTransactions = Array.Empty<Models.Transaction>();
+        if (_syncCacheTransactions.Count < _systemCore.Node.Staking.MaxTransactionsPerBlock)
             verifiedTransactions = await memPool.GetVerifiedTransactionsAsync(
-                _cypherSystemCore.Node.Staking.MaxTransactionsPerBlock - _syncCacheTransactions.Count);
+                _systemCore.Node.Staking.MaxTransactionsPerBlock - _syncCacheTransactions.Count);
         var txsSize = 0;
         foreach (var transaction in verifiedTransactions)
         {
             txsSize += transaction.GetSize();
-            if (txsSize <= _cypherSystemCore.Node.Staking.MaxTransactionSizePerBlock)
+            if (txsSize <= _systemCore.Node.Staking.MaxTransactionSizePerBlock)
             {
                 _syncCacheTransactions.Add(transaction.TxnId, transaction);
             }
         }
         RemoveAnyDuplicateImageKeys();
         await RemoveAnyUnVerifiedTransactionsAsync();
-        if (_cypherSystemCore.Graph().HashTransactions(
+        if (_systemCore.Graph().HashTransactions(
                 new HashTransactionsRequest(SortTransactions().ToArray())) is not { } transactionsHash) return null;
-        var kernel = _cypherSystemCore.Validator().Kernel(prevBlockHash, transactionsHash, round);
-        var crypto = _cypherSystemCore.Crypto();
+        var kernel = _systemCore.Validator().Kernel(prevBlockHash, transactionsHash, round);
+        var crypto = _systemCore.Crypto();
         var calculatedVrfSignature = crypto.GetCalculateVrfSignature(
-            Curve.decodePrivatePoint(_cypherSystemCore.KeyPair.PrivateKey.FromSecureString().HexToByte()), kernel);
+            Curve.decodePrivatePoint(_systemCore.KeyPair.PrivateKey.FromSecureString().HexToByte()), kernel);
         var verifyVrfSignature = crypto.GetVerifyVrfSignature(
-            Curve.decodePoint(_cypherSystemCore.KeyPair.PublicKey, 0), kernel, calculatedVrfSignature);
+            Curve.decodePoint(_systemCore.KeyPair.PublicKey, 0), kernel, calculatedVrfSignature);
         _logger.Information("KERNEL <transactions>       [{@Count}]", Count());
         return new Kernel
         {
@@ -320,14 +320,14 @@ public class PPoS : IPPoS, IDisposable
     {
         Guard.Argument(kernel, nameof(kernel)).NotNull();
         _logger.Information("Begin...      [SOLUTION]");
-        var validator = _cypherSystemCore.Validator();
+        var validator = _systemCore.Validator();
         var solution = await validator.SolutionAsync(kernel.CalculatedVrfSignature, kernel.Hash).ConfigureAwait(false);
         if (solution == 0) return null;
-        var networkShare = validator.NetworkShare(solution, _cypherSystemCore.UnitOfWork().HashChainRepository.Count + 1);
+        var networkShare = validator.NetworkShare(solution, _systemCore.UnitOfWork().HashChainRepository.Count + 1);
         var bits = validator.Bits(solution, networkShare);
         _logger.Information("Begin...      [COINSTAKE]");
-        var walletTransaction = await _cypherSystemCore.Wallet()
-            .CreateTransactionAsync(bits, networkShare.ConvertToUInt64(), _cypherSystemCore.Node.Staking.RewardAddress);
+        var walletTransaction = await _systemCore.Wallet()
+            .CreateTransactionAsync(bits, networkShare.ConvertToUInt64(), _systemCore.Node.Staking.RewardAddress);
         if (walletTransaction.Transaction is not null)
             return new CoinStake { Bits = bits, Transaction = walletTransaction.Transaction, Solution = solution };
         _logger.Warning("Unable to create coinstake transaction: {@Message}", walletTransaction.Message);
@@ -339,14 +339,14 @@ public class PPoS : IPPoS, IDisposable
     /// <param name="block"></param>
     /// <param name="prevBlock"></param>
     /// <returns></returns>
-    private BlockGraph NewBlockGraph(in Block block, in Block prevBlock)
+    private BlockGraph NewBlockGraph(in Models.Block block, in Models.Block prevBlock)
     {
         Guard.Argument(block, nameof(block)).NotNull();
         Guard.Argument(prevBlock, nameof(prevBlock)).NotNull();
         _logger.Information("Begin...      [BLOCKGRAPH]");
         try
         {
-            var nodeIdentifier = _cypherSystemCore.KeyPair.PublicKey.ToHashIdentifier();
+            var nodeIdentifier = _systemCore.KeyPair.PublicKey.ToHashIdentifier();
             var nextData = block.Serialize();
             var nextDataHash = Hasher.Hash(nextData);
             var prevData = prevBlock.Serialize();
@@ -389,8 +389,8 @@ public class PPoS : IPPoS, IDisposable
     /// <param name="coinStake"></param>
     /// <param name="previousBlock"></param>
     /// <returns></returns>
-    private async Task<Block> NewBlockAsync(ImmutableArray<Transaction> transactions, Kernel kernel, CoinStake coinStake,
-        Block previousBlock)
+    private async Task<Models.Block> NewBlockAsync(ImmutableArray<Models.Transaction> transactions, Kernel kernel, CoinStake coinStake,
+        Models.Block previousBlock)
     {
         Guard.Argument(transactions, nameof(transactions)).NotEmpty();
         Guard.Argument(kernel, nameof(kernel)).NotNull();
@@ -407,11 +407,11 @@ public class PPoS : IPPoS, IDisposable
             if (nonce.Length == 0) return null;
             var merkelRoot = BlockHeader.ToMerkleRoot(previousBlock.BlockHeader.MerkleRoot, transactions);
             var lockTime = Helper.Util.GetAdjustedTimeAsUnixTimestamp(LedgerConstant.BlockProposalTimeFromSeconds);
-            var block = new Block
+            var block = new Models.Block
             {
                 Hash = new byte[32],
                 Height = previousBlock.Height + 1,
-                BlockHeader = new BlockHeader
+                BlockHeader = new Models.BlockHeader
                 {
                     Version = 2,
                     Height = previousBlock.Height + 1,
@@ -430,7 +430,7 @@ public class PPoS : IPPoS, IDisposable
                     Solution = coinStake.Solution,
                     VrfProof = kernel.CalculatedVrfSignature,
                     VrfSig = kernel.VerifiedVrfSignature,
-                    PublicKey = _cypherSystemCore.KeyPair.PublicKey
+                    PublicKey = _systemCore.KeyPair.PublicKey
                 },
                 Size = 1
             };
@@ -463,7 +463,7 @@ public class PPoS : IPPoS, IDisposable
         try
         {
             var sloth = new Sloth(LedgerConstant.SlothCancellationTimeoutFromMilliseconds,
-                _cypherSystemCore.ApplicationLifetime.ApplicationStopping);
+                _systemCore.ApplicationLifetime.ApplicationStopping);
             var nonce = await sloth.EvalAsync((int)coinStake.Bits, x);
             if (!string.IsNullOrEmpty(nonce)) nonceHash = nonce.ToBytes();
         }
@@ -481,7 +481,7 @@ public class PPoS : IPPoS, IDisposable
     /// <returns></returns>
     private async Task RemoveAnyUnVerifiedTransactionsAsync()
     {
-        var validator = _cypherSystemCore.Validator();
+        var validator = _systemCore.Validator();
         foreach (var transaction in _syncCacheTransactions.GetItems())
         {
             if (transaction.OutputType() == CoinType.Coinstake) continue;

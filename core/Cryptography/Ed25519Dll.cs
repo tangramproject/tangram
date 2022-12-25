@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace CypherNetwork.Interop;
+namespace TangramXtgm.Interop;
 
 /// <summary>
 /// ed25519-supercop

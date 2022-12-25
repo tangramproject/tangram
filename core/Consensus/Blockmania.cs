@@ -1,4 +1,4 @@
-﻿// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+﻿// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
@@ -9,14 +9,14 @@ using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using CypherNetwork.Consensus.Messages;
-using CypherNetwork.Consensus.Models;
-using CypherNetwork.Consensus.States;
-using CypherNetwork.Extensions;
+using TangramXtgm.Extensions;
 using Dawn;
 using Serilog;
+using TangramXtgm.Consensus.Messages;
+using TangramXtgm.Consensus.Models;
+using TangramXtgm.Consensus.States;
 
-namespace CypherNetwork.Consensus;
+namespace TangramXtgm.Consensus;
 
 using StateKV = Dictionary<StateData, object>;
 

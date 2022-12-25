@@ -1,4 +1,4 @@
-// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
@@ -7,18 +7,18 @@ using System.Collections.Generic;
 using System.Net;
 using System.Reactive.Linq;
 using System.Threading.Tasks;
-using CypherNetwork.Extensions;
-using CypherNetwork.Helper;
-using CypherNetwork.Models;
-using CypherNetwork.Models.Messages;
+using TangramXtgm.Extensions;
 using MessagePack;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IO;
 using nng;
 using nng.Native;
 using Serilog;
+using TangramXtgm.Helper;
+using TangramXtgm.Models;
+using TangramXtgm.Models.Messages;
 
-namespace CypherNetwork.Network;
+namespace TangramXtgm.Network;
 
 /// <summary>
 /// 
@@ -70,7 +70,7 @@ public interface IP2PDevice
 /// </summary>
 public sealed class P2PDevice : IP2PDevice, IDisposable
 {
-    private readonly ICypherSystemCore _cypherSystemCore;
+    private readonly ISystemCore _systemCore;
     private readonly ILogger _logger;
     private readonly IList<IDisposable> _disposables = new List<IDisposable>();
 
@@ -79,11 +79,11 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
 
     /// <summary>
     /// </summary>
-    /// <param name="cypherSystemCore"></param>
-    public P2PDevice(ICypherSystemCore cypherSystemCore)
+    /// <param name="systemCore"></param>
+    public P2PDevice(ISystemCore systemCore)
     {
-        _cypherSystemCore = cypherSystemCore;
-        using var serviceScope = _cypherSystemCore.ServiceScopeFactory.CreateScope();
+        _systemCore = systemCore;
+        using var serviceScope = _systemCore.ServiceScopeFactory.CreateScope();
         _logger = serviceScope.ServiceProvider.GetService<ILogger>()?.ForContext("SourceContext", nameof(P2PDevice));
         Init();
     }
@@ -106,9 +106,9 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
             length = BitConverter.ToInt32(msg[(prefixByteLength + publicKey.Length)..]);
             ReadOnlySpan<byte> cipher = msg[(prefixByteLength + publicKey.Length + prefixByteLength)..];
             if (cipher.Length != length) return Task.FromResult(new Message(new Memory<byte>(), Array.Empty<byte>()));
-            var result = _cypherSystemCore.Crypto().BoxSealOpen(cipher,
-                _cypherSystemCore.KeyPair.PrivateKey.FromSecureString().HexToByte(),
-                _cypherSystemCore.KeyPair.PublicKey.AsSpan()[1..33]);
+            var result = _systemCore.Crypto().BoxSealOpen(cipher,
+                _systemCore.KeyPair.PrivateKey.FromSecureString().HexToByte(),
+                _systemCore.KeyPair.PublicKey.AsSpan()[1..33]);
             var message = new Message(result, publicKey.ToArray());
             return Task.FromResult(message);
         }
@@ -124,12 +124,12 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
     /// </summary>
     private void Init()
     {
-        Util.ThrowPortNotFree(_cypherSystemCore.Node.Network.P2P.TcpPort);
-        _cypherSystemCore.Node.EndPoint.Port = _cypherSystemCore.Node.Network.P2P.TcpPort;
-        ListeningAsync(_cypherSystemCore.Node.EndPoint, Transport.Tcp, 5).ConfigureAwait(false);
-        Util.ThrowPortNotFree(_cypherSystemCore.Node.Network.P2P.WsPort);
-        _cypherSystemCore.Node.EndPoint.Port = _cypherSystemCore.Node.Network.P2P.WsPort;
-        ListeningAsync(_cypherSystemCore.Node.EndPoint, Transport.Ws, 1).ConfigureAwait(false);
+        Util.ThrowPortNotFree(_systemCore.Node.Network.P2P.TcpPort);
+        _systemCore.Node.EndPoint.Port = _systemCore.Node.Network.P2P.TcpPort;
+        ListeningAsync(_systemCore.Node.EndPoint, Transport.Tcp, 5).ConfigureAwait(false);
+        Util.ThrowPortNotFree(_systemCore.Node.Network.P2P.WsPort);
+        _systemCore.Node.EndPoint.Port = _systemCore.Node.Network.P2P.WsPort;
+        ListeningAsync(_systemCore.Node.EndPoint, Transport.Ws, 1).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -148,7 +148,7 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
                 var ctx = _repSocket.CreateAsyncContext(NngFactorySingleton.Instance.Factory).Unwrap();
                 _disposables.Add(Observable.Interval(TimeSpan.Zero).Subscribe(_ =>
                 {
-                    if (_cypherSystemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
+                    if (_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
                     try
                     {
                         WorkerAsync(ctx).Wait();
@@ -177,7 +177,7 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
         var nngResult = (await ctx.Receive()).Unwrap();
         try
         {
-            var message = await _cypherSystemCore.P2PDevice().DecryptAsync(nngResult);
+            var message = await _systemCore.P2PDevice().DecryptAsync(nngResult);
             if (message.Memory.Length == 0)
             {
                 await EmptyReplyAsync(ctx);
@@ -191,16 +191,16 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
                 {
                     var newMsg = NngFactorySingleton.Instance.Factory.CreateMessage();
                     var readOnlySequence =
-                        await _cypherSystemCore.P2PDeviceApi().Commands[(int)unwrapMessage.ProtocolCommand](
+                        await _systemCore.P2PDeviceApi().Commands[(int)unwrapMessage.ProtocolCommand](
                             unwrapMessage.Parameters);
 
-                    var cipher = _cypherSystemCore.Crypto().BoxSeal(
+                    var cipher = _systemCore.Crypto().BoxSeal(
                         readOnlySequence.IsSingleSegment ? readOnlySequence.First.Span : readOnlySequence.ToArray(),
                         message.PublicKey);
                     if (cipher.Length != 0)
                     {
                         await using var packetStream = Util.Manager.GetStream() as RecyclableMemoryStream;
-                        packetStream.Write(_cypherSystemCore.KeyPair.PublicKey[1..33].WrapLengthPrefix());
+                        packetStream.Write(_systemCore.KeyPair.PublicKey[1..33].WrapLengthPrefix());
                         packetStream.Write(cipher.WrapLengthPrefix());
                         foreach (var memory in packetStream.GetReadOnlySequence()) newMsg.Append(memory.Span);
                         (await ctx.Reply(newMsg)).Unwrap();

@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using Serilog;
 
-namespace CypherNetwork.Extensions;
+namespace TangramXtgm.Extensions;
 
 public static class LoggerExtensions
 {

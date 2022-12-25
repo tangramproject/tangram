@@ -1,4 +1,4 @@
-namespace CypherNetwork.Models;
+namespace TangramXtgm.Models;
 
 public record TransactionLeakRateConfigurationOption : ILeakRateConfigurationOption
 {

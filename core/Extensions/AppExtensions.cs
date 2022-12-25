@@ -1,4 +1,4 @@
-// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
@@ -9,22 +9,22 @@ using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using Autofac;
 using AutofacSerilogIntegration;
-using CypherNetwork.Cryptography;
-using CypherNetwork.Helper;
-using CypherNetwork.Ledger;
-using CypherNetwork.Models;
-using CypherNetwork.Network;
-using CypherNetwork.Persistence;
-using CypherNetwork.Services;
-using CypherNetwork.Wallet;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.DataProtection.XmlEncryption;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
+using TangramXtgm.Cryptography;
+using TangramXtgm.Helper;
+using TangramXtgm.Ledger;
+using TangramXtgm.Models;
+using TangramXtgm.Network;
+using TangramXtgm.Persistence;
+using TangramXtgm.Services;
+using TangramXtgm.Wallet;
 
-namespace CypherNetwork.Extensions;
+namespace TangramXtgm.Extensions;
 
 public static class AppExtensions
 {
@@ -42,7 +42,7 @@ public static class AppExtensions
     /// <param name="builder"></param>
     /// <param name="configuration"></param>
     /// <returns></returns>
-    public static ContainerBuilder AddCypherSystemCore(this ContainerBuilder builder, IConfiguration configuration)
+    public static ContainerBuilder AddSystemCore(this ContainerBuilder builder, IConfiguration configuration)
     {
         builder.Register(c =>
         {
@@ -103,15 +103,22 @@ public static class AppExtensions
             };
             foreach (var selection in remoteNodes.WithIndex())
             {
-                var endpoint = Util.GetIpEndPoint(selection.item.Value);
-                var endpointFromHost = Util.GetIpEndpointFromHostPort(endpoint.Address.ToString(), endpoint.Port);
-                node.Network.SeedList.Add($"{endpointFromHost.Address.ToString()}:{endpointFromHost.Port}");
+                try
+                {
+                    var endpoint = Util.GetIpEndPoint(selection.item.Value);
+                    var endpointFromHost = Util.GetIpEndpointFromHostPort(endpoint.Address.ToString(), endpoint.Port);
+                    node.Network.SeedList.Add($"{endpointFromHost.Address.ToString()}:{endpointFromHost.Port}");
+                }
+                catch (Exception)
+                {
+                    // Ignore
+                }
             }
 
-            var cypherSystemCore = new CypherSystemCore(c.Resolve<IHostApplicationLifetime>(),
+            var systemCore = new SystemCore(c.Resolve<IHostApplicationLifetime>(),
                 c.Resolve<IServiceScopeFactory>(), node, c.Resolve<ILogger>());
-            return cypherSystemCore;
-        }).As<ICypherSystemCore>().SingleInstance();
+            return systemCore;
+        }).As<ISystemCore>().SingleInstance();
         return builder;
     }
 

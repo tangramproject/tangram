@@ -1,14 +1,14 @@
-// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
-using CypherNetwork.Extensions;
-using CypherNetwork.Models;
+using TangramXtgm.Extensions;
+using TangramXtgm.Models;
 using libsignal.ecc;
 using NBitcoin.BouncyCastle.Math;
 using NUnit.Framework;
 
-namespace cypcore_test_unit.PoS;
+namespace xtgmcore_test_unit.PoS;
 
 public class DistributionTests
 {
@@ -35,7 +35,7 @@ public class DistributionTests
 
         for (var i = 0; i < 10; i++)
         {
-            var keyPair = CypherNetwork.Cryptography.Crypto.GenerateKeyPair();
+            var keyPair = TangramXtgm.Cryptography.Crypto.GenerateKeyPair();
             var hash = NBitcoin.Crypto.Hashes.DoubleSHA256(new byte[i]);
             var calculateVrfSignature =
                 Curve.calculateVrfSignature(Curve.decodePrivatePoint(keyPair.PrivateKey), hash.ToBytes(false));

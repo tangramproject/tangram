@@ -1,7 +1,7 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace CypherNetwork.Services;
+namespace TangramXtgm.Services;
 
 public class ServiceActivator
 {

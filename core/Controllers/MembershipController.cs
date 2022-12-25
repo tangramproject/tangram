@@ -1,30 +1,30 @@
-﻿// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+﻿// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using CypherNetwork.Extensions;
+using TangramXtgm.Extensions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
 
-namespace CypherNetwork.Controllers;
+namespace TangramXtgm.Controllers;
 
 [Route("member")]
 [ApiController]
 public class MembershipController : Controller
 {
-    private readonly ICypherSystemCore _cypherNetworkCore;
+    private readonly ISystemCore _systemCore;
     private readonly ILogger _logger;
 
     /// <summary>
     /// </summary>
-    /// <param name="cypherNetworkCore"></param>
+    /// <param name="systemCore"></param>
     /// <param name="logger"></param>
-    public MembershipController(ICypherSystemCore cypherNetworkCore, ILogger logger)
+    public MembershipController(ISystemCore systemCore, ILogger logger)
     {
-        _cypherNetworkCore = cypherNetworkCore;
+        _systemCore = systemCore;
         _logger = logger.ForContext("SourceContext", nameof(MembershipController));
     }
 
@@ -38,7 +38,7 @@ public class MembershipController : Controller
     {
         try
         {
-            var peer = _cypherNetworkCore.PeerDiscovery().GetLocalPeer();
+            var peer = _systemCore.PeerDiscovery().GetLocalPeer();
             return new ObjectResult(new
             {
                 IPAddress = peer.IpAddress.FromBytes(),
@@ -72,7 +72,7 @@ public class MembershipController : Controller
     {
         try
         {
-            var peers = await _cypherNetworkCore.PeerDiscovery().GetDiscoveryAsync();
+            var peers = await _systemCore.PeerDiscovery().GetDiscoveryAsync();
             return new ObjectResult(peers.Select(peer => new
             {
                 IPAddress = peer.IpAddress.FromBytes(),
@@ -106,7 +106,7 @@ public class MembershipController : Controller
     {
         try
         {
-            return new ObjectResult(new { count = _cypherNetworkCore.PeerDiscovery().Count() });
+            return new ObjectResult(new { count = _systemCore.PeerDiscovery().Count() });
         }
         catch (Exception ex)
         {

@@ -2,7 +2,7 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 
-namespace CypherNetwork.Helper;
+namespace TangramXtgm.Helper;
 
 /// <summary>
 /// Extension methods on <see cref="System.Net.IPAddress"/>.

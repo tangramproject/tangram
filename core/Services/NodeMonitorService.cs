@@ -1,12 +1,12 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using CypherNetwork.Extensions;
-using CypherNetwork.Helper;
+using TangramXtgm.Extensions;
 using Microsoft.Extensions.Hosting;
 using Serilog;
+using TangramXtgm.Helper;
 
-namespace CypherNetwork.Services;
+namespace TangramXtgm.Services;
 
 public class NodeMonitorService : BackgroundService
 {

@@ -1,4 +1,4 @@
-﻿// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+﻿// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
@@ -13,10 +13,10 @@ using System.Runtime.InteropServices;
 using System.Security;
 using System.Threading.Tasks;
 using Blake3;
-using CypherNetwork.Extensions;
+using TangramXtgm.Extensions;
 using Microsoft.IO;
 
-namespace CypherNetwork.Helper;
+namespace TangramXtgm.Helper;
 
 /// <summary>
 /// </summary>
@@ -425,7 +425,7 @@ public static class Util
 
         private static string SystemDefaultLinux()
         {
-            return Path.Combine("/etc", "cypher-network", "cypher", AppSettingsFilename);
+            return Path.Combine("/etc", "xtgm", "tangram", AppSettingsFilename);
         }
 
         private static string SystemDefaultMacOs()

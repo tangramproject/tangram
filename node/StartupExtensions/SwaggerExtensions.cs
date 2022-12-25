@@ -1,10 +1,10 @@
-﻿// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+﻿// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace CypherNetworkNode.StartupExtensions;
+namespace TangramXtgmNode.StartupExtensions;
 
 public static class SwaggerExtensions
 {
@@ -22,15 +22,15 @@ public static class SwaggerExtensions
                 License = new Microsoft.OpenApi.Models.OpenApiLicense
                 {
                     Name = "Attribution-NonCommercial-NoDerivatives 4.0 International",
-                    Url = new Uri("https://raw.githubusercontent.com/tangramproject/Tangram.Cypher/initial/LICENSE")
+                    Url = new Uri("https://raw.githubusercontent.com/tangramproject/tangram/initial/LICENSE")
                 },
-                Title = "CYP Node API",
-                Version = CypherNetwork.Helper.Util.GetAssemblyVersion(),
-                Description = "Cypher is an early, unaudited, and unrefined release of Tangram. Cypher will serve as a testing ground, allowing teams and developers to build and deploy nodes, send and receive transactions.",
-                TermsOfService = new Uri("https://cypherpunks.network/home/privacy/"),
+                Title = "XTGM Node API",
+                Version = TangramXtgm.Helper.Util.GetAssemblyVersion(),
+                Description = "Tangram is an early, unaudited, and unrefined release of Cypher. Cypher will serve as a testing ground, allowing teams and developers to build and deploy nodes, send and receive transactions.",
+                TermsOfService = new Uri("https://tangram.network/home/privacy/"),
                 Contact = new Microsoft.OpenApi.Models.OpenApiContact
                 {
-                    Url = new Uri("https://cypherpunks.network/")
+                    Url = new Uri("https://tangram.network/")
                 }
             });
         });

@@ -1,13 +1,13 @@
-﻿// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+﻿// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System.Text;
 using Blake3;
-using CypherNetwork.Extensions;
-using CypherNetwork.Helper;
+using TangramXtgm.Extensions;
 using Newtonsoft.Json;
+using TangramXtgm.Helper;
 
-namespace CypherNetwork.Models;
+namespace TangramXtgm.Models;
 
 [MessagePack.MessagePackObject]
 public record Interpreted

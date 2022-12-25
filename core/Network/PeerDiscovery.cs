@@ -1,4 +1,4 @@
-// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
@@ -8,10 +8,7 @@ using System.Net;
 using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using CypherNetwork.Extensions;
-using CypherNetwork.Helper;
-using CypherNetwork.Models;
-using CypherNetwork.Persistence;
+using TangramXtgm.Extensions;
 using MessagePack;
 using Microsoft.Toolkit.HighPerformance;
 using NBitcoin;
@@ -19,8 +16,11 @@ using Nerdbank.Streams;
 using Serilog;
 using nng;
 using nng.Native;
+using TangramXtgm.Helper;
+using TangramXtgm.Models;
+using TangramXtgm.Persistence;
 
-namespace CypherNetwork.Network;
+namespace TangramXtgm.Network;
 
 public interface IPeerDiscovery
 {
@@ -66,7 +66,7 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     private const int ReceiveWaitTimeMilliseconds = 1000;
     private readonly Caching<Peer> _caching = new();
     private readonly Caching<PeerCooldown> _peerCooldownCaching = new();
-    private readonly ICypherSystemCore _cypherSystemCore;
+    private readonly ISystemCore _systemCore;
     private readonly ILogger _logger;
     private IDisposable _discoverDisposable;
     private IDisposable _receiverDisposable;
@@ -83,11 +83,11 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
 
     /// <summary>
     /// </summary>
-    /// <param name="cypherNetworkCore"></param>
+    /// <param name="systemCore"></param>
     /// <param name="logger"></param>
-    public PeerDiscovery(ICypherSystemCore cypherNetworkCore, ILogger logger)
+    public PeerDiscovery(ISystemCore systemCore, ILogger logger)
     {
-        _cypherSystemCore = cypherNetworkCore;
+        _systemCore = systemCore;
         _logger = logger;
         Init();
     }
@@ -131,10 +131,10 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     /// </summary>
     private void UpdateLocalPeerInfo()
     {
-        _localPeer.BlockCount = _cypherSystemCore.UnitOfWork().HashChainRepository.Count;
+        _localPeer.BlockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
         _localPeer.Timestamp = Util.GetAdjustedTimeAsUnixTimestamp();
-        _localPeer.Signature = _cypherSystemCore.Crypto().Sign(
-            _cypherSystemCore.KeyPair.PrivateKey.FromSecureString().HexToByte(), _localPeer.Timestamp.ToBytes());
+        _localPeer.Signature = _systemCore.Crypto().Sign(
+            _systemCore.KeyPair.PrivateKey.FromSecureString().HexToByte(), _localPeer.Timestamp.ToBytes());
     }
 
     /// <summary>
@@ -173,15 +173,15 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     {
         _localNode = new LocalNode
         {
-            IpAddress = _cypherSystemCore.Node.EndPoint.Address.ToString().ToBytes(),
-            Identifier = _cypherSystemCore.KeyPair.PublicKey.ToHashIdentifier(),
-            TcpPort = _cypherSystemCore.Node.Network.P2P.TcpPort.ToBytes(),
-            WsPort = _cypherSystemCore.Node.Network.P2P.WsPort.ToBytes(),
-            DsPort = _cypherSystemCore.Node.Network.P2P.DsPort.ToBytes(),
-            HttpPort = _cypherSystemCore.Node.Network.HttpPort.ToBytes(),
-            HttpsPort = _cypherSystemCore.Node.Network.HttpsPort.ToBytes(),
-            Name = _cypherSystemCore.Node.Name.ToBytes(),
-            PublicKey = _cypherSystemCore.KeyPair.PublicKey,
+            IpAddress = _systemCore.Node.EndPoint.Address.ToString().ToBytes(),
+            Identifier = _systemCore.KeyPair.PublicKey.ToHashIdentifier(),
+            TcpPort = _systemCore.Node.Network.P2P.TcpPort.ToBytes(),
+            WsPort = _systemCore.Node.Network.P2P.WsPort.ToBytes(),
+            DsPort = _systemCore.Node.Network.P2P.DsPort.ToBytes(),
+            HttpPort = _systemCore.Node.Network.HttpPort.ToBytes(),
+            HttpsPort = _systemCore.Node.Network.HttpsPort.ToBytes(),
+            Name = _systemCore.Node.Name.ToBytes(),
+            PublicKey = _systemCore.KeyPair.PublicKey,
             Version = Util.GetAssemblyVersion().ToBytes()
         };
         _localPeer = new Peer
@@ -197,8 +197,8 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
             PublicKey = _localNode.PublicKey,
             Version = _localNode.Version
         };
-        _seedNodes = new RemoteNode[_cypherSystemCore.Node.Network.SeedList.Count];
-        foreach (var seedNode in _cypherSystemCore.Node.Network.SeedList.WithIndex())
+        _seedNodes = new RemoteNode[_systemCore.Node.Network.SeedList.Count];
+        foreach (var seedNode in _systemCore.Node.Network.SeedList.WithIndex())
         {
             var endpoint = Util.GetIpEndPoint(seedNode.item);
             _seedNodes[seedNode.index] = new RemoteNode(endpoint.Address.ToString().ToBytes(), endpoint.Port.ToBytes(), null);
@@ -213,9 +213,9 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     /// </summary>
     private Task DiscoverAsync()
     {
-        Util.ThrowPortNotFree(_cypherSystemCore.Node.Network.P2P.DsPort);
-        var ipEndPoint = new IPEndPoint(_cypherSystemCore.Node.EndPoint.Address,
-            _cypherSystemCore.Node.Network.P2P.DsPort);
+        Util.ThrowPortNotFree(_systemCore.Node.Network.P2P.DsPort);
+        var ipEndPoint = new IPEndPoint(_systemCore.Node.EndPoint.Address,
+            _systemCore.Node.Network.P2P.DsPort);
         _socket = NngFactorySingleton.Instance.Factory.SurveyorOpen()
             .ThenListen($"tcp://{ipEndPoint.Address}:{ipEndPoint.Port}", Defines.NngFlag.NNG_FLAG_NONBLOCK).Unwrap();
         _socket.SetOpt(Defines.NNG_OPT_RECVMAXSZ, 5000000);
@@ -224,7 +224,7 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
             new nng_duration { TimeMs = SurveyorWaitTimeMilliseconds });
         _discoverDisposable = Observable.Timer(TimeSpan.Zero, TimeSpan.FromMilliseconds(1000)).Subscribe(_ =>
         {
-            if (_cypherSystemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
+            if (_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
             StartWorkerAsync(_ctx).Wait();
         });
 
@@ -264,7 +264,7 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     {
         _receiverDisposable = Observable.Timer(TimeSpan.FromMilliseconds(5000), TimeSpan.FromMilliseconds(1000)).Subscribe(t =>
         {
-            if (_cypherSystemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
+            if (_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
             if (!Monitor.TryEnter(LockOnReady)) return;
             try
             {
@@ -449,7 +449,7 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
 #if !DEBUG
             if (!IsAcceptedAddress(peer.IpAddress)) return;
 #endif
-            if (!_cypherSystemCore.Crypto()
+            if (!_systemCore.Crypto()
                     .VerifySignature(peer.PublicKey, peer.Timestamp.ToBytes(), peer.Signature)) continue;
             var key = GetKey(peer.ClientId, peer.IpAddress);
             if (!_caching.TryGet(key, out var cachedPeer) && _peerCooldownCaching[key].IsDefault())
@@ -523,7 +523,7 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     {
         _coolDownDisposable = Observable.Interval(TimeSpan.FromMinutes(30)).Subscribe(_ =>
         {
-            if (_cypherSystemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
+            if (_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
             try
             {
                 var removePeerCooldownBeforeTimestamp = Util.GetUtcNow().AddMinutes(-30).ToUnixTimestamp();

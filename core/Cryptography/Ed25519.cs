@@ -1,6 +1,6 @@
-﻿using CypherNetwork.Interop;
+﻿using TangramXtgm.Interop;
 
-namespace CypherNetwork.Cryptography;
+namespace TangramXtgm.Cryptography;
 
 /// <summary>
 /// ed25519-supercop

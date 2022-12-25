@@ -1,4 +1,4 @@
-﻿// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+﻿// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
@@ -12,13 +12,13 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
 using Autofac.Extensions.DependencyInjection;
 using Serilog;
-using CypherNetwork.Helper;
-using CypherNetwork.Models;
-using CypherNetworkNode.Configuration;
+using TangramXtgm.Helper;
+using TangramXtgm.Models;
 using Microsoft.AspNetCore.DataProtection.XmlEncryption;
+using TangramXtgmNode.Configuration;
 using Log = Serilog.Log;
 
-namespace CypherNetworkNode;
+namespace TangramXtgmNode;
 
 public static class Program
 {
@@ -73,18 +73,19 @@ public static class Program
                 throw new Exception($"No \"{logSectionName}\" section found in appsettings.json");
             }
 
-            Console.ForegroundColor = ConsoleColor.DarkMagenta;
+            Console.ForegroundColor = ConsoleColor.Magenta;
             Console.WriteLine(@$"
-   ______               __                                      __        
-  / ____/__  __ ____   / /_   ___   _____ ____   __  __ ____   / /__ _____
- / /    / / / // __ \ / __ \ / _ \ / ___// __ \ / / / // __ \ / //_// ___/
-/ /___ / /_/ // /_/ // / / //  __// /   / /_/ // /_/ // / / // ,<  (__  ) 
-\____/ \__, // .___//_/ /_/ \___//_/   / .___/ \__,_//_/ /_//_/|_|/____/  
-      /____//_/                       /_/         write code: v{Util.GetAssemblyVersion()} RC2");
-
+                  _______                                       __   _   __   _________ _____ __  __  __  
+                 |__   __|                                     / /  | |  \ \ / /__   __/ ____|  \/  | \ \ 
+                    | | __ _ _ __   __ _ _ __ __ _ _ __ ___   | |  / __)  \ V /   | | | |  __| \  / |  | |
+                    | |/ _` | '_ \ / _` | '__/ _` | '_ ` _ \  | |  \__ \   > <    | | | | |_ | |\/| |  | |
+                    | | (_| | | | | (_| | | | (_| | | | | | | | |  (   /  / . \   | | | |__| | |  | |  | |
+                    |_|\__,_|_| |_|\__, |_|  \__,_|_| |_| |_| | |   |_|  /_/ \_\  |_|  \_____|_|  |_|  | |
+                                    __/ |                      \_\                                    /_/ 
+                                   |___/                                   v{Util.GetAssemblyVersion()} {config.GetSection("Node:Network:Environment").Value}");
             Console.WriteLine();
             Console.ResetColor();
-            Log.Information("Starting Cypher...");
+            Log.Information("Starting Tangram...");
             Log.Information("Process ID: {@Message}", Environment.ProcessId);
             var builder = CreateWebHostBuilder(args, config);
 

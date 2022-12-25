@@ -3,11 +3,11 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using CypherNetwork.Extensions;
-using CypherNetwork.Models;
+using TangramXtgm.Extensions;
 using Serilog;
+using TangramXtgm.Models;
 
-namespace CypherNetwork.Helper;
+namespace TangramXtgm.Helper;
 
 public interface INodeMonitor
 {

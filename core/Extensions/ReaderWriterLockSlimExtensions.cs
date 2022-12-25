@@ -1,7 +1,7 @@
 using System;
 using System.Threading;
 
-namespace CypherNetwork.Extensions;
+namespace TangramXtgm.Extensions;
 
 public static class ReaderWriterLockSlimExtensions
 {

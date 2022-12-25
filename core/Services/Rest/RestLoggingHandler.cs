@@ -1,10 +1,10 @@
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using CypherNetwork.Extensions;
+using TangramXtgm.Extensions;
 using Serilog;
 
-namespace CypherNetwork.Services.Rest;
+namespace TangramXtgm.Services.Rest;
 
 public class RestLoggingHandler : DelegatingHandler
 {

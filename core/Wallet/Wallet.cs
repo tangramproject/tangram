@@ -1,14 +1,11 @@
-// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using CypherNetwork.Extensions;
-using CypherNetwork.Helper;
-using CypherNetwork.Models;
-using CypherNetwork.Wallet.Models;
+using TangramXtgm.Extensions;
 using Dawn;
 using Libsecp256k1Zkp.Net;
 using libsignal.util;
@@ -17,10 +14,13 @@ using NBitcoin;
 using NBitcoin.Stealth;
 using Newtonsoft.Json.Linq;
 using Serilog;
-using Transaction = CypherNetwork.Models.Transaction;
+using TangramXtgm.Helper;
+using TangramXtgm.Models;
+using TangramXtgm.Wallet.Models;
+using Transaction = TangramXtgm.Models.Transaction;
 using Util = Libsecp256k1Zkp.Net.Util;
 
-namespace CypherNetwork.Wallet;
+namespace TangramXtgm.Wallet;
 
 /// <summary>
 /// </summary>
@@ -41,10 +41,10 @@ public struct Balance
 /// </summary>
 public struct WalletTransaction
 {
-    public readonly Transaction Transaction;
+    public readonly TangramXtgm.Models.Transaction Transaction;
     public readonly string Message;
 
-    public WalletTransaction(Transaction transaction, string message)
+    public WalletTransaction(TangramXtgm.Models.Transaction transaction, string message)
     {
         Transaction = transaction;
         Message = message;
@@ -56,19 +56,19 @@ public struct WalletTransaction
 public class NodeWallet : INodeWallet
 {
     private const string HardwarePath = "m/44'/847177'/0'/0/";
-    private readonly ICypherSystemCore _cypherSystemCore;
+    private readonly ISystemCore _systemCore;
     private readonly ILogger _logger;
     private readonly NBitcoin.Network _network;
 
     /// <summary>
     /// </summary>
-    /// <param name="cypherSystemCore"></param>
+    /// <param name="systemCore"></param>
     /// <param name="logger"></param>
-    public NodeWallet(ICypherSystemCore cypherSystemCore, ILogger logger)
+    public NodeWallet(ISystemCore systemCore, ILogger logger)
     {
-        _cypherSystemCore = cypherSystemCore;
+        _systemCore = systemCore;
         _logger = logger;
-        _network = cypherSystemCore.Node.Network.Environment == Node.Mainnet
+        _network = systemCore.Node.Network.Environment == Node.Mainnet
             ? NBitcoin.Network.Main
             : NBitcoin.Network.TestNet;
     }
@@ -86,7 +86,7 @@ public class NodeWallet : INodeWallet
         Guard.Argument(address, nameof(address)).NotNull().NotEmpty().NotWhiteSpace();
         try
         {
-            var session = _cypherSystemCore.WalletSession();
+            var session = _systemCore.WalletSession();
             if (session.KeySet is null) return new WalletTransaction(default, "Node wallet login required");
             if (session.CacheTransactions.Count == 0)
                 return new WalletTransaction(default, "Node wallet payments required");
@@ -107,7 +107,7 @@ public class NodeWallet : INodeWallet
                 return new WalletTransaction(default, "The stake amount exceeds the available commitment amount");
             var (transaction, message) = RingConfidentialTransaction(session);
             if (transaction.IsDefault()) return new WalletTransaction(default, message);
-            var validator = _cypherSystemCore.Validator();
+            var validator = _systemCore.Validator();
             var verifyOutputCommitments = await validator.VerifyCommitmentOutputsAsync(transaction);
             var verifyKeyImage = await validator.VerifyKeyImageNotExistsAsync(transaction);
             if (verifyOutputCommitments == VerifyResult.CommitmentNotFound ||
@@ -148,7 +148,7 @@ public class NodeWallet : INodeWallet
     {
         try
         {
-            var session = _cypherSystemCore.WalletSession();
+            var session = _systemCore.WalletSession();
             var keySet = session.KeySet;
             var masterKey = MasterKey(MessagePackSerializer.Deserialize<KeySet>(keySet.FromSecureString().HexToByte()));
             var spendKey = masterKey.Derive(new KeyPath($"{HardwarePath}0")).PrivateKey;
@@ -212,7 +212,7 @@ public class NodeWallet : INodeWallet
         var balances = new List<Balance>();
         try
         {
-            var session = _cypherSystemCore.WalletSession();
+            var session = _systemCore.WalletSession();
             var (_, scan) = Unlock();
             var outputs = session.CacheTransactions.GetItems()
                 .Where(x => !session.CacheConsumed.GetItems().Any(c => x.C.Xor(c.Commit))).ToArray();
@@ -249,7 +249,7 @@ public class NodeWallet : INodeWallet
         using var mlsag = new MLSAG();
         var imageKey = mlsag.ToKeyImage(oneTimeSpendKey.ToHex().HexToByte(), oneTimeSpendKey.PubKey.ToBytes());
         var result = AsyncHelper.RunSync(async () =>
-            await _cypherSystemCore.Validator().VerifyKeyImageNotExistsAsync(imageKey));
+            await _systemCore.Validator().VerifyKeyImageNotExistsAsync(imageKey));
         if (result != VerifyResult.Succeed) session.CacheTransactions.Remove(output.C);
         return result != VerifyResult.Succeed;
     }
@@ -257,7 +257,7 @@ public class NodeWallet : INodeWallet
     /// <summary>
     /// </summary>
     /// <returns></returns>
-    private Tuple<Transaction, string> RingConfidentialTransaction(IWalletSession session)
+    private Tuple<TangramXtgm.Models.Transaction, string> RingConfidentialTransaction(IWalletSession session)
     {
         using var secp256K1 = new Secp256k1();
         using var pedersen = new Pedersen();
@@ -278,27 +278,27 @@ public class NodeWallet : INodeWallet
         var blindSum = new byte[32];
         var pkIn = new Span<byte[]>(new byte[nCols * 1][]);
         m = RingMembers(ref session, blinds, sk, nRows, nCols, index, m, pcmIn, pkIn);
-        if (m == null) return new Tuple<Transaction, string>(default, "Unable to create ring members");
+        if (m == null) return new Tuple<TangramXtgm.Models.Transaction, string>(default, "Unable to create ring members");
         blinds[1] = pedersen.BlindSwitch(session.Amount, secp256K1.CreatePrivateKey());
         blinds[2] = pedersen.BlindSwitch(session.Change, secp256K1.CreatePrivateKey());
         pcmOut[0] = pedersen.Commit(session.Amount, blinds[1]);
         pcmOut[1] = pedersen.Commit(session.Change, blinds[2]);
         var commitSumBalance = pedersen.CommitSum(new List<byte[]> { pcmOut[0], pcmOut[1] }, new List<byte[]>());
         if (!pedersen.VerifyCommitSum(new List<byte[]> { commitSumBalance }, new List<byte[]> { pcmOut[0], pcmOut[1] }))
-            return new Tuple<Transaction, string>(default, "Verify commit sum failed");
+            return new Tuple<TangramXtgm.Models.Transaction, string>(default, "Verify commit sum failed");
 
         var bulletChange = BulletProof(session.Change, blinds[2], pcmOut[1]);
-        if (!bulletChange.Success) return new Tuple<Transaction, string>(default, bulletChange.Exception.Message);
+        if (!bulletChange.Success) return new Tuple<TangramXtgm.Models.Transaction, string>(default, bulletChange.Exception.Message);
 
         var success = mlsag.Prepare(m, blindSum, pcmOut.Length, pcmOut.Length, nCols, nRows, pcmIn, pcmOut, blinds);
-        if (!success) return new Tuple<Transaction, string>(default, "MLSAG Prepare failed");
+        if (!success) return new Tuple<TangramXtgm.Models.Transaction, string>(default, "MLSAG Prepare failed");
 
         sk[nRows - 1] = blindSum;
         success = mlsag.Generate(ki, pc, ss, randSeed, preimage, nCols, nRows, index, sk, m);
-        if (!success) return new Tuple<Transaction, string>(default, "MLSAG Generate failed");
+        if (!success) return new Tuple<TangramXtgm.Models.Transaction, string>(default, "MLSAG Generate failed");
 
         success = mlsag.Verify(preimage, nCols, nRows, m, ki, pc, ss);
-        if (!success) return new Tuple<Transaction, string>(default, "MLSAG Verify failed");
+        if (!success) return new Tuple<TangramXtgm.Models.Transaction, string>(default, "MLSAG Verify failed");
 
         var offsets = Offsets(pcmIn, nCols);
         var generateTransaction = GenerateTransaction(ref session, m, nCols, pcmOut, blinds, preimage, pc, ki, ss,
@@ -307,9 +307,9 @@ public class NodeWallet : INodeWallet
         session.Reward = 0;
         session.Change = 0;
         return !generateTransaction.Success
-            ? new Tuple<Transaction, string>(default,
+            ? new Tuple<TangramXtgm.Models.Transaction, string>(default,
                 $"Unable to create the transaction. Inner error message {generateTransaction.NonSuccessMessage.message}")
-            : new Tuple<Transaction, string>(generateTransaction.Value, null);
+            : new Tuple<TangramXtgm.Models.Transaction, string>(generateTransaction.Value, null);
     }
 
     /// <summary>
@@ -375,7 +375,7 @@ public class NodeWallet : INodeWallet
                                        let vtime = tx.Vtime
                                        where !vtime.IsDefault()
                                        let verifyLockTime =
-                                           _cypherSystemCore.Validator()
+                                           _systemCore.Validator()
                                                .VerifyLockTime(new LockTime(Utils.UnixTimeToDateTime(tx.Vtime.L)), tx.Vtime.S)
                                        where verifyLockTime != VerifyResult.UnableToVerify
                                        select tx).ToArray();
@@ -425,7 +425,7 @@ public class NodeWallet : INodeWallet
     /// <param name="bp"></param>
     /// <param name="offsets"></param>
     /// <returns></returns>
-    private TaskResult<Transaction> GenerateTransaction(ref IWalletSession session, byte[] m, int nCols,
+    private TaskResult<TangramXtgm.Models.Transaction> GenerateTransaction(ref IWalletSession session, byte[] m, int nCols,
         Span<byte[]> pcmOut, Span<byte[]> blinds, byte[] preimage, byte[] pc, byte[] ki, byte[] ss, byte[] bp,
         byte[] offsets)
     {
@@ -442,7 +442,7 @@ public class NodeWallet : INodeWallet
         {
             var (outPkPayment, stealthPayment) = StealthPayment(session.RecipientAddress);
             var (outPkChange, stealthChange) = StealthPayment(session.RecipientAddress);
-            var tx = new Transaction
+            var tx = new TangramXtgm.Models.Transaction
             {
                 Bp = new[] { new Bp { Proof = bp } },
                 Mix = nCols,
@@ -501,12 +501,12 @@ public class NodeWallet : INodeWallet
                 });
             tx.Vout = vOutput.ToArray();
             tx.TxnId = tx.ToHash();
-            return TaskResult<Transaction>.CreateSuccess(tx);
+            return TaskResult<TangramXtgm.Models.Transaction>.CreateSuccess(tx);
         }
         catch (Exception ex)
         {
             _logger.Error("{@Message}", ex.Message);
-            return TaskResult<Transaction>.CreateFailure(JObject.FromObject(new
+            return TaskResult<TangramXtgm.Models.Transaction>.CreateFailure(JObject.FromObject(new
             {
                 success = false,
                 message = ex.Message
@@ -520,7 +520,7 @@ public class NodeWallet : INodeWallet
     /// <returns></returns>
     private byte[] ShortPublicKey()
     {
-        return _cypherSystemCore.PeerDiscovery().GetLocalNode().PublicKey[..6];
+        return _systemCore.PeerDiscovery().GetLocalNode().PublicKey[..6];
     }
 
     /// <summary>

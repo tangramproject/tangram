@@ -1,4 +1,4 @@
-﻿// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+﻿// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
@@ -7,18 +7,18 @@ using System.Linq;
 using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using CypherNetwork.Extensions;
-using CypherNetwork.Models;
-using CypherNetwork.Models.Messages;
-using CypherNetwork.Network;
+using TangramXtgm.Extensions;
 using Dawn;
 using libsignal.util;
 using MessagePack;
 using Serilog;
 using Spectre.Console;
-using Block = CypherNetwork.Models.Block;
+using TangramXtgm.Models;
+using TangramXtgm.Models.Messages;
+using TangramXtgm.Network;
+using Block = TangramXtgm.Models.Block;
 
-namespace CypherNetwork.Ledger;
+namespace TangramXtgm.Ledger;
 
 /// <summary>
 /// </summary>
@@ -32,7 +32,7 @@ public interface ISync
 public class Sync : ISync, IDisposable
 {
     private const int RetryCount = 6;
-    private readonly ICypherSystemCore _cypherSystemCore;
+    private readonly ISystemCore _systemCore;
     private readonly ILogger _logger;
     private IDisposable _disposableInit;
 
@@ -43,11 +43,11 @@ public class Sync : ISync, IDisposable
 
     /// <summary>
     /// </summary>
-    /// <param name="cypherSystemCore"></param>
+    /// <param name="systemCore"></param>
     /// <param name="logger"></param>
-    public Sync(ICypherSystemCore cypherSystemCore, ILogger logger)
+    public Sync(ISystemCore systemCore, ILogger logger)
     {
-        _cypherSystemCore = cypherSystemCore;
+        _systemCore = systemCore;
         _logger = logger.ForContext("SourceContext", nameof(Sync));
         Init();
     }
@@ -58,9 +58,9 @@ public class Sync : ISync, IDisposable
     /// </summary>
     private void Init()
     {
-        _disposableInit = Observable.Timer(TimeSpan.Zero, TimeSpan.FromMinutes(_cypherSystemCore.Node.Network.AutoSyncEveryMinutes)).Subscribe(_ =>
+        _disposableInit = Observable.Timer(TimeSpan.Zero, TimeSpan.FromMinutes(_systemCore.Node.Network.AutoSyncEveryMinutes)).Subscribe(_ =>
         {
-            if (_cypherSystemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
+            if (_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
             try
             {
                 if (Running) return;
@@ -85,18 +85,18 @@ public class Sync : ISync, IDisposable
         _logger.Information("Begin... [SYNCHRONIZATION]");
         try
         {
-            var blockCount = _cypherSystemCore.UnitOfWork().HashChainRepository.Count;
+            var blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
             _logger.Information("OPENING block height [{@Height}]", blockCount);
             var currentRetry = 0;
             for (; ; )
             {
-                if (_cypherSystemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
+                if (_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
                 var hasAny = await WaitForPeersAsync(currentRetry, RetryCount);
                 if (hasAny) break;
                 currentRetry++;
             }
 
-            var peers = _cypherSystemCore.PeerDiscovery().GetDiscoveryStore().Where(x => x.BlockCount > blockCount).ToArray();
+            var peers = _systemCore.PeerDiscovery().GetDiscoveryStore().Where(x => x.BlockCount > blockCount).ToArray();
             if (peers.Any() != true) return;
             peers.Shuffle();
             var maxBlockHeight = peers.Max(x => (long)x.BlockCount);
@@ -112,7 +112,7 @@ public class Sync : ISync, IDisposable
                     take = (int)(maxBlockHeight - (long)blockCount) + (int)blockCount;
                 }
                 SynchronizeAsync(peer, skip, take).Wait();
-                blockCount = _cypherSystemCore.UnitOfWork().HashChainRepository.Count;
+                blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
                 _logger.Information("Local block height ({@LocalHeight})", blockCount);
                 if (blockCount == (ulong)maxBlockHeight) break;
             }
@@ -124,11 +124,11 @@ public class Sync : ISync, IDisposable
         finally
         {
             Interlocked.Exchange(ref _running, 0);
-            var blockCount = _cypherSystemCore.UnitOfWork().HashChainRepository.Count;
+            var blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
             _logger.Information("LOCAL NODE block height: [{@LocalHeight}]", blockCount);
             _logger.Information("End... [SYNCHRONIZATION]");
             _logger.Information("Next...[SYNCHRONIZATION] in {@Message} minute(s)",
-                _cypherSystemCore.Node.Network.AutoSyncEveryMinutes);
+                _systemCore.Node.Network.AutoSyncEveryMinutes);
         }
     }
 
@@ -142,7 +142,7 @@ public class Sync : ISync, IDisposable
         Guard.Argument(currentRetry, nameof(currentRetry)).NotNegative();
         Guard.Argument(retryCount, nameof(retryCount)).NotNegative();
         var jitter = new Random();
-        var discovery = _cypherSystemCore.PeerDiscovery();
+        var discovery = _systemCore.PeerDiscovery();
         if (discovery.Count() != 0) return true;
         if (currentRetry >= retryCount || discovery.Count() != 0) return true;
         var retryDelay = TimeSpan.FromSeconds(Math.Pow(2, currentRetry)) +
@@ -166,7 +166,7 @@ public class Sync : ISync, IDisposable
         var isSynchronized = false;
         try
         {
-            var validator = _cypherSystemCore.Validator();
+            var validator = _systemCore.Validator();
             var blocks = await FetchBlocksAsync(peer, skip, take);
             if (blocks?.Any() != true) return;
             if (skip == 0)
@@ -180,7 +180,7 @@ public class Sync : ISync, IDisposable
                 var verifyNoDuplicateBlockHeights = validator.VerifyNoDuplicateBlockHeights(blocks);
                 if (verifyNoDuplicateBlockHeights == VerifyResult.AlreadyExists)
                 {
-                    _cypherSystemCore.PeerDiscovery().SetPeerCooldown(new PeerCooldown
+                    _systemCore.PeerDiscovery().SetPeerCooldown(new PeerCooldown
                     {
                         IpAddress = peer.IpAddress,
                         PublicKey = peer.PublicKey,
@@ -221,7 +221,7 @@ public class Sync : ISync, IDisposable
                                 return;
                             }
                             var saveBlockResponse =
-                                await _cypherSystemCore.Graph().SaveBlockAsync(new SaveBlockRequest(block));
+                                await _systemCore.Graph().SaveBlockAsync(new SaveBlockRequest(block));
                             if (saveBlockResponse.Ok)
                             {
                                 await Task.Delay(1);
@@ -253,7 +253,7 @@ public class Sync : ISync, IDisposable
     /// <param name="skip"></param>
     /// <param name="take"></param>
     /// <returns></returns>
-    private async Task<IReadOnlyList<Block>> FetchBlocksAsync(Peer peer, ulong skip, int take)
+    private async Task<IReadOnlyList<Models.Block>> FetchBlocksAsync(Peer peer, ulong skip, int take)
     {
         Guard.Argument(peer, nameof(peer)).HasValue();
         Guard.Argument(skip, nameof(skip)).NotNegative();
@@ -271,7 +271,7 @@ public class Sync : ISync, IDisposable
                     new ProgressBarColumn(), new PercentageColumn(), new SpinnerColumn())
                 .StartAsync(async ctx =>
                 {
-                    var blocks = new List<Block>();
+                    var blocks = new List<Models.Block>();
                     var warpTask = ctx.AddTask($"[bold green]DOWNLOADING[/] [bold yellow]{Math.Abs(take - (int)skip)}[/] block(s) from [bold yellow]{peer.Name.FromBytes()}[/] v{peer.Version.FromBytes()}", false).IsIndeterminate();
                     warpTask.MaxValue(take - (int)skip);
                     warpTask.StartTask();
@@ -279,7 +279,7 @@ public class Sync : ISync, IDisposable
                     while (!ctx.IsFinished)
                         foreach (var chunk in chunks)
                         {
-                            var blocksResponse = await _cypherSystemCore.P2PDeviceReq().SendAsync<BlocksResponse>(
+                            var blocksResponse = await _systemCore.P2PDeviceReq().SendAsync<BlocksResponse>(
                                 peer.IpAddress, peer.TcpPort, peer.PublicKey,
                                 MessagePackSerializer.Serialize(new Parameter[]
                                 {

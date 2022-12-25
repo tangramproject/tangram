@@ -1,18 +1,18 @@
-// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
 using System.Threading.Tasks;
-using CypherNetwork.Extensions;
-using CypherNetwork.Helper;
+using TangramXtgm.Extensions;
 using MessagePack;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IO;
 using nng;
 using nng.Native;
 using Serilog;
+using TangramXtgm.Helper;
 
-namespace CypherNetwork.Network;
+namespace TangramXtgm.Network;
 
 /// <summary>
 /// 
@@ -31,14 +31,14 @@ public class Ping { }
 /// </summary>
 public class P2PDeviceReq : IP2PDeviceReq
 {
-    private readonly ICypherSystemCore _cypherSystemCore;
+    private readonly ISystemCore _systemCore;
     private readonly ILogger _logger;
     private readonly Ping _ping = new();
-
-    public P2PDeviceReq(ICypherSystemCore cypherSystemCore)
+    
+    public P2PDeviceReq(ISystemCore systemCore)
     {
-        _cypherSystemCore = cypherSystemCore;
-        using var serviceScope = cypherSystemCore.ServiceScopeFactory.CreateScope();
+        _systemCore = systemCore;
+        using var serviceScope = systemCore.ServiceScopeFactory.CreateScope();
         _logger = serviceScope.ServiceProvider.GetService<ILogger>()?.ForContext("SourceContext", nameof(P2PDeviceReq));
     }
 
@@ -80,10 +80,10 @@ public class P2PDeviceReq : IP2PDeviceReq
             }
 
             using var ctx = socket.CreateAsyncContext(NngFactorySingleton.Instance.Factory).Unwrap();
-            var cipher = _cypherSystemCore.Crypto().BoxSeal(value.Span, publicKey.Span[1..33]);
+            var cipher = _systemCore.Crypto().BoxSeal(value.Span, publicKey.Span[1..33]);
 
             await using var packetStream = Util.Manager.GetStream() as RecyclableMemoryStream;
-            packetStream.Write(_cypherSystemCore.KeyPair.PublicKey[1..33].WrapLengthPrefix());
+            packetStream.Write(_systemCore.KeyPair.PublicKey[1..33].WrapLengthPrefix());
             packetStream.Write(cipher.WrapLengthPrefix());
             foreach (var memory in packetStream.GetReadOnlySequence()) nngMsg.Append(memory.Span);
 
@@ -92,7 +92,7 @@ public class P2PDeviceReq : IP2PDeviceReq
             if (typeof(T) == typeof(EmptyMessage)) return default;
             if (typeof(T) == typeof(Ping)) return (T)(object)_ping;
             var nngRecvMsg = nngResult.Unwrap();
-            var message = await _cypherSystemCore.P2PDevice().DecryptAsync(nngRecvMsg);
+            var message = await _systemCore.P2PDevice().DecryptAsync(nngRecvMsg);
             nngRecvMsg.Dispose();
             if (message.Memory.IsEmpty)
             {

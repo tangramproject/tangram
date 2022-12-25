@@ -1,21 +1,21 @@
-// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
-using CypherNetwork.Extensions;
-using CypherNetwork.Models;
-using CypherNetwork.Models.Messages;
-using CypherNetwork.Persistence;
+using TangramXtgm.Extensions;
 using Dawn;
 using Libsecp256k1Zkp.Net;
 using libsignal.ecc;
 using Microsoft.AspNetCore.DataProtection;
 using Newtonsoft.Json;
 using Serilog;
+using TangramXtgm.Models;
+using TangramXtgm.Models.Messages;
+using TangramXtgm.Persistence;
 
-namespace CypherNetwork.Cryptography;
+namespace TangramXtgm.Cryptography;
 
 public interface ICrypto
 {

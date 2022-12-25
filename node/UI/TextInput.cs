@@ -1,6 +1,6 @@
 using System;
 
-namespace CypherNetworkNode.UI
+namespace TangramXtgmNode.UI
 {
     public class TextInput<T> : IUserInterfaceInput<T>
     {

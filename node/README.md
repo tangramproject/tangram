@@ -1,6 +1,6 @@
 ﻿# License
 
-CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0. 
+Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0. 
 To view a copy of this license, visit 
 https://creativecommons.org/licenses/by-nc-nd/4.0
 
@@ -15,10 +15,10 @@ https://creativecommons.org/licenses/by-nc-nd/4.0
 
 **NB - The hardware requirements may change.**
 
-# Cypher
+# Tangram
 
-[![Build Cypher node](https://github.com/cypher-network/cypher/workflows/build%20cypher%20node/badge.svg)](https://github.com/cypher-network/cypher/commits/master/)
-[![GitHub release](https://img.shields.io/github/release/cypher-network/cypher.svg)](https://GitHub.com/cypher-network/cypher/releases/)
+[![Build Tangram node](https://github.com/tangramproject/tangram/workflows/build%20tangram%20node/badge.svg)](https://github.com/tangramproject/tangram/commits/master/)
+[![GitHub release](https://img.shields.io/github/release/tangramproject/tangram.svg)](https://GitHub.com/tangramproject/tangram/releases/)
 
 ## Installation
 
@@ -26,7 +26,7 @@ https://creativecommons.org/licenses/by-nc-nd/4.0
 
 For quick installation on Linux and macOS, execute the following command:
 
-`bash <(curl -sSL https://cypherpunks.network/install.sh)`
+`bash <(curl -sSL https://tangram.network/install.sh)`
 
 The following parameters can be supplied:
 
@@ -48,4 +48,4 @@ Uninstall node
 
 For example:
 
-`bash <(curl -sSL https://cypherpunks.network/install.sh) --uninstall`
+`bash <(curl -sSL https://tangram.network/install.sh) --uninstall`

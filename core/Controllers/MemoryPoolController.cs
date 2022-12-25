@@ -1,33 +1,33 @@
-﻿// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+﻿// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
 using System.Threading.Tasks;
-using CypherNetwork.Extensions;
-using CypherNetwork.Ledger;
-using CypherNetwork.Models;
+using TangramXtgm.Extensions;
+using TangramXtgm.Ledger;
 using Dawn;
 using MessagePack;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
+using TangramXtgm.Models;
 
-namespace CypherNetwork.Controllers;
+namespace TangramXtgm.Controllers;
 
 [Route("mempool")]
 [ApiController]
 public class MemoryPoolController : Controller
 {
-    private readonly ICypherSystemCore _cypherNetworkCore;
+    private readonly ISystemCore _systemCore;
     private readonly ILogger _logger;
 
     /// <summary>
     /// </summary>
-    /// <param name="cypherNetworkCore"></param>
+    /// <param name="systemCore"></param>
     /// <param name="logger"></param>
-    public MemoryPoolController(ICypherSystemCore cypherNetworkCore, ILogger logger)
+    public MemoryPoolController(ISystemCore systemCore, ILogger logger)
     {
-        _cypherNetworkCore = cypherNetworkCore;
+        _systemCore = systemCore;
         _logger = logger.ForContext("SourceContext", nameof(MemoryPoolController));
     }
 
@@ -44,7 +44,7 @@ public class MemoryPoolController : Controller
         try
         {
             var transaction = MessagePackSerializer.Deserialize<Transaction>(data);
-            var added = await _cypherNetworkCore.MemPool().NewTransactionAsync(transaction);
+            var added = await _systemCore.MemPool().NewTransactionAsync(transaction);
             return added switch
             {
                 VerifyResult.Succeed => new ObjectResult(StatusCodes.Status200OK),
@@ -71,11 +71,11 @@ public class MemoryPoolController : Controller
         Guard.Argument(id, nameof(id)).NotNull().NotEmpty().NotWhiteSpace();
         try
         {
-            var memPoolTransaction = _cypherNetworkCore.MemPool().Get(id.HexToByte());
+            var memPoolTransaction = _systemCore.MemPool().Get(id.HexToByte());
             if (memPoolTransaction is { })
                 return new ObjectResult(new { memPoolTransaction });
 
-            var pPosMemPoolTransaction = _cypherNetworkCore.PPoS().Get(id.HexToByte());
+            var pPosMemPoolTransaction = _systemCore.PPoS().Get(id.HexToByte());
             if (pPosMemPoolTransaction is { })
                 return new ObjectResult(new { pPosMemPoolTransaction });
         }
@@ -97,8 +97,8 @@ public class MemoryPoolController : Controller
     {
         try
         {
-            var memPoolCount = _cypherNetworkCore.MemPool().Count();
-            var pPoSCount = _cypherNetworkCore.PPoS().Count();
+            var memPoolCount = _systemCore.MemPool().Count();
+            var pPoSCount = _systemCore.PPoS().Count();
             var total = memPoolCount + pPoSCount;
             return new ObjectResult(new { count = total });
         }

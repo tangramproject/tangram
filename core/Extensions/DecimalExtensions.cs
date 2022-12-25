@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Linq;
 
-namespace CypherNetwork.Extensions;
+namespace TangramXtgm.Extensions;
 
 public static class DecimalExtensions
 {

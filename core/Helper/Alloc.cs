@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Microsoft.Toolkit.HighPerformance;
 
-namespace CypherNetwork.Helper;
+namespace TangramXtgm.Helper;
 
 public sealed class Alloc : IDisposable
 {

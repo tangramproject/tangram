@@ -1,4 +1,4 @@
-// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
@@ -10,20 +10,20 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Hosting;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
-using CypherNetwork;
-using CypherNetworkNode.StartupExtensions;
-using CypherNetwork.Consensus;
-using CypherNetwork.Cryptography;
-using CypherNetwork.Extensions;
-using CypherNetwork.Ledger;
-using CypherNetwork.Network;
-using CypherNetwork.Services;
-using CypherNetwork.Wallet;
+using TangramXtgm;
+using TangramXtgmNode.StartupExtensions;
+using TangramXtgm.Consensus;
+using TangramXtgm.Cryptography;
+using TangramXtgm.Extensions;
+using TangramXtgm.Ledger;
+using TangramXtgm.Network;
+using TangramXtgm.Services;
+using TangramXtgm.Wallet;
 using Serilog;
 using Spectre.Console;
 using Log = Serilog.Log;
 
-namespace CypherNetworkNode;
+namespace TangramXtgmNode;
 
 public class Startup
 {
@@ -67,7 +67,7 @@ public class Startup
     public void ConfigureContainer(ContainerBuilder builder)
     {
         builder.AddSerilog();
-        builder.AddCypherSystemCore(_configuration);
+        builder.AddSystemCore(_configuration);
         builder.AddCrypto();
         builder.AddLongRunningService();
         builder.AddValidator();
@@ -105,9 +105,9 @@ public class Startup
         {
             c.SwaggerEndpoint(
                 $"{(!string.IsNullOrEmpty(pathBase) ? pathBase : string.Empty)}/swagger/v2/swagger.json",
-                "Cypher Network V2");
-            c.OAuthClientId("cypherswaggerui");
-            c.OAuthAppName("Cypher Network Swagger UI");
+                "Tangram V2");
+            c.OAuthClientId("tangramswaggerui");
+            c.OAuthAppName("Tangram Swagger UI");
         });
         AutofacContainer = app.ApplicationServices.GetAutofacRoot();
         lifetime.ApplicationStarted.Register(() =>
@@ -121,7 +121,7 @@ public class Startup
 
             if (ShowPrivateKey)
             {
-                var cypherSystem = AutofacContainer.Resolve<ICypherSystemCore>();
+                var systemCore = AutofacContainer.Resolve<ISystemCore>();
                 Console.WriteLine();
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine("The node private key can be used to decrypt and confirm that the command/message came from the stated sender (i.e. your wallet/yourself).\n" +
@@ -140,11 +140,11 @@ public class Startup
                     new Table()
                         .AddColumn(new TableColumn("Setting"))
                         .AddColumn(new TableColumn("Value"))
-                        .AddRow("Private Key", cypherSystem.KeyPair.PrivateKey.FromSecureString())
+                        .AddRow("Private Key", systemCore.KeyPair.PrivateKey.FromSecureString())
                         .AddRow("Token", Crypto.GetRandomData().ByteToHex()).BorderColor(Color.Red));
 
                 Console.WriteLine();
-                Console.WriteLine("Shutting down Cypher...");
+                Console.WriteLine("Shutting down Tangram...");
                 Environment.Exit(1);
                 return;
             }

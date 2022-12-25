@@ -1,4 +1,4 @@
-// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
@@ -6,19 +6,19 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using CypherNetwork.Consensus.Models;
-using CypherNetwork.Extensions;
-using CypherNetwork.Helper;
-using CypherNetwork.Models;
-using CypherNetwork.Models.Messages;
+using TangramXtgm.Extensions;
 using Dawn;
 using MessagePack;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IO;
 using Serilog;
-using Block = CypherNetwork.Models.Block;
+using TangramXtgm.Consensus.Models;
+using TangramXtgm.Helper;
+using TangramXtgm.Models;
+using TangramXtgm.Models.Messages;
+using Block = TangramXtgm.Models.Block;
 
-namespace CypherNetwork.Network;
+namespace TangramXtgm.Network;
 
 /// <summary>
 /// 
@@ -35,13 +35,13 @@ public class P2PDeviceApi : IP2PDeviceApi
 {
     private static ReadOnlySequence<byte> _updatePeersResponse;
 
-    private readonly ICypherSystemCore _cypherSystemCore;
+    private readonly ISystemCore _systemCore;
     private readonly ILogger _logger;
 
-    public P2PDeviceApi(ICypherSystemCore cypherSystemCore)
+    public P2PDeviceApi(ISystemCore systemCore)
     {
-        _cypherSystemCore = cypherSystemCore;
-        using var serviceScope = _cypherSystemCore.ServiceScopeFactory.CreateScope();
+        _systemCore = systemCore;
+        using var serviceScope = _systemCore.ServiceScopeFactory.CreateScope();
         _logger = serviceScope.ServiceProvider.GetService<ILogger>()
             ?.ForContext("SourceContext", nameof(P2PDeviceApi));
         Init();
@@ -84,7 +84,7 @@ public class P2PDeviceApi : IP2PDeviceApi
     /// <returns></returns>
     private async Task<ReadOnlySequence<byte>> OnGetPeerAsync(Parameter[] none = default)
     {
-        var localPeerResponse = _cypherSystemCore.PeerDiscovery().GetLocalPeer();
+        var localPeerResponse = _systemCore.PeerDiscovery().GetLocalPeer();
         return await SerializeAsync(localPeerResponse);
     }
 
@@ -95,7 +95,7 @@ public class P2PDeviceApi : IP2PDeviceApi
     /// <returns></returns>
     private async Task<ReadOnlySequence<byte>> OnGetPeersAsync(Parameter[] none = default)
     {
-        return await SerializeAsync(_cypherSystemCore.PeerDiscovery());
+        return await SerializeAsync(_systemCore.PeerDiscovery());
     }
 
     /// <summary>
@@ -107,7 +107,7 @@ public class P2PDeviceApi : IP2PDeviceApi
         Guard.Argument(parameters, nameof(parameters)).NotNull().NotEmpty();
         var skip = Convert.ToInt32(parameters[0].Value.FromBytes());
         var take = Convert.ToInt32(parameters[1].Value.FromBytes());
-        var blocksResponse = await _cypherSystemCore.Graph().GetBlocksAsync(new BlocksRequest(skip, take));
+        var blocksResponse = await _systemCore.Graph().GetBlocksAsync(new BlocksRequest(skip, take));
         return await SerializeAsync(blocksResponse);
     }
 
@@ -119,8 +119,8 @@ public class P2PDeviceApi : IP2PDeviceApi
     {
         Guard.Argument(parameters, nameof(parameters)).NotNull().NotEmpty();
         _logger.Here().Information("Saved in p2p device api");
-        var saveBlockResponse = await _cypherSystemCore.Graph()
-            .SaveBlockAsync(new SaveBlockRequest(MessagePackSerializer.Deserialize<Block>(parameters[0].Value)));
+        var saveBlockResponse = await _systemCore.Graph()
+            .SaveBlockAsync(new SaveBlockRequest(MessagePackSerializer.Deserialize<Models.Block>(parameters[0].Value)));
         return await SerializeAsync(saveBlockResponse);
     }
 
@@ -128,14 +128,14 @@ public class P2PDeviceApi : IP2PDeviceApi
     /// </summary>
     private async Task<ReadOnlySequence<byte>> OnGetBlockHeightAsync(Parameter[] none = default)
     {
-        return await SerializeAsync(new BlockHeightResponse(_cypherSystemCore.UnitOfWork().HashChainRepository.Height));
+        return await SerializeAsync(new BlockHeightResponse(_systemCore.UnitOfWork().HashChainRepository.Height));
     }
 
     /// <summary>
     /// </summary>
     private async Task<ReadOnlySequence<byte>> OnGetBlockCountAsync(Parameter[] none = default)
     {
-        return await SerializeAsync(new BlockCountResponse(_cypherSystemCore.UnitOfWork().HashChainRepository.Count));
+        return await SerializeAsync(new BlockCountResponse(_systemCore.UnitOfWork().HashChainRepository.Count));
     }
 
     /// <summary>
@@ -146,7 +146,7 @@ public class P2PDeviceApi : IP2PDeviceApi
     {
         Guard.Argument(parameters, nameof(parameters)).NotNull().NotEmpty();
         return await SerializeAsync(new MemoryPoolTransactionResponse(
-            _cypherSystemCore.MemPool().Get(parameters[0].Value)));
+            _systemCore.MemPool().Get(parameters[0].Value)));
     }
 
     /// <summary>
@@ -157,7 +157,7 @@ public class P2PDeviceApi : IP2PDeviceApi
     {
         Guard.Argument(parameters, nameof(parameters)).NotNull().NotEmpty();
         var transactionResponse =
-            await _cypherSystemCore.Graph().GetTransactionAsync(new TransactionRequest(parameters[0].Value));
+            await _systemCore.Graph().GetTransactionAsync(new TransactionRequest(parameters[0].Value));
         return await SerializeAsync(transactionResponse);
     }
 
@@ -168,7 +168,7 @@ public class P2PDeviceApi : IP2PDeviceApi
     private async Task<ReadOnlySequence<byte>> OnNewTransactionAsync(Parameter[] parameters)
     {
         Guard.Argument(parameters, nameof(parameters)).NotNull().NotEmpty();
-        var verifyResult = await _cypherSystemCore.MemPool()
+        var verifyResult = await _systemCore.MemPool()
             .NewTransactionAsync(MessagePackSerializer.Deserialize<Transaction>(parameters[0].Value));
         return await SerializeAsync(new NewTransactionResponse(verifyResult == VerifyResult.Succeed));
     }
@@ -180,7 +180,7 @@ public class P2PDeviceApi : IP2PDeviceApi
     private async Task<ReadOnlySequence<byte>> OnNewBlockGraphAsync(Parameter[] parameters)
     {
         Guard.Argument(parameters, nameof(parameters)).NotNull().NotEmpty();
-        await _cypherSystemCore.Graph()
+        await _systemCore.Graph()
             .PostAsync(MessagePackSerializer.Deserialize<BlockGraph>(parameters[0].Value));
         return await SerializeAsync(new NewBlockGraphResponse(true));
     }
@@ -193,7 +193,7 @@ public class P2PDeviceApi : IP2PDeviceApi
     {
         const int numberOfBlocks = 147; // +- block proposal time * number of blocks
         var safeguardBlocksResponse =
-            await _cypherSystemCore.Graph().GetSafeguardBlocksAsync(new SafeguardBlocksRequest(numberOfBlocks));
+            await _systemCore.Graph().GetSafeguardBlocksAsync(new SafeguardBlocksRequest(numberOfBlocks));
         return await SerializeAsync(safeguardBlocksResponse.Blocks.Any()
             ? safeguardBlocksResponse
             : safeguardBlocksResponse with { Blocks = null });
@@ -206,7 +206,7 @@ public class P2PDeviceApi : IP2PDeviceApi
     private async Task<ReadOnlySequence<byte>> OnPosTransactionAsync(Parameter[] parameters)
     {
         Guard.Argument(parameters, nameof(parameters)).NotNull().NotEmpty();
-        return await SerializeAsync(new PosPoolTransactionResponse(_cypherSystemCore.PPoS().Get(parameters[0].Value)));
+        return await SerializeAsync(new PosPoolTransactionResponse(_systemCore.PPoS().Get(parameters[0].Value)));
     }
 
     /// <summary>
@@ -216,7 +216,7 @@ public class P2PDeviceApi : IP2PDeviceApi
     private async Task<ReadOnlySequence<byte>> OnGetTransactionBlockIndexAsync(Parameter[] parameters)
     {
         Guard.Argument(parameters, nameof(parameters)).NotNull().NotEmpty();
-        var transactionBlockIndexResponse = await _cypherSystemCore.Graph()
+        var transactionBlockIndexResponse = await _systemCore.Graph()
             .GetTransactionBlockIndexAsync(new TransactionBlockIndexRequest(parameters[0].Value));
         return await SerializeAsync(transactionBlockIndexResponse);
     }
@@ -232,13 +232,13 @@ public class P2PDeviceApi : IP2PDeviceApi
         {
             await using var stream = Util.Manager.GetStream(parameters[0].Value);
             var stakeRequest = await MessagePackSerializer.DeserializeAsync<StakeRequest>(stream);
-            var packet = _cypherSystemCore.Crypto().DecryptChaCha20Poly1305(stakeRequest.Data,
-                _cypherSystemCore.KeyPair.PrivateKey.FromSecureString().HexToByte(), stakeRequest.Token,
+            var packet = _systemCore.Crypto().DecryptChaCha20Poly1305(stakeRequest.Data,
+                _systemCore.KeyPair.PrivateKey.FromSecureString().HexToByte(), stakeRequest.Token,
                 null, stakeRequest.Nonce);
             if (packet is null)
                 return await SerializeAsync(new StakeCredentialsResponse("Unable to decrypt message", false));
 
-            var walletSession = _cypherSystemCore.WalletSession();
+            var walletSession = _systemCore.WalletSession();
             var stakeCredRequest = MessagePackSerializer.Deserialize<StakeCredentialsRequest>(packet);
             var (loginSuccess, loginMessage) = await walletSession.LoginAsync(stakeCredRequest.Seed);
             if (!loginSuccess)
@@ -247,8 +247,8 @@ public class P2PDeviceApi : IP2PDeviceApi
             var (setupSuccess, setupMessage) = await walletSession.InitializeWalletAsync(stakeCredRequest.Outputs);
             if (setupSuccess)
             {
-                _cypherSystemCore.Node.Staking.RewardAddress = stakeCredRequest.RewardAddress.FromBytes();
-                _cypherSystemCore.Node.Staking.Enabled = true;
+                _systemCore.Node.Staking.RewardAddress = stakeCredRequest.RewardAddress.FromBytes();
+                _systemCore.Node.Staking.Enabled = true;
                 return await SerializeAsync(new StakeCredentialsResponse(setupMessage, true));
             }
         }
@@ -272,14 +272,14 @@ public class P2PDeviceApi : IP2PDeviceApi
         {
             await using var stream = Util.Manager.GetStream(parameters[0].Value);
             var stakeRequest = await MessagePackSerializer.DeserializeAsync<StakeRequest>(stream);
-            var packet = _cypherSystemCore.Crypto().DecryptChaCha20Poly1305(stakeRequest.Data,
-                _cypherSystemCore.KeyPair.PrivateKey.FromSecureString().HexToByte(), stakeRequest.Token,
+            var packet = _systemCore.Crypto().DecryptChaCha20Poly1305(stakeRequest.Data,
+                _systemCore.KeyPair.PrivateKey.FromSecureString().HexToByte(), stakeRequest.Token,
                 null, stakeRequest.Nonce);
             if (packet is null)
                 return await SerializeAsync(new StakeCredentialsResponse("Unable to decrypt message", false));
 
             return await SerializeAsync(new StakeCredentialsResponse(
-                _cypherSystemCore.Node.Staking.Enabled ? "Staking enabled" : "Staking not enabled", true));
+                _systemCore.Node.Staking.Enabled ? "Staking enabled" : "Staking not enabled", true));
         }
         catch (Exception ex)
         {

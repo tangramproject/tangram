@@ -1,10 +1,10 @@
 using System;
-using CypherNetwork.Extensions;
-using CypherNetwork.Helper;
-using CypherNetwork.Network;
+using TangramXtgm.Extensions;
+using TangramXtgm.Helper;
+using TangramXtgm.Network;
 
 
-namespace CypherNetwork.Models;
+namespace TangramXtgm.Models;
 
 public struct PeerCooldown : IComparable<PeerCooldown>
 {

@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace CypherNetworkNode.UI
+namespace TangramXtgmNode.UI
 {
     public class TerminalUserInterface : UserInterfaceBase
     {

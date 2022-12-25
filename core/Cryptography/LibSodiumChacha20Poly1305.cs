@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Security;
 
-namespace CypherNetwork.Cryptography;
+namespace TangramXtgm.Cryptography;
 
 internal static class LibSodiumChacha20Poly1305
 {

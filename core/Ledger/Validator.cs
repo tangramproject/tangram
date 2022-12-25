@@ -1,4 +1,4 @@
-// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
@@ -11,73 +11,73 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Blake3;
-using CypherNetwork.Consensus.Models;
-using CypherNetwork.Cryptography;
-using CypherNetwork.Extensions;
-using CypherNetwork.Models;
-using CypherNetwork.Models.Messages;
+using TangramXtgm.Extensions;
 using Dawn;
 using Libsecp256k1Zkp.Net;
 using libsignal.ecc;
 using NBitcoin;
 using NBitcoin.BouncyCastle.Math;
 using Serilog;
-using Block = CypherNetwork.Models.Block;
-using BlockHeader = CypherNetwork.Models.BlockHeader;
-using Transaction = CypherNetwork.Models.Transaction;
+using TangramXtgm.Consensus.Models;
+using TangramXtgm.Cryptography;
+using TangramXtgm.Models;
+using TangramXtgm.Models.Messages;
+using Block = TangramXtgm.Models.Block;
+using BlockHeader = TangramXtgm.Models.BlockHeader;
+using Transaction = TangramXtgm.Models.Transaction;
 
-namespace CypherNetwork.Ledger;
+namespace TangramXtgm.Ledger;
 
 /// <summary>
 /// </summary>
 public interface IValidator
 {
     VerifyResult VerifyBlockGraphSignatureNodeRound(BlockGraph blockGraph);
-    VerifyResult VerifyBulletProof(Transaction transaction);
+    VerifyResult VerifyBulletProof(Models.Transaction transaction);
     VerifyResult VerifyCoinbaseTransaction(Vout coinbase, ulong solution, decimal runningDistribution, ulong height);
     VerifyResult VerifySolution(byte[] vrfBytes, byte[] kernel, ulong solution);
-    Task<VerifyResult> VerifyBlockAsync(Block block);
-    Task<VerifyResult> VerifyBlocksAsync(Block[] blocks);
-    Task<VerifyResult> VerifyTransactionAsync(Transaction transaction);
-    Task<VerifyResult> VerifyTransactionsAsync(IList<Transaction> transactions);
+    Task<VerifyResult> VerifyBlockAsync(Models.Block block);
+    Task<VerifyResult> VerifyBlocksAsync(Models.Block[] blocks);
+    Task<VerifyResult> VerifyTransactionAsync(Models.Transaction transaction);
+    Task<VerifyResult> VerifyTransactionsAsync(IList<Models.Transaction> transactions);
     VerifyResult VerifySloth(uint t, byte[] message, byte[] nonce);
     uint Bits(ulong solution, decimal networkShare);
     decimal NetworkShare(ulong solution, ulong height);
     Task<ulong> SolutionAsync(byte[] vrfBytes, byte[] kernel);
     VerifyResult VerifyKernel(byte[] calculateVrfSig, byte[] kernel);
     VerifyResult VerifyLockTime(LockTime target, byte[] script);
-    VerifyResult VerifyCommit(Transaction transaction);
-    Task<VerifyResult> VerifyKeyImageNotExistsAsync(Transaction transaction);
+    VerifyResult VerifyCommit(Models.Transaction transaction);
+    Task<VerifyResult> VerifyKeyImageNotExistsAsync(Models.Transaction transaction);
     Task<VerifyResult> VerifyKeyImageNotExistsAsync(byte[] image);
-    Task<VerifyResult> VerifyCommitmentOutputsAsync(Transaction transaction);
+    Task<VerifyResult> VerifyCommitmentOutputsAsync(Models.Transaction transaction);
     Task<decimal> GetCurrentRunningDistributionAsync(ulong solution, ulong height);
     Task<decimal> GetRunningDistributionAsync();
     VerifyResult VerifyNetworkShare(ulong solution, decimal previousNetworkShare, decimal runningDistributionTotal, ulong height);
-    Task<VerifyResult> VerifyBlockHashAsync(Block block);
+    Task<VerifyResult> VerifyBlockHashAsync(Models.Block block);
     Task<VerifyResult> VerifyVrfProofAsync(byte[] publicKey, byte[] vrfProof, byte[] kernel);
-    Task<VerifyResult> VerifyMerkleAsync(Block block);
-    VerifyResult VerifyTransactionTime(in Transaction transaction);
+    Task<VerifyResult> VerifyMerkleAsync(Models.Block block);
+    VerifyResult VerifyTransactionTime(in Models.Transaction transaction);
     byte[] Kernel(byte[] prevHash, byte[] hash, ulong round);
-    Task<Block[]> VerifyForkRuleAsync(Block[] xChain);
-    VerifyResult VerifyMlsag(Transaction transaction);
-    VerifyResult VerifyNoDuplicateImageKeys(IList<Transaction> transactions);
-    VerifyResult VerifyNoDuplicateBlockHeights(IReadOnlyList<Block> blocks);
+    Task<Models.Block[]> VerifyForkRuleAsync(Models.Block[] xChain);
+    VerifyResult VerifyMlsag(Models.Transaction transaction);
+    VerifyResult VerifyNoDuplicateImageKeys(IList<Models.Transaction> transactions);
+    VerifyResult VerifyNoDuplicateBlockHeights(IReadOnlyList<Models.Block> blocks);
 }
 
 /// <summary>
 /// </summary>
 public class Validator : IValidator
 {
-    private readonly ICypherSystemCore _cypherSystemCore;
+    private readonly ISystemCore _systemCore;
     private readonly ILogger _logger;
 
     /// <summary>
     /// </summary>
-    /// <param name="cypherSystemCore"></param>
+    /// <param name="systemCore"></param>
     /// <param name="logger"></param>
-    public Validator(ICypherSystemCore cypherSystemCore, ILogger logger)
+    public Validator(ISystemCore systemCore, ILogger logger)
     {
-        _cypherSystemCore = cypherSystemCore;
+        _systemCore = systemCore;
         _logger = logger.ForContext("SourceContext", nameof(Validator));
     }
 
@@ -85,10 +85,10 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="block"></param>
     /// <returns></returns>
-    public async Task<VerifyResult> VerifyBlockHashAsync(Block block)
+    public async Task<VerifyResult> VerifyBlockHashAsync(Models.Block block)
     {
         Guard.Argument(block, nameof(block)).NotNull();
-        var hashChainRepository = _cypherSystemCore.UnitOfWork().HashChainRepository;
+        var hashChainRepository = _systemCore.UnitOfWork().HashChainRepository;
         var prevBlock = await hashChainRepository.GetAsync(x => new ValueTask<bool>(x.Height == hashChainRepository.Height));
         if (prevBlock is null)
         {
@@ -107,10 +107,10 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="block"></param>
     /// <returns></returns>
-    public async Task<VerifyResult> VerifyMerkleAsync(Block block)
+    public async Task<VerifyResult> VerifyMerkleAsync(Models.Block block)
     {
         Guard.Argument(block, nameof(block)).NotNull();
-        var hashChainRepository = _cypherSystemCore.UnitOfWork().HashChainRepository;
+        var hashChainRepository = _systemCore.UnitOfWork().HashChainRepository;
         var prevBlock =
             await hashChainRepository.GetAsync(x => new ValueTask<bool>(x.Height == hashChainRepository.Height));
         if (prevBlock is null)
@@ -133,7 +133,7 @@ public class Validator : IValidator
         Guard.Argument(blockGraph, nameof(blockGraph)).NotNull();
         try
         {
-            if (!_cypherSystemCore.Crypto()
+            if (!_systemCore.Crypto()
                     .VerifySignature(blockGraph.PublicKey, blockGraph.ToHash(), blockGraph.Signature))
             {
                 _logger.Error("Unable to verify the signature for block {@Round} from node {@Node}",
@@ -180,7 +180,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="transaction"></param>
     /// <returns></returns>
-    public VerifyResult VerifyBulletProof(Transaction transaction)
+    public VerifyResult VerifyBulletProof(Models.Transaction transaction)
     {
         Guard.Argument(transaction, nameof(transaction)).NotNull();
         Guard.Argument(transaction.Vout, nameof(transaction.Vout)).NotNull().NotEmpty();
@@ -210,7 +210,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="transaction"></param>
     /// <returns></returns>
-    public VerifyResult VerifyCommit(Transaction transaction)
+    public VerifyResult VerifyCommit(Models.Transaction transaction)
     {
         Guard.Argument(transaction, nameof(transaction)).NotNull();
         Guard.Argument(transaction.Vout, nameof(transaction.Vout)).NotNull().NotEmpty();
@@ -313,7 +313,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="blocks"></param>
     /// <returns></returns>
-    public async Task<VerifyResult> VerifyBlocksAsync(Block[] blocks)
+    public async Task<VerifyResult> VerifyBlocksAsync(Models.Block[] blocks)
     {
         Guard.Argument(blocks, nameof(blocks)).NotNull().NotEmpty();
         foreach (var block in blocks)
@@ -330,7 +330,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="block"></param>
     /// <returns></returns>
-    public async Task<VerifyResult> VerifyBlockAsync(Block block)
+    public async Task<VerifyResult> VerifyBlockAsync(Models.Block block)
     {
         Guard.Argument(block, nameof(block)).NotNull();
         if (VerifySloth(block.BlockPos.Bits, block.BlockPos.VrfSig, block.BlockPos.Nonce) != VerifyResult.Succeed)
@@ -348,7 +348,7 @@ public class Validator : IValidator
         }
 
         var hashTransactions =
-            _cypherSystemCore.Graph().HashTransactions(
+            _systemCore.Graph().HashTransactions(
                 new HashTransactionsRequest(block.Txs.Skip(1).ToArray(block.Txs.Count - 1)));
         var kernel = Kernel(block.BlockHeader.PrevBlockHash, hashTransactions, block.Height);
         if (VerifyKernel(block.BlockPos.VrfProof, kernel) != VerifyResult.Succeed)
@@ -412,7 +412,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="transactions"></param>
     /// <returns></returns>
-    public async Task<VerifyResult> VerifyTransactionsAsync(IList<Transaction> transactions)
+    public async Task<VerifyResult> VerifyTransactionsAsync(IList<Models.Transaction> transactions)
     {
         Guard.Argument(transactions, nameof(transactions)).NotNull().NotEmpty();
         foreach (var transaction in transactions)
@@ -429,7 +429,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="transaction"></param>
     /// <returns></returns>
-    public async Task<VerifyResult> VerifyTransactionAsync(Transaction transaction)
+    public async Task<VerifyResult> VerifyTransactionAsync(Models.Transaction transaction)
     {
         Guard.Argument(transaction, nameof(transaction)).NotNull();
         if (transaction.HasErrors().Any())
@@ -457,7 +457,7 @@ public class Validator : IValidator
     /// 
     /// </summary>
     /// <param name="transactions"></param>
-    public VerifyResult VerifyNoDuplicateImageKeys(IList<Transaction> transactions)
+    public VerifyResult VerifyNoDuplicateImageKeys(IList<Models.Transaction> transactions)
     {
         var noDupImageKeys = new List<byte[]>();
         foreach (var transaction in transactions)
@@ -476,7 +476,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="transaction"></param>
     /// <returns></returns>
-    public VerifyResult VerifyMlsag(Transaction transaction)
+    public VerifyResult VerifyMlsag(Models.Transaction transaction)
     {
         using var mlsag = new MLSAG();
         var skip = 0;
@@ -504,7 +504,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="transaction"></param>
     /// <returns></returns>
-    public VerifyResult VerifyTransactionTime(in Transaction transaction)
+    public VerifyResult VerifyTransactionTime(in Models.Transaction transaction)
     {
         Guard.Argument(transaction, nameof(transaction)).NotNull();
         try
@@ -584,11 +584,11 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="transaction"></param>
     /// <returns></returns>
-    public async Task<VerifyResult> VerifyKeyImageNotExistsAsync(Transaction transaction)
+    public async Task<VerifyResult> VerifyKeyImageNotExistsAsync(Models.Transaction transaction)
     {
         Guard.Argument(transaction, nameof(transaction)).NotNull();
         if (transaction.HasErrors().Any()) return VerifyResult.UnableToVerify;
-        var unitOfWork = _cypherSystemCore.UnitOfWork();
+        var unitOfWork = _systemCore.UnitOfWork();
         foreach (var vin in transaction.Vin)
         {
             var block = await unitOfWork.HashChainRepository.GetAsync(x =>
@@ -609,7 +609,7 @@ public class Validator : IValidator
     public async Task<VerifyResult> VerifyKeyImageNotExistsAsync(byte[] image)
     {
         Guard.Argument(image, nameof(image)).NotNull();
-        var unitOfWork = _cypherSystemCore.UnitOfWork();
+        var unitOfWork = _systemCore.UnitOfWork();
         var block = await unitOfWork.HashChainRepository.GetAsync(x =>
             new ValueTask<bool>(x.Txs.Any(c => c.Vin.Any(k => k.Image.Xor(image)))));
         if (block is null) return VerifyResult.Succeed;
@@ -621,12 +621,12 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="transaction"></param>
     /// <returns></returns>
-    public async Task<VerifyResult> VerifyCommitmentOutputsAsync(Transaction transaction)
+    public async Task<VerifyResult> VerifyCommitmentOutputsAsync(Models.Transaction transaction)
     {
         Guard.Argument(transaction, nameof(transaction)).NotNull();
         if (transaction.HasErrors().Any()) return VerifyResult.UnableToVerify;
         var offSets = transaction.Vin.Select(v => v.Offsets).SelectMany(k => k.Split(33)).ToArray();
-        var unitOfWork = _cypherSystemCore.UnitOfWork();
+        var unitOfWork = _systemCore.UnitOfWork();
         foreach (var commit in offSets)
         {
             var blocks = await unitOfWork.HashChainRepository.WhereAsync(x =>
@@ -663,7 +663,7 @@ public class Validator : IValidator
         Guard.Argument(kernel, nameof(kernel)).NotNull().MaxCount(32);
         try
         {
-            _cypherSystemCore.Crypto()
+            _systemCore.Crypto()
                .GetVerifyVrfSignature(Curve.decodePoint(publicKey, 0), kernel, vrfProof);
             return VerifyResult.Succeed;
         }
@@ -712,7 +712,7 @@ public class Validator : IValidator
     {
         try
         {
-            var unitOfWork = _cypherSystemCore.UnitOfWork();
+            var unitOfWork = _systemCore.UnitOfWork();
             var runningDistributionTotal = LedgerConstant.Distribution;
             var height = unitOfWork.HashChainRepository.Count + 1;
             var blockHeaders = await unitOfWork.HashChainRepository.TakeLongAsync(height);
@@ -803,7 +803,7 @@ public class Validator : IValidator
                 var hashTargetValue = new BigInteger((target.IntValue / hashTarget.BitCount).ToString()).Abs();
                 var hashWeightedTarget = new BigInteger(1, kernel).Multiply(hashTargetValue);
                 sw.Start();
-                while (!_cypherSystemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested)
+                while (!_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested)
                 {
                     if (sw.ElapsedMilliseconds > LedgerConstant.SolutionCancellationTimeoutFromMilliseconds)
                     {
@@ -897,12 +897,12 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="otherChain"></param>
     /// <returns></returns>
-    public async Task<Block[]> VerifyForkRuleAsync(Block[] otherChain)
+    public async Task<Models.Block[]> VerifyForkRuleAsync(Models.Block[] otherChain)
     {
         Guard.Argument(otherChain, nameof(otherChain)).NotNull().NotEmpty();
         try
         {
-            var unitOfWork = _cypherSystemCore.UnitOfWork();
+            var unitOfWork = _systemCore.UnitOfWork();
             var mainChain = (await unitOfWork.HashChainRepository.WhereAsync(x =>
                 new ValueTask<bool>(x.Height >= otherChain.Min(o => o.Height)))).OrderBy(x => x.Height).ToArray();
             var newChain = otherChain.OrderBy(x => x.Height).Take(mainChain.Length).ToArray();
@@ -911,7 +911,7 @@ public class Validator : IValidator
             if (mainChainBits >= newChainBits)
             {
 
-                if (mainChain.Length != newChain.Length) return Array.Empty<Block>();
+                if (mainChain.Length != newChain.Length) return Array.Empty<Models.Block>();
             }
 
             foreach (var block in mainChain) unitOfWork.HashChainRepository.Delete(block.Hash);
@@ -930,7 +930,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="blocks"></param>
     /// <returns></returns>
-    public VerifyResult VerifyNoDuplicateBlockHeights(IReadOnlyList<Block> blocks)
+    public VerifyResult VerifyNoDuplicateBlockHeights(IReadOnlyList<Models.Block> blocks)
     {
         var noDupHeights = new List<ulong>();
         foreach (var block in blocks)

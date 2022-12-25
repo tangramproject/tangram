@@ -1,18 +1,18 @@
-// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
-using CypherNetwork.Extensions;
-using CypherNetwork.Helper;
-using CypherNetwork.Models;
-using CypherNetwork.Models.Messages;
+using TangramXtgm.Extensions;
 using MessagePack;
 using Serilog;
+using TangramXtgm.Helper;
+using TangramXtgm.Models;
+using TangramXtgm.Models.Messages;
 
-namespace CypherNetwork.Network;
+namespace TangramXtgm.Network;
 
 /// <summary>
 /// 
@@ -29,17 +29,17 @@ public interface IBroadcast
 /// </summary>
 public class Broadcast : ReceivedActor<(TopicType, byte[])>, IBroadcast
 {
-    private readonly ICypherSystemCore _cypherSystemCore;
+    private readonly ISystemCore _systemCore;
     private readonly ILogger _logger;
 
     /// <summary>
     /// </summary>
-    /// <param name="cypherSystemCore"></param>
+    /// <param name="systemCore"></param>
     /// <param name="logger"></param>
-    public Broadcast(ICypherSystemCore cypherSystemCore, ILogger logger) : base(
+    public Broadcast(ISystemCore systemCore, ILogger logger) : base(
         new ExecutionDataflowBlockOptions { BoundedCapacity = 100, MaxDegreeOfParallelism = 2, EnsureOrdered = true })
     {
-        _cypherSystemCore = cypherSystemCore;
+        _systemCore = systemCore;
         _logger = logger.ForContext("SourceContext", nameof(Broadcast));
     }
 
@@ -60,7 +60,7 @@ public class Broadcast : ReceivedActor<(TopicType, byte[])>, IBroadcast
         try
         {
             var (topicType, data) = message;
-            var peers = await _cypherSystemCore.PeerDiscovery().GetDiscoveryAsync();
+            var peers = await _systemCore.PeerDiscovery().GetDiscoveryAsync();
             if (peers.Any())
             {
                 var command = topicType switch
@@ -77,7 +77,7 @@ public class Broadcast : ReceivedActor<(TopicType, byte[])>, IBroadcast
                     try
                     {
                         if (cancellationToken.IsCancellationRequested) return ValueTask.CompletedTask;
-                        var _ = _cypherSystemCore.P2PDeviceReq().SendAsync<EmptyMessage>(knownPeer.IpAddress,
+                        var _ = _systemCore.P2PDeviceReq().SendAsync<EmptyMessage>(knownPeer.IpAddress,
                             knownPeer.TcpPort,
                             knownPeer.PublicKey, msg, 250).SafeForgetAsync(_logger).ConfigureAwait(false);
                     }

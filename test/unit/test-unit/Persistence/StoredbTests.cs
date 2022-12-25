@@ -1,9 +1,9 @@
-using CypherNetwork.Persistence;
+using TangramXtgm.Persistence;
 using System;
 using NUnit.Framework;
 using NUnit.Framework.Internal;
 
-namespace cypcore_test_unit;
+namespace xtgmcore_test_unit;
 
 public class StoredbTests
 {

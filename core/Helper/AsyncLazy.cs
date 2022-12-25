@@ -2,7 +2,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
-namespace CypherNetwork.Helper;
+namespace TangramXtgm.Helper;
 
 /// <summary>
 /// 

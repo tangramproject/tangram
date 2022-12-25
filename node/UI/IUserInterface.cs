@@ -1,4 +1,4 @@
-namespace CypherNetworkNode.UI
+namespace TangramXtgmNode.UI
 {
     public interface IUserInterface
     {

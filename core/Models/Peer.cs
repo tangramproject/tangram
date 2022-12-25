@@ -1,12 +1,12 @@
-﻿// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+﻿// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
-using CypherNetwork.Extensions;
-using CypherNetwork.Network;
+using TangramXtgm.Extensions;
+using TangramXtgm.Network;
 using MessagePack;
 
-namespace CypherNetwork.Models;
+namespace TangramXtgm.Models;
 
 [MessagePackObject, Serializable]
 public struct Peer : IComparable<Peer>

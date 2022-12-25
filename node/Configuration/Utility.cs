@@ -6,11 +6,11 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using CypherNetwork.Models;
+using TangramXtgm.Models;
 using Spectre.Console;
-using Config = CypherNetwork.Models.Config;
+using Config = TangramXtgm.Models.Config;
 
-namespace CypherNetworkNode.Configuration;
+namespace TangramXtgmNode.Configuration;
 
 /// <summary>
 /// 
@@ -117,7 +117,7 @@ public class Utility
             var bytes = new byte[10];
             var randomNumberGenerator = RandomNumberGenerator.Create();
             randomNumberGenerator.GetBytes(bytes);
-            _node.Name = $"cypher-{BitConverter.ToString(bytes).Replace("-", "").ToLower()}";
+            _node.Name = $"tangram-{BitConverter.ToString(bytes).Replace("-", "").ToLower()}";
         }
     }
 
@@ -137,7 +137,7 @@ public class Utility
             .AddChoices(new[] { ManuallyEnterIpAddress, FindIpAddressAutomatically }));
         if (ipAddressChoice == ManuallyEnterIpAddress)
         {
-            var foundIpAddress = CypherNetwork.Helper.Util.GetIpAddress();
+            var foundIpAddress = TangramXtgm.Helper.Util.GetIpAddress();
             if (AnsiConsole.Confirm($"IP address found {foundIpAddress}"))
             {
                 _node.EndPoint = new(foundIpAddress, 0);

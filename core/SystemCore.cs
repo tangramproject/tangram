@@ -1,25 +1,25 @@
-// CypherNetwork by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
 using System.Security;
-using CypherNetwork.Cryptography;
-using CypherNetwork.Extensions;
-using CypherNetwork.Helper;
-using CypherNetwork.Ledger;
-using CypherNetwork.Models;
-using CypherNetwork.Network;
-using CypherNetwork.Persistence;
-using CypherNetwork.Wallet;
+using TangramXtgm.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
+using TangramXtgm.Cryptography;
+using TangramXtgm.Helper;
+using TangramXtgm.Ledger;
+using TangramXtgm.Models;
+using TangramXtgm.Network;
+using TangramXtgm.Persistence;
+using TangramXtgm.Wallet;
 
-namespace CypherNetwork;
+namespace TangramXtgm;
 
 /// <summary>
 /// </summary>
-public interface ICypherSystemCore
+public interface ISystemCore
 {
     IHostApplicationLifetime ApplicationLifetime { get; }
     IServiceScopeFactory ServiceScopeFactory { get; }
@@ -57,7 +57,7 @@ public class Cache<T> : Caching<T> where T : class { }
 
 /// <summary>
 /// </summary>
-public class CypherSystemCore : ICypherSystemCore
+public class SystemCore : ISystemCore
 {
     private readonly ILogger _logger;
     private readonly Cache<object> _cache = new();
@@ -80,7 +80,7 @@ public class CypherSystemCore : ICypherSystemCore
     /// <param name="serviceScopeFactory"></param>
     /// <param name="node"></param>
     /// <param name="logger"></param>
-    public CypherSystemCore(IHostApplicationLifetime applicationLifetime,
+    public SystemCore(IHostApplicationLifetime applicationLifetime,
         IServiceScopeFactory serviceScopeFactory, Node node, ILogger logger)
     {
         ApplicationLifetime = applicationLifetime;
