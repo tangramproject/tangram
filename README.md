@@ -1,8 +1,8 @@
-Cypher
+Tangram
 ===========
 
-[![Build Cypher node](https://github.com/cypher-network/cypher/workflows/build%20cypher%20node/badge.svg)](https://github.com/cypher-network/cypher/commits/master/)
-[![GitHub release](https://img.shields.io/github/release/cypher-network/cypher.svg)](https://GitHub.com/cypher-network/cypher/releases/)
+[![Build Tangram node](https://github.com/tangramproject/tangram/workflows/build%20tangram%20node/badge.svg)](https://github.com/tangramproject/tangram/commits/master/)
+[![GitHub release](https://img.shields.io/github/release/tangramproject/tangram.svg)](https://GitHub.com/tangramproject/tangram/releases/)
 
 ## Installation
 
@@ -27,7 +27,7 @@ https://dotnet.microsoft.com/en-us/download
 For quick installation on Linux and macOS, execute the following command:
 
 ```shell
-bash <(curl -sSL https://raw.githubusercontent.com/cypher-network/cypher/master/install/install.sh)
+bash <(curl -sSL https://raw.githubusercontent.com/tangramproject/tangram/master/install/install.sh)
 ```
 
 The following parameters can be supplied:
@@ -59,25 +59,27 @@ Uninstall node
 For example:
 
 ```shell
-bash <(curl -sSL https://raw.githubusercontent.com/cypher-network/cypher/master/install/install.sh) --uninstall
+bash <(curl -sSL https://raw.githubusercontent.com/tangramproject/tangram/master/install/install.sh) --uninstall
 ```
 
-## What is Cypher Network
-Cypher is the testnet network for the team and community to first and foremost find critical bugs, run tests and experiments in a Tangram-like environment. You are now part of a huge milestone and something very special to the team and community members.
+## What is Tangram
+Tangram  is a secure and reliable cryptocurrency platform that is designed to be used by both individuals and businesses alike.  
 
-Cypher Network will be used as an early testing ground for things like consensus (messages, states and broadcasting) and gossip protocol (dissemination of members-membership).  Have fun on Cypher and learn more about Tangram! Explore the open-source code, setup your node, and explore the features. The objective here is to get to a point where Cypher will mimic the eventual live environment of the Tangram network. Things may get messy, this is expected. From installation on the user’s end to protocol enhancements and feature add-ons to Cypher, things will progressively get better over time.
+The coin has a strong foundation and is backed by the Tangram team, who have a proven track record of success in the cryptocurrency space and large community following.  Additionally, Tangram is a decentralized platform that is built on the principles of privacy, security, and trust.  
+
+Incorporating advanced cryptographic protocols like Bulletproofs, stealth addresses and RingCT for transaction mixing, Tangram guarantees that users can keep their identity and financial activities completely private.  Plus, its lightning-fast transaction speeds and zero fees make it the perfect choice for everyday payments.  Tangram's PPoS consensus algorithm is specifically designed to ensure a fair distribution of rewards.  Whether it's a small stake or a large one, Tangram ensures that the rewards are distributed fairly to those who put their precious time and effort into staking.
 
 ## Security Warning
-Cypher is the first release with consensus and should be treated as an experiment! There are no guarantees and we can expect flaws. Use it at your own risk.
+Tangram is the first release with consensus and should be treated as an experiment! There are no guarantees and we can expect flaws. Use it at your own risk.
 
 ## Whitepaper
 If you’re interested, you can use the whitepaper as a reference.
 https://github.com/cypher-network/whitepaper
 
-## Who can participate in Cypher
+## Who can participate in Tangram
 If you wish to run a node, experiment and support the release by finding bugs or even getting yourself accustomed to the intricacies of what Tangram is about, this is the release is for you! This is the perfect time to start getting to know Tangram and the inner mechanics of its technologies and protocols.
 
-If you wish to participate in the release of Cypher, you can claim $CYP through any of the channels (we recommend Discord, [**here**](https://discord.gg/6DT3yFhXCB)).
+If you wish to participate in the release of Tangram, you can claim $XTGM through any of the channels (we recommend Discord, [**here**](https://discord.gg/6DT3yFhXCB)).
 
 ## Contribution and Support
 If you have questions that need answering or a little more detail, feel free to get in touch through any of Tangram’s channels and our community members and managers can point you in the right direction.
