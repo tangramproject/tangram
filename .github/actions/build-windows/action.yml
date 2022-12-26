@@ -17,3 +17,7 @@ runs:
       run: | 
         sha256sum ${{ github.workspace }}/tangram-xtgmnode_${{ env.VERSION }}.zip  > ${{ github.workspace }}/tangram-xtgmnode_${{ env.VERSION }}.zip.sha256
       shell: bash
+      
+    - name: Copy artifact
+      run:  move-item ${{ github.workspace }}/tangram-xtgmnode_${{ env.VERSION }}.zip.sha256 ${{ github.workspace }}
+      shell: powershell      
