@@ -11,10 +11,6 @@ runs:
     - name: Package zip
       run: |
         Compress-Archive -Path publish/tangram/${{ inputs.runtime }} -DestinationPath ${{ github.workspace }}/tangram-xtgmnode_${{ env.VERSION }}.zip -Force
+        CertUtil -hashfile ${{ github.workspace }}/tangram-xtgmnode_${{ env.VERSION }}.zip SHA256 > ${{ github.workspace }}/tangram-xtgmnode_${{ env.VERSION }}.zip.sha256
       shell: powershell
-
-#    - name: Calculate SHA256
-#      run: |
-#        sha256sum ${{ github.workspace }}/tangram-xtgmnode_${{ env.VERSION }}.zip  > publish/tangram/${{ inputs.runtime }}/tangram-xtgmnode_${{ env.VERSION }}.zip.sha256
-#      shell: bash
         
