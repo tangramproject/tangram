@@ -14,10 +14,13 @@ runs:
       shell: powershell
 
     - name: Calculate SHA256
-      run: | 
-        sha256sum D:\a\tangram\tangram\tangram-xtgmnode_${{ env.VERSION }}.zip  > D:\a\tangram\tangram\tangram-xtgmnode_${{ env.VERSION }}.zip.sha256
+      run: |
+        pushd publish/tangram/${{ inputs.runtime }}/
+    
+        sha256sum tangram-xtgmnode_${{ env.VERSION }}_${{ inputs.runtime }}.zip > tangram-xtgmnode_${{ env.VERSION }}_${{ inputs.runtime }}.zip.sha256
+        mv tangram-xtgmnode_${{ env.VERSION }}_${{ inputs.runtime }}.zip.sha256 ${{ github.workspace }}
+        
+        popd
       shell: bash
-      
-    - name: Copy artifact
-      run:  move-item D:\a\tangram\tangram\tangram-xtgmnode_${{ env.VERSION }}.zip.sha256 ${{ github.workspace }}
-      shell: powershell      
+
+        

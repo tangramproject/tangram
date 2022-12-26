@@ -2,7 +2,7 @@
 
   <PropertyGroup> 
     <ServerGarbageCollection>true</ServerGarbageCollection> 
-    <AssemblyVersion>0.0.84.0</AssemblyVersion> 
+    <AssemblyVersion>0.0.85.0</AssemblyVersion> 
     <NeutralLanguage>en</NeutralLanguage> 
     <PackageId>node</PackageId> 
     <Company>TangramXtgm</Company> 
