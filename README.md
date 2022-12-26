@@ -62,6 +62,14 @@ For example:
 bash <(curl -sSL https://raw.githubusercontent.com/tangramproject/tangram/master/install/install.sh) --uninstall
 ```
 
+### Windows
+
+-   [Install .NET](https://dotnet.microsoft.com/en-us/download?initial-os=windows)
+-   For some versions of Windows, you may need to install [Visual C++ Redistributable](https://docs.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist).
+
+For quick installation, download the latest zip file [**here**](https://github.com/tangramproject/tangram/releases)
+
+
 ## What is Tangram
 Tangram is a revolutionary cryptocurrency that transforms the way we transact. It's fast, fee-less, private and fungible, making it an ideal choice for blockchain transactions. The Tangram network uses a state-of-the-art Pure-Proof-Of-Stake (PPoS) consensus algorithm that is secure, energy-efficient, and decentralized.
 
