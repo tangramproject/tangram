@@ -20,8 +20,4 @@
       <ProjectReference Include="..\..\..\core\core.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Ledger" />
-    </ItemGroup>
-
 </Project>

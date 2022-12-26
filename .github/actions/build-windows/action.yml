@@ -15,6 +15,6 @@ runs:
 
     - name: Calculate SHA256
       run: |
-        shasum -a 256 ${{ github.workspace }}/tangram-xtgmnode_${{ env.VERSION }}.zip  > ${{ github.workspace }}/tangram-xtgmnode_${{ env.VERSION }}.zip.sha256
+        shasum -a 256 ${{ github.workspace }}/tangram-xtgmnode_${{ env.VERSION }}.zip  > publish/tangram/${{ inputs.runtime }}/tangram-xtgmnode_${{ env.VERSION }}.zip.sha256
       shell: bash
         
