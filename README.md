@@ -1,5 +1,7 @@
-Tangram
-===========
+
+
+[![logo](assets/tangram_white.png?raw=true "Tangrm")](https://tangram.network)
+
 
 [![Build Tangram node](https://github.com/tangramproject/tangram/workflows/build%20tangram%20node/badge.svg)](https://github.com/tangramproject/tangram/commits/master/)
 [![GitHub release](https://img.shields.io/github/release/tangramproject/tangram.svg)](https://GitHub.com/tangramproject/tangram/releases/)
