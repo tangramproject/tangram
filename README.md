@@ -78,8 +78,8 @@ Tangram's PPoS consensus algorithm is specifically designed to ensure a fair dis
 Tangram is the first release with consensus and should be treated as an experiment! There are no guarantees and we can expect flaws. Use it at your own risk.
 
 ## Whitepaper
-If you’re interested, you can use the whitepaper as a reference.
-https://github.com/cypher-network/whitepaper
+If you’re interested, you can use the [Whitepaper](https://github.com/cypher-network/whitepaper) as a reference.
+
 
 ## Who can participate in Tangram
 If you wish to run a node, experiment and support the release by finding bugs or even getting yourself accustomed to the intricacies of what Tangram is about, this is the release is for you! This is the perfect time to start getting to know Tangram and the inner mechanics of its technologies and protocols.
