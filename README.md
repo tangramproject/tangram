@@ -4,25 +4,22 @@ Tangram
 [![Build Tangram node](https://github.com/tangramproject/tangram/workflows/build%20tangram%20node/badge.svg)](https://github.com/tangramproject/tangram/commits/master/)
 [![GitHub release](https://img.shields.io/github/release/tangramproject/tangram.svg)](https://GitHub.com/tangramproject/tangram/releases/)
 
-## Installation
-
-### .Net 6
-
-Downloads for .Net
-https://dotnet.microsoft.com/en-us/download
-
 ### Hardware Requirements
 
-|                 | Relay                                                            | Staking                                                          |
-|-----------------|------------------------------------------------------------------|------------------------------------------------------------------|
-| System          | Windows 10<br/>Ubuntu 18.04/22.04<br/>CentOS 8/9<br/>macOS 11/12 | Windows 10<br/>Ubuntu 18.04/22.04<br/>CentOS 8/9<br/>macOS 11/12 |
-| CPU             | Dual core                                                        | Quad core                                                        |
-| Memory          | 1G/4G                                                            | 2G/8G                                                            |
-| Hard Disk       | 25G SSD hard drive                                               | 50G SSD hard drive                                               | 
+|                 | Relay                                                                            | Staking                                                          |
+|-----------------|----------------------------------------------------------------------------------|------------------------------------------------------------------|
+| System          | Windows 10<br/>Ubuntu 18.04/22.04<br/>CentOS 8/9<br/>AlmaLinux 9</br>macOS 11/12 | Windows 10<br/>Ubuntu 18.04/22.04<br/>CentOS 8/9<br/>AlmaLinux 9</br>macOS 11/12 |
+| CPU             | Dual core                                                                        | Quad core                                                        |
+| Memory          | 1G/4G                                                                            | 2G/8G                                                            |
+| Hard Disk       | 25G SSD hard drive                                                               | 50G SSD hard drive                                               | 
 
 **NB - The hardware requirements may change.**
 
+## Installation
+
 ### Linux and macOS
+- [Install .NET For Linux](https://dotnet.microsoft.com/en-us/download?initial-os=linux)
+- [Install .NET For macOS](https://dotnet.microsoft.com/en-us/download?initial-os=macOS)
 
 For quick installation on Linux and macOS, execute the following command:
 
@@ -64,7 +61,7 @@ bash <(curl -sSL https://raw.githubusercontent.com/tangramproject/tangram/master
 
 ### Windows
 
--   [Install .NET](https://dotnet.microsoft.com/en-us/download?initial-os=windows)
+-   [Install .NET For Windows](https://dotnet.microsoft.com/en-us/download?initial-os=windows)
 -   For some versions of Windows, you may need to install [Visual C++ Redistributable](https://docs.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist).
 
 For quick installation, download the latest zip file [**here**](https://github.com/tangramproject/tangram/releases)
