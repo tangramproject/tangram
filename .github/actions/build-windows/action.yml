@@ -5,7 +5,7 @@ runs:
   using: "composite"
   steps:
     - name: Build miner
-      run: dotnet publish tangram --configuration Release --self-contained -r win-x64 -p:PublishReadyToRun=true --output publish/tangram/${{ inputs.runtime }}
+      run: dotnet publish node --configuration Release --self-contained -r win-x64 -p:PublishReadyToRun=true --output publish/tangram/${{ inputs.runtime }}
       shell: powershell
 
     - name: Package zip
