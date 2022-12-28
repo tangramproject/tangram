@@ -88,10 +88,10 @@ public class Validator : IValidator
     public async Task<VerifyResult> VerifyBlockHashAsync(Block block)
     {
         Guard.Argument(block, nameof(block)).NotNull();
-        var blockResponse = await GetBlockAsync(block.Height);
-        if (blockResponse.Block is null) return VerifyResult.UnableToVerify;
+        var prev = await GetBlockAsync(block.Height - 1);
+        if (prev.Block is null) return VerifyResult.UnableToVerify;
         using var hasher = Hasher.New();
-        hasher.Update(blockResponse.Block.Hash);
+        hasher.Update(prev.Block.Hash);
         hasher.Update(block.ToHash());
         var hash = hasher.Finalize();
         var verifyHasher = hash.HexToByte().Xor(block.Hash);
@@ -105,10 +105,10 @@ public class Validator : IValidator
     public async Task<VerifyResult> VerifyMerkleAsync(Block block)
     {
         Guard.Argument(block, nameof(block)).NotNull();
-        var blockResponse = await GetBlockAsync(block.Height);
-        if (blockResponse.Block is null) return VerifyResult.UnableToVerify;
+        var prev = await GetBlockAsync(block.Height - 1);
+        if (prev.Block is null) return VerifyResult.UnableToVerify;
         var merkelRoot =
-            BlockHeader.ToMerkleRoot(blockResponse.Block.BlockHeader.MerkleRoot, block.Txs.ToImmutableArray());
+            BlockHeader.ToMerkleRoot(prev.Block.BlockHeader.MerkleRoot, block.Txs.ToImmutableArray());
         var verifyMerkel = merkelRoot.Xor(block.BlockHeader.MerkleRoot);
         return verifyMerkel ? VerifyResult.Succeed : VerifyResult.UnableToVerify;
     }
