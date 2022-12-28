@@ -88,15 +88,14 @@ public class Validator : IValidator
     public async Task<VerifyResult> VerifyBlockHashAsync(Block block)
     {
         Guard.Argument(block, nameof(block)).NotNull();
-        var hashChainRepository = _systemCore.UnitOfWork().HashChainRepository;
-        var prevBlock = await hashChainRepository.GetAsync(x => new ValueTask<bool>(x.Height == hashChainRepository.Height));
-        if (prevBlock is null)
+        var blockResponse = await _systemCore.Graph().GetBlockByHeightAsync(new BlockByHeightRequest(block.Height));
+        if (blockResponse.Block is null)
         {
             _logger.Here().Error("No previous block available");
             return VerifyResult.UnableToVerify;
         }
         using var hasher = Hasher.New();
-        hasher.Update(prevBlock.Hash);
+        hasher.Update(blockResponse.Block.Hash);
         hasher.Update(block.ToHash());
         var hash = hasher.Finalize();
         var verifyHasher = hash.HexToByte().Xor(block.Hash);
@@ -110,16 +109,14 @@ public class Validator : IValidator
     public async Task<VerifyResult> VerifyMerkleAsync(Block block)
     {
         Guard.Argument(block, nameof(block)).NotNull();
-        var hashChainRepository = _systemCore.UnitOfWork().HashChainRepository;
-        var prevBlock =
-            await hashChainRepository.GetAsync(x => new ValueTask<bool>(x.Height == hashChainRepository.Height));
-        if (prevBlock is null)
+        var blockResponse = await _systemCore.Graph().GetBlockByHeightAsync(new BlockByHeightRequest(block.Height));
+        if (blockResponse.Block is null)
         {
             _logger.Here().Error("No previous block available");
             return VerifyResult.UnableToVerify;
         }
 
-        var merkelRoot = BlockHeader.ToMerkleRoot(prevBlock.BlockHeader.MerkleRoot, block.Txs.ToImmutableArray());
+        var merkelRoot = BlockHeader.ToMerkleRoot(blockResponse.Block.BlockHeader.MerkleRoot, block.Txs.ToImmutableArray());
         var verifyMerkel = merkelRoot.Xor(block.BlockHeader.MerkleRoot);
         return verifyMerkel ? VerifyResult.Succeed : VerifyResult.UnableToVerify;
     }
