@@ -350,6 +350,12 @@ public class Validator : IValidator
         var hashTransactions =
             _systemCore.Graph().HashTransactions(
                 new HashTransactionsRequest(block.Txs.Skip(1).ToArray(block.Txs.Count - 1)));
+        if (hashTransactions == null)
+        {
+            _logger.Fatal("Unable to verify hashed transactions");
+            return VerifyResult.UnableToVerify;
+        }
+        
         var kernel = Kernel(block.BlockHeader.PrevBlockHash, hashTransactions, block.Height);
         if (VerifyKernel(block.BlockPos.VrfProof, kernel) != VerifyResult.Succeed)
         {
