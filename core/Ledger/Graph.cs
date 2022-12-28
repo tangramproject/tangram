@@ -141,12 +141,10 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
         Guard.Argument(transactionIndexRequest, nameof(transactionIndexRequest)).NotNull();
         try
         {
-            var unitOfWork = _systemCore.UnitOfWork();
-            var block = await unitOfWork.HashChainRepository.GetAsync(x =>
-                new ValueTask<bool>(x.Txs.Any(t => t.TxnId.Xor(transactionIndexRequest.TransactionId))));
-            if (block is { })
+            var transactionBlock = await GetTransactionBlockAsync(new TransactionIdRequest(transactionIndexRequest.TransactionId));
+            if (transactionBlock is { })
             {
-                return new TransactionBlockIndexResponse(block.Height);
+                return new TransactionBlockIndexResponse(transactionBlock.Block.Height);
             }
         }
         catch (Exception ex)
