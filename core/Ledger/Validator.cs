@@ -33,35 +33,35 @@ namespace TangramXtgm.Ledger;
 public interface IValidator
 {
     VerifyResult VerifyBlockGraphSignatureNodeRound(BlockGraph blockGraph);
-    VerifyResult VerifyBulletProof(Models.Transaction transaction);
+    VerifyResult VerifyBulletProof(Transaction transaction);
     VerifyResult VerifyCoinbaseTransaction(Vout coinbase, ulong solution, decimal runningDistribution, ulong height);
     VerifyResult VerifySolution(byte[] vrfBytes, byte[] kernel, ulong solution);
-    Task<VerifyResult> VerifyBlockAsync(Models.Block block);
-    Task<VerifyResult> VerifyBlocksAsync(Models.Block[] blocks);
-    Task<VerifyResult> VerifyTransactionAsync(Models.Transaction transaction);
-    Task<VerifyResult> VerifyTransactionsAsync(IList<Models.Transaction> transactions);
+    Task<VerifyResult> VerifyBlockAsync(Block block);
+    Task<VerifyResult> VerifyBlocksAsync(Block[] blocks);
+    Task<VerifyResult> VerifyTransactionAsync(Transaction transaction);
+    Task<VerifyResult> VerifyTransactionsAsync(IList<Transaction> transactions);
     VerifyResult VerifySloth(uint t, byte[] message, byte[] nonce);
     uint Bits(ulong solution, decimal networkShare);
     decimal NetworkShare(ulong solution, ulong height);
     Task<ulong> SolutionAsync(byte[] vrfBytes, byte[] kernel);
     VerifyResult VerifyKernel(byte[] calculateVrfSig, byte[] kernel);
     VerifyResult VerifyLockTime(LockTime target, byte[] script);
-    VerifyResult VerifyCommit(Models.Transaction transaction);
-    Task<VerifyResult> VerifyKeyImageNotExistsAsync(Models.Transaction transaction);
+    VerifyResult VerifyCommit(Transaction transaction);
+    Task<VerifyResult> VerifyKeyImageNotExistsAsync(Transaction transaction);
     Task<VerifyResult> VerifyKeyImageNotExistsAsync(byte[] image);
-    Task<VerifyResult> VerifyCommitmentOutputsAsync(Models.Transaction transaction);
+    Task<VerifyResult> VerifyCommitmentOutputsAsync(Transaction transaction);
     Task<decimal> GetCurrentRunningDistributionAsync(ulong solution, ulong height);
     Task<decimal> GetRunningDistributionAsync();
     VerifyResult VerifyNetworkShare(ulong solution, decimal previousNetworkShare, decimal runningDistributionTotal, ulong height);
-    Task<VerifyResult> VerifyBlockHashAsync(Models.Block block);
+    Task<VerifyResult> VerifyBlockHashAsync(Block block);
     Task<VerifyResult> VerifyVrfProofAsync(byte[] publicKey, byte[] vrfProof, byte[] kernel);
-    Task<VerifyResult> VerifyMerkleAsync(Models.Block block);
-    VerifyResult VerifyTransactionTime(in Models.Transaction transaction);
+    Task<VerifyResult> VerifyMerkleAsync(Block block);
+    VerifyResult VerifyTransactionTime(in Transaction transaction);
     byte[] Kernel(byte[] prevHash, byte[] hash, ulong round);
-    Task<Models.Block[]> VerifyForkRuleAsync(Models.Block[] xChain);
-    VerifyResult VerifyMlsag(Models.Transaction transaction);
-    VerifyResult VerifyNoDuplicateImageKeys(IList<Models.Transaction> transactions);
-    VerifyResult VerifyNoDuplicateBlockHeights(IReadOnlyList<Models.Block> blocks);
+    Task<Block[]> VerifyForkRuleAsync(Block[] xChain);
+    VerifyResult VerifyMlsag(Transaction transaction);
+    VerifyResult VerifyNoDuplicateImageKeys(IList<Transaction> transactions);
+    VerifyResult VerifyNoDuplicateBlockHeights(IReadOnlyList<Block> blocks);
 }
 
 /// <summary>
@@ -85,7 +85,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="block"></param>
     /// <returns></returns>
-    public async Task<VerifyResult> VerifyBlockHashAsync(Models.Block block)
+    public async Task<VerifyResult> VerifyBlockHashAsync(Block block)
     {
         Guard.Argument(block, nameof(block)).NotNull();
         var hashChainRepository = _systemCore.UnitOfWork().HashChainRepository;
@@ -107,7 +107,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="block"></param>
     /// <returns></returns>
-    public async Task<VerifyResult> VerifyMerkleAsync(Models.Block block)
+    public async Task<VerifyResult> VerifyMerkleAsync(Block block)
     {
         Guard.Argument(block, nameof(block)).NotNull();
         var hashChainRepository = _systemCore.UnitOfWork().HashChainRepository;
@@ -180,7 +180,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="transaction"></param>
     /// <returns></returns>
-    public VerifyResult VerifyBulletProof(Models.Transaction transaction)
+    public VerifyResult VerifyBulletProof(Transaction transaction)
     {
         Guard.Argument(transaction, nameof(transaction)).NotNull();
         Guard.Argument(transaction.Vout, nameof(transaction.Vout)).NotNull().NotEmpty();
@@ -210,7 +210,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="transaction"></param>
     /// <returns></returns>
-    public VerifyResult VerifyCommit(Models.Transaction transaction)
+    public VerifyResult VerifyCommit(Transaction transaction)
     {
         Guard.Argument(transaction, nameof(transaction)).NotNull();
         Guard.Argument(transaction.Vout, nameof(transaction.Vout)).NotNull().NotEmpty();
@@ -313,7 +313,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="blocks"></param>
     /// <returns></returns>
-    public async Task<VerifyResult> VerifyBlocksAsync(Models.Block[] blocks)
+    public async Task<VerifyResult> VerifyBlocksAsync(Block[] blocks)
     {
         Guard.Argument(blocks, nameof(blocks)).NotNull().NotEmpty();
         foreach (var block in blocks)
@@ -330,7 +330,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="block"></param>
     /// <returns></returns>
-    public async Task<VerifyResult> VerifyBlockAsync(Models.Block block)
+    public async Task<VerifyResult> VerifyBlockAsync(Block block)
     {
         Guard.Argument(block, nameof(block)).NotNull();
         if (VerifySloth(block.BlockPos.Bits, block.BlockPos.VrfSig, block.BlockPos.Nonce) != VerifyResult.Succeed)
@@ -418,7 +418,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="transactions"></param>
     /// <returns></returns>
-    public async Task<VerifyResult> VerifyTransactionsAsync(IList<Models.Transaction> transactions)
+    public async Task<VerifyResult> VerifyTransactionsAsync(IList<Transaction> transactions)
     {
         Guard.Argument(transactions, nameof(transactions)).NotNull().NotEmpty();
         foreach (var transaction in transactions)
@@ -435,7 +435,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="transaction"></param>
     /// <returns></returns>
-    public async Task<VerifyResult> VerifyTransactionAsync(Models.Transaction transaction)
+    public async Task<VerifyResult> VerifyTransactionAsync(Transaction transaction)
     {
         Guard.Argument(transaction, nameof(transaction)).NotNull();
         if (transaction.HasErrors().Any())
@@ -463,7 +463,7 @@ public class Validator : IValidator
     /// 
     /// </summary>
     /// <param name="transactions"></param>
-    public VerifyResult VerifyNoDuplicateImageKeys(IList<Models.Transaction> transactions)
+    public VerifyResult VerifyNoDuplicateImageKeys(IList<Transaction> transactions)
     {
         var noDupImageKeys = new List<byte[]>();
         foreach (var transaction in transactions)
@@ -482,7 +482,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="transaction"></param>
     /// <returns></returns>
-    public VerifyResult VerifyMlsag(Models.Transaction transaction)
+    public VerifyResult VerifyMlsag(Transaction transaction)
     {
         using var mlsag = new MLSAG();
         var skip = 0;
@@ -510,7 +510,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="transaction"></param>
     /// <returns></returns>
-    public VerifyResult VerifyTransactionTime(in Models.Transaction transaction)
+    public VerifyResult VerifyTransactionTime(in Transaction transaction)
     {
         Guard.Argument(transaction, nameof(transaction)).NotNull();
         try
@@ -590,7 +590,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="transaction"></param>
     /// <returns></returns>
-    public async Task<VerifyResult> VerifyKeyImageNotExistsAsync(Models.Transaction transaction)
+    public async Task<VerifyResult> VerifyKeyImageNotExistsAsync(Transaction transaction)
     {
         Guard.Argument(transaction, nameof(transaction)).NotNull();
         if (transaction.HasErrors().Any()) return VerifyResult.UnableToVerify;
@@ -627,7 +627,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="transaction"></param>
     /// <returns></returns>
-    public async Task<VerifyResult> VerifyCommitmentOutputsAsync(Models.Transaction transaction)
+    public async Task<VerifyResult> VerifyCommitmentOutputsAsync(Transaction transaction)
     {
         Guard.Argument(transaction, nameof(transaction)).NotNull();
         if (transaction.HasErrors().Any()) return VerifyResult.UnableToVerify;
@@ -903,7 +903,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="otherChain"></param>
     /// <returns></returns>
-    public async Task<Models.Block[]> VerifyForkRuleAsync(Models.Block[] otherChain)
+    public async Task<Block[]> VerifyForkRuleAsync(Block[] otherChain)
     {
         Guard.Argument(otherChain, nameof(otherChain)).NotNull().NotEmpty();
         try
@@ -917,7 +917,7 @@ public class Validator : IValidator
             if (mainChainBits >= newChainBits)
             {
 
-                if (mainChain.Length != newChain.Length) return Array.Empty<Models.Block>();
+                if (mainChain.Length != newChain.Length) return Array.Empty<Block>();
             }
 
             foreach (var block in mainChain) unitOfWork.HashChainRepository.Delete(block.Hash);
@@ -936,7 +936,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="blocks"></param>
     /// <returns></returns>
-    public VerifyResult VerifyNoDuplicateBlockHeights(IReadOnlyList<Models.Block> blocks)
+    public VerifyResult VerifyNoDuplicateBlockHeights(IReadOnlyList<Block> blocks)
     {
         var noDupHeights = new List<ulong>();
         foreach (var block in blocks)
