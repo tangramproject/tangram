@@ -26,7 +26,7 @@ public static class SwaggerExtensions
                 },
                 Title = "XTGM Node API",
                 Version = TangramXtgm.Helper.Util.GetAssemblyVersion(),
-                Description = "Tangram is an early, unaudited, and unrefined release of Cypher. Cypher will serve as a testing ground, allowing teams and developers to build and deploy nodes, send and receive transactions.",
+                Description = "Tangram is an early, unaudited, and unverified release of Cypher. Cypher will serve as a testing ground, allowing teams and developers to build and deploy nodes, send and receive transactions.",
                 TermsOfService = new Uri("https://tangram.network/home/privacy/"),
                 Contact = new Microsoft.OpenApi.Models.OpenApiContact
                 {

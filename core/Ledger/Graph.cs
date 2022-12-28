@@ -25,9 +25,6 @@ using TangramXtgm.Models;
 using TangramXtgm.Models.Messages;
 using TangramXtgm.Persistence;
 using Block = TangramXtgm.Models.Block;
-using Config = TangramXtgm.Consensus.Models.Config;
-using Interpreted = TangramXtgm.Consensus.Models.Interpreted;
-using Util = TangramXtgm.Helper.Util;
 
 namespace TangramXtgm.Ledger;
 
@@ -38,7 +35,7 @@ public interface IGraph
     Task<TransactionBlockIndexResponse> GetTransactionBlockIndexAsync(TransactionBlockIndexRequest transactionIndexRequest);
     Task<BlockResponse> GetTransactionBlockAsync(TransactionIdRequest transactionIndexRequest);
     Task<TransactionResponse> GetTransactionAsync(TransactionRequest transactionRequest);
-    Task<Models.Block> GetPreviousBlockAsync();
+    Task<Block> GetPreviousBlockAsync();
     Task<SafeguardBlocksResponse> GetSafeguardBlocksAsync(SafeguardBlocksRequest safeguardBlocksRequest);
     Task<SaveBlockResponse> SaveBlockAsync(SaveBlockRequest saveBlockRequest);
     Task<BlocksResponse> GetBlocksAsync(BlocksRequest blocksRequest);
@@ -79,7 +76,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     private readonly IObservable<EventPattern<BlockGraphEventArgs>> _onRoundCompleted;
     private readonly IDisposable _onRoundListener;
     private readonly Caching<BlockGraph> _syncCacheBlockGraph = new();
-    private readonly Caching<Models.Block> _syncCacheDelivered = new();
+    private readonly Caching<Block> _syncCacheDelivered = new();
     private readonly Caching<SeenBlockGraph> _syncCacheSeenBlockGraph = new();
     private IDisposable _disposableHandelSeenBlockGraphs;
     private bool _disposed;
@@ -217,7 +214,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     /// <summary>
     /// </summary>
     /// <returns></returns>
-    public async Task<Models.Block> GetPreviousBlockAsync()
+    public async Task<Block> GetPreviousBlockAsync()
     {
         var hashChainRepository = _systemCore.UnitOfWork().HashChainRepository;
         var prevBlock =
@@ -236,7 +233,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
         try
         {
             var hashChainRepository = _systemCore.UnitOfWork().HashChainRepository;
-            var height = hashChainRepository.Height <= (ulong)safeguardBlocksRequest.NumberOfBlocks ? hashChainRepository.Height : hashChainRepository.Height - (ulong)safeguardBlocksRequest.NumberOfBlocks;
+            var height = hashChainRepository.Height <= (ulong)safeguardBlocksRequest.NumberOfBlocks ? 0 : hashChainRepository.Height - (ulong)safeguardBlocksRequest.NumberOfBlocks;
             var blocks = await hashChainRepository.OrderByRangeAsync(x => x.Height, (int)height,
                 safeguardBlocksRequest.NumberOfBlocks);
             if (blocks.Any()) return new SafeguardBlocksResponse(blocks, string.Empty);
@@ -246,7 +243,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
             _logger.Here().Error("{@Message}", ex.Message);
         }
 
-        return new SafeguardBlocksResponse(new List<Models.Block>(Array.Empty<Models.Block>()), "Sequence contains zero elements");
+        return new SafeguardBlocksResponse(new List<Block>(Array.Empty<Block>()), "Sequence contains zero elements");
     }
 
     /// <summary>
@@ -612,7 +609,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
             {
                 if (deliveredBlock.Round != NextRound()) continue;
                 await using var stream = Helper.Util.Manager.GetStream(deliveredBlock.Data.AsSpan()) as RecyclableMemoryStream;
-                var block = await MessagePackSerializer.DeserializeAsync<Models.Block>(stream);
+                var block = await MessagePackSerializer.DeserializeAsync<Block>(stream);
                 _syncCacheDelivered.AddOrUpdate(block.Hash, block);
             }
             catch (Exception ex)
@@ -629,7 +626,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     {
         await _slimDecideWinner.WaitAsync();
 
-        Models.Block[] deliveredBlocks = null;
+        Block[] deliveredBlocks = null;
         try
         {
             deliveredBlocks = _syncCacheDelivered.Where(x => x.Value.Height == NextRound()).Select(n => n.Value)

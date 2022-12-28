@@ -57,7 +57,7 @@ public class WalletSession : IWalletSession, IDisposable
     private IDisposable _disposableHandleSafeguardBlocks;
     private IDisposable _disposableHandelConsumed;
     private bool _disposed;
-    private IReadOnlyList<TangramXtgm.Models.Block> _readOnlySafeGuardBlocks;
+    private IReadOnlyList<Block> _readOnlySafeGuardBlocks;
 
     private static readonly object Locking = new();
 
@@ -91,7 +91,7 @@ public class WalletSession : IWalletSession, IDisposable
     /// 
     /// </summary>
     /// <param name="transactions"></param>
-    public void Notify(TangramXtgm.Models.Transaction[] transactions)
+    public void Notify(Transaction[] transactions)
     {
         if (KeySet is null) return;
         foreach (var consumed in CacheConsumed.GetItems())
@@ -108,7 +108,6 @@ public class WalletSession : IWalletSession, IDisposable
     /// 
     /// </summary>
     /// <param name="seed"></param>
-    /// <param name="passphrase"></param>
     /// <returns></returns>
     public Task<Tuple<bool, string>> LoginAsync(byte[] seed)
     {
@@ -165,7 +164,7 @@ public class WalletSession : IWalletSession, IDisposable
     /// 
     /// </summary>
     /// <returns></returns>
-    public IReadOnlyList<TangramXtgm.Models.Block> GetSafeGuardBlocks()
+    public IReadOnlyList<Block> GetSafeGuardBlocks()
     {
         lock (Locking)
         {
