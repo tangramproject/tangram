@@ -88,12 +88,8 @@ public class Validator : IValidator
     public async Task<VerifyResult> VerifyBlockHashAsync(Block block)
     {
         Guard.Argument(block, nameof(block)).NotNull();
-        var blockResponse = await _systemCore.Graph().GetBlockByHeightAsync(new BlockByHeightRequest(block.Height));
-        if (blockResponse.Block is null)
-        {
-            _logger.Here().Error("No previous block available");
-            return VerifyResult.UnableToVerify;
-        }
+        var blockResponse = await GetBlockAsync(block.Height);
+        if (blockResponse.Block is null) return VerifyResult.UnableToVerify;
         using var hasher = Hasher.New();
         hasher.Update(blockResponse.Block.Hash);
         hasher.Update(block.ToHash());
@@ -109,16 +105,25 @@ public class Validator : IValidator
     public async Task<VerifyResult> VerifyMerkleAsync(Block block)
     {
         Guard.Argument(block, nameof(block)).NotNull();
-        var blockResponse = await _systemCore.Graph().GetBlockByHeightAsync(new BlockByHeightRequest(block.Height));
-        if (blockResponse.Block is null)
-        {
-            _logger.Here().Error("No previous block available");
-            return VerifyResult.UnableToVerify;
-        }
-
-        var merkelRoot = BlockHeader.ToMerkleRoot(blockResponse.Block.BlockHeader.MerkleRoot, block.Txs.ToImmutableArray());
+        var blockResponse = await GetBlockAsync(block.Height);
+        if (blockResponse.Block is null) return VerifyResult.UnableToVerify;
+        var merkelRoot =
+            BlockHeader.ToMerkleRoot(blockResponse.Block.BlockHeader.MerkleRoot, block.Txs.ToImmutableArray());
         var verifyMerkel = merkelRoot.Xor(block.BlockHeader.MerkleRoot);
         return verifyMerkel ? VerifyResult.Succeed : VerifyResult.UnableToVerify;
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="height"></param>
+    /// <returns></returns>
+    private async Task<BlockResponse> GetBlockAsync(ulong height)
+    {
+        var blockResponse = await _systemCore.Graph().GetBlockByHeightAsync(new BlockByHeightRequest(height));
+        if (blockResponse.Block is not null) return blockResponse;
+        _logger.Here().Error("No block available");
+        return new BlockResponse(null);
     }
 
     /// <summary>
