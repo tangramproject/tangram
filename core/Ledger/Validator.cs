@@ -177,7 +177,7 @@ public class Validator : IValidator
 
         return VerifyResult.Succeed;
     }
-    
+
     /// <summary>
     /// 
     /// </summary>
@@ -208,7 +208,7 @@ public class Validator : IValidator
 
         return VerifyResult.Succeed;
     }
-    
+
     /// <summary>
     /// 
     /// </summary>
