@@ -352,7 +352,7 @@ public class Validator : IValidator
             _logger.Fatal("Unable to verify hashed transactions");
             return VerifyResult.UnableToVerify;
         }
-        
+
         var kernel = Kernel(block.BlockHeader.PrevBlockHash, hashTransactions, block.Height);
         if (VerifyKernel(block.BlockPos.VrfProof, kernel) != VerifyResult.Succeed)
         {
