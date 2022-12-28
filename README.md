@@ -61,6 +61,24 @@ For example:
 bash <(curl -sSL https://raw.githubusercontent.com/tangramproject/tangram/master/install/install.sh) --uninstall
 ```
 
+#### macOS Only
+
+> In some cases, `macOS` users might need to install gmp. The secp256k1 library depends on gmp (arbitrary precision arithmetic).
+
+For quick installation execute the following command:
+
+`brew install gmp`
+
+If you don't have homebrew installed:
+
+### Installing Homebrew macOS
+
+Users running Catalina, Mojave, or Big Sur, execute the following command if you don't have homebrew installed:
+
+```shell
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+````
+
 ### Windows
 
 -   [Install .NET For Windows](https://dotnet.microsoft.com/en-us/download?initial-os=windows)
