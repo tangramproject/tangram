@@ -33,7 +33,7 @@ namespace TangramXtgm.Ledger;
 public interface IValidator
 {
     VerifyResult VerifyBlockGraphSignatureNodeRound(BlockGraph blockGraph);
-    VerifyResult VerifyBulletProof(Transaction transaction);
+    VerifyResult VerifyBulletProof(Vout[] vOutputs, Bp[] bulletProofs);
     VerifyResult VerifyCoinbaseTransaction(Vout coinbase, ulong solution, decimal runningDistribution, ulong height);
     VerifyResult VerifySolution(byte[] vrfBytes, byte[] kernel, ulong solution);
     Task<VerifyResult> VerifyBlockAsync(Block block);
@@ -46,7 +46,7 @@ public interface IValidator
     Task<ulong> SolutionAsync(byte[] vrfBytes, byte[] kernel);
     VerifyResult VerifyKernel(byte[] calculateVrfSig, byte[] kernel);
     VerifyResult VerifyLockTime(LockTime target, byte[] script);
-    VerifyResult VerifyCommit(Transaction transaction);
+    VerifyResult VerifyCommit(Vout[] vOutputs);
     Task<VerifyResult> VerifyKeyImageNotExistsAsync(Transaction transaction);
     Task<VerifyResult> VerifyKeyImageNotExistsAsync(byte[] image);
     Task<VerifyResult> VerifyCommitmentOutputsAsync(Transaction transaction);
@@ -177,22 +177,23 @@ public class Validator : IValidator
 
         return VerifyResult.Succeed;
     }
-
+    
     /// <summary>
+    /// 
     /// </summary>
-    /// <param name="transaction"></param>
+    /// <param name="vOutputs"></param>
+    /// <param name="bulletProofs"></param>
     /// <returns></returns>
-    public VerifyResult VerifyBulletProof(Transaction transaction)
+    public VerifyResult VerifyBulletProof(Vout[] vOutputs, Bp[] bulletProofs)
     {
-        Guard.Argument(transaction, nameof(transaction)).NotNull();
-        Guard.Argument(transaction.Vout, nameof(transaction.Vout)).NotNull().NotEmpty();
+        Guard.Argument(vOutputs, nameof(vOutputs)).NotNull().NotEmpty();
+        Guard.Argument(bulletProofs, nameof(bulletProofs)).NotNull().NotEmpty();
         try
         {
-            if (transaction.HasErrors().Any()) return VerifyResult.UnableToVerify;
             using var secp256K1 = new Secp256k1();
             using var bulletProof = new BulletProof();
-            var commitments = transaction.Vout.Where(x => x.T == CoinType.Change).ToArray();
-            foreach (var (bp, i) in transaction.Bp.WithIndex())
+            var commitments = vOutputs.Where(x => x.T == CoinType.Change).ToArray();
+            foreach (var (bp, i) in bulletProofs.WithIndex())
             {
                 if (bulletProof.Verify(commitments[i].C, bp.Proof, null!)) continue;
                 _logger.Fatal("Unable to verify the bullet proof");
@@ -207,34 +208,33 @@ public class Validator : IValidator
 
         return VerifyResult.Succeed;
     }
-
+    
     /// <summary>
+    /// 
     /// </summary>
-    /// <param name="transaction"></param>
+    /// <param name="vOutputs"></param>
     /// <returns></returns>
-    public VerifyResult VerifyCommit(Transaction transaction)
+    public VerifyResult VerifyCommit(Vout[] vOutputs)
     {
-        Guard.Argument(transaction, nameof(transaction)).NotNull();
-        Guard.Argument(transaction.Vout, nameof(transaction.Vout)).NotNull().NotEmpty();
+        Guard.Argument(vOutputs, nameof(vOutputs)).NotNull().NotEmpty();
         try
         {
-            if (transaction.HasErrors().Any()) return VerifyResult.UnableToVerify;
             using var pedersen = new Pedersen();
-            var vCount = transaction.Vout.Length;
+            var vCount = vOutputs.Length;
             var index = 0;
             while (vCount != 0)
             {
-                if (transaction.Vout[index].T == CoinType.Coinbase)
+                if (vOutputs[index].T == CoinType.Coinbase)
                 {
-                    if (transaction.Vout[index].D is null)
+                    if (vOutputs[index].D is null)
                     {
                         _logger.Fatal("Unable to verify the blind");
                         return VerifyResult.UnableToVerify;
                     }
 
-                    var reward = transaction.Vout[index].A;
-                    var coinbase = transaction.Vout[index].C;
-                    var blind = transaction.Vout[index].D;
+                    var reward = vOutputs[index].A;
+                    var coinbase = vOutputs[index].C;
+                    var blind = vOutputs[index].D;
                     var commit = pedersen.Commit(reward, blind);
                     if (!commit.Xor(coinbase))
                     {
@@ -243,9 +243,9 @@ public class Validator : IValidator
                     }
 
                     index++;
-                    var payout = transaction.Vout[index].A;
-                    var coinstake = transaction.Vout[index].C;
-                    blind = transaction.Vout[index].D;
+                    var payout = vOutputs[index].A;
+                    var coinstake = vOutputs[index].C;
+                    blind = vOutputs[index].D;
                     commit = pedersen.Commit(payout, blind);
                     if (!commit.Xor(coinstake))
                     {
@@ -254,9 +254,9 @@ public class Validator : IValidator
                     }
                 }
 
-                var payment = transaction.Vout[index].C;
+                var payment = vOutputs[index].C;
                 index++;
-                var change = transaction.Vout[index].C;
+                var change = vOutputs[index].C;
                 var commitSumBalance = pedersen.CommitSum(new List<byte[]> { payment, change }, new List<byte[]>());
                 if (pedersen.VerifyCommitSum(new List<byte[]> { commitSumBalance },
                         new List<byte[]> { payment, change }))
@@ -456,8 +456,8 @@ public class Validator : IValidator
         if (await VerifyCommitmentOutputsAsync(transaction) != VerifyResult.Succeed) return VerifyResult.UnableToVerify;
         if (await VerifyKeyImageNotExistsAsync(transaction) != VerifyResult.Succeed)
             return VerifyResult.KeyImageAlreadyExists;
-        if (VerifyCommit(transaction) != VerifyResult.Succeed) return VerifyResult.UnableToVerify;
-        if (VerifyBulletProof(transaction) != VerifyResult.Succeed) return VerifyResult.UnableToVerify;
+        if (VerifyCommit(transaction.Vout) != VerifyResult.Succeed) return VerifyResult.UnableToVerify;
+        if (VerifyBulletProof(transaction.Vout, transaction.Bp) != VerifyResult.Succeed) return VerifyResult.UnableToVerify;
         return VerifyMlsag(transaction);
     }
 
