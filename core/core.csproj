@@ -4,7 +4,7 @@
         <TargetFramework>net6.0</TargetFramework>
         <Platforms>AnyCPU;x64</Platforms>
         <RootNamespace>TangramXtgm</RootNamespace>
-        <AssemblyVersion>0.0.94.0</AssemblyVersion>
+        <AssemblyVersion>0.0.95.0</AssemblyVersion>
         <Company>TangramXtgm</Company>
         <PackageId>core</PackageId>
         <AssemblyName>xtgmcore</AssemblyName>

@@ -39,7 +39,7 @@ jobs:
         # VALIDATE_BASH: true
         VALIDATE_CSHARP: true
         VALIDATE_DOCKERFILE_HADOLINT: true
-        VALIDATE_JSCPD: false
+        # VALIDATE_JSCPD: false
         VALIDATE_JSON: true
         VALIDATE_MARKDOWN: true
         VALIDATE_POWERSHELL: true
