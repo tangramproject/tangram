@@ -395,7 +395,6 @@ public class NodeWallet : INodeWallet
 
                     pcmIn[i + k * nCols] = vout.C;
                     pkIn[i + k * nCols] = vout.P;
-
                     fixed (byte* mm = m, pk = pkIn[i + k * nCols])
                     {
                         Util.MemCpy(&mm[(i + k * nCols) * 33], pk, 33);

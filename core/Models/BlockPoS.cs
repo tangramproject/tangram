@@ -13,7 +13,7 @@ namespace TangramXtgm.Models;
 [MessagePack.MessagePackObject]
 public record BlockPoS
 {
-    [MessagePack.Key(0)] public uint Bits { get; set; }
+    [MessagePack.Key(0)] public uint StakeAmount { get; set; }
     [MessagePack.Key(1)] public ulong Solution { get; set; }
     [MessagePack.Key(2)] public byte[] Nonce { get; set; }
     [MessagePack.Key(3)] public byte[] VrfProof { get; set; }
@@ -43,7 +43,7 @@ public record BlockPoS
     {
         if (Validate().Any()) return null;
         using var ts = new BufferStream();
-        ts.Append(Bits).Append(Solution).Append(Nonce).Append(VrfProof).Append(VrfSig).Append(PublicKey);
+        ts.Append(StakeAmount).Append(Solution).Append(Nonce).Append(VrfProof).Append(VrfSig).Append(PublicKey);
         return ts.ToArray();
     }
 
@@ -53,7 +53,7 @@ public record BlockPoS
     public IEnumerable<ValidationResult> Validate()
     {
         var results = new List<ValidationResult>();
-        if (Bits <= 0) results.Add(new ValidationResult("Range exception", new[] { "Bits" }));
+        if (StakeAmount <= 0) results.Add(new ValidationResult("Range exception", new[] { "Stake Amount" }));
         if (Solution <= 0) results.Add(new ValidationResult("Range exception", new[] { "Solution" }));
         if (Nonce == null) results.Add(new ValidationResult("Argument is null", new[] { "Nonce" }));
         if (Nonce is { Length: > 77 }) results.Add(new ValidationResult("Range exception", new[] { "Nonce" }));

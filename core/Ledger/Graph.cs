@@ -632,7 +632,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
             if (deliveredBlocks.Any() != true) return;
             _logger.Information("DecideWinnerAsync");
             var winners = deliveredBlocks.Where(x =>
-                x.BlockPos.Solution == deliveredBlocks.Select(n => n.BlockPos.Solution).Min()).ToArray();
+                x.BlockPos.Solution == deliveredBlocks.Select(n => n.BlockPos.Solution).Max()).ToArray();
             _logger.Information("Potential winners");
             foreach (var winner in winners)
                 _logger.Here().Information("Hash {@Hash} Solution {@Sol} Node {@Node}", winner.Hash.ByteToHex(),

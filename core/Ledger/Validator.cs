@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -35,7 +34,7 @@ public interface IValidator
     VerifyResult VerifyBlockGraphSignatureNodeRound(BlockGraph blockGraph);
     VerifyResult VerifyBulletProof(Vout[] vOutputs, Bp[] bulletProofs);
     VerifyResult VerifyCoinbaseTransaction(Vout coinbase, ulong solution, decimal runningDistribution, ulong height);
-    VerifyResult VerifySolution(byte[] vrfBytes, byte[] kernel, ulong solution);
+    VerifyResult VerifySolution(BlockPoS blockPoS, byte[] kernel);
     Task<VerifyResult> VerifyBlockAsync(Block block);
     Task<VerifyResult> VerifyBlocksAsync(Block[] blocks);
     Task<VerifyResult> VerifyTransactionAsync(Transaction transaction);
@@ -43,7 +42,6 @@ public interface IValidator
     VerifyResult VerifySloth(uint t, byte[] message, byte[] nonce);
     uint Bits(ulong solution, decimal networkShare);
     decimal NetworkShare(ulong solution, ulong height);
-    Task<ulong> SolutionAsync(byte[] vrfBytes, byte[] kernel);
     VerifyResult VerifyKernel(byte[] calculateVrfSig, byte[] kernel);
     VerifyResult VerifyLockTime(LockTime target, byte[] script);
     VerifyResult VerifyCommit(Vout[] vOutputs);
@@ -54,7 +52,6 @@ public interface IValidator
     Task<decimal> GetRunningDistributionAsync();
     VerifyResult VerifyNetworkShare(ulong solution, decimal previousNetworkShare, decimal runningDistributionTotal, ulong height);
     Task<VerifyResult> VerifyBlockHashAsync(Block block);
-    Task<VerifyResult> VerifyVrfProofAsync(byte[] publicKey, byte[] vrfProof, byte[] kernel);
     Task<VerifyResult> VerifyMerkleAsync(Block block);
     VerifyResult VerifyTransactionTime(in Transaction transaction);
     byte[] Kernel(byte[] prevHash, byte[] hash, ulong round);
@@ -281,31 +278,46 @@ public class Validator : IValidator
     }
 
     /// <summary>
+    /// 
     /// </summary>
-    /// <param name="vrfBytes"></param>
+    /// <param name="blockPoS"></param>
     /// <param name="kernel"></param>
-    /// <param name="solution"></param>
     /// <returns></returns>
-    public VerifyResult VerifySolution(byte[] vrfBytes, byte[] kernel, ulong solution)
+    public VerifyResult VerifySolution(BlockPoS blockPoS, byte[] kernel)
     {
-        Guard.Argument(vrfBytes, nameof(vrfBytes)).NotNull().MaxCount(96);
+        Guard.Argument(blockPoS, nameof(blockPoS)).NotNull();
         Guard.Argument(kernel, nameof(kernel)).NotNull().MaxCount(32);
-        Guard.Argument(solution, nameof(solution)).NotNegative().NotZero();
         var isSolution = false;
+
         try
         {
-            if (LedgerConstant.SolutionThrottle > solution)
+            if (!_systemCore.Crypto()
+                    .GetVerifyVrfSignature(Curve.decodePoint(blockPoS.PublicKey, 0), kernel, blockPoS.VrfProof)
+                    .Xor(blockPoS.VrfSig))
             {
-                var target = new BigInteger(1, Hasher.Hash(vrfBytes).HexToByte());
-                var weight = BigInteger.ValueOf(Convert.ToInt64(solution));
-                var hashTarget = new BigInteger(1, kernel);
-                var weightedTarget = target.Multiply(weight);
-                isSolution = hashTarget.CompareTo(weightedTarget) <= 0;
+                _logger.Fatal("Unable to verify Vrf signature with proof signature");
+                return VerifyResult.UnableToVerify;
             }
         }
         catch (Exception ex)
         {
-            _logger.Here().Error(ex, "Unable to verify the solution");
+            _logger.Here().Fatal(ex, "Unable to verify Vrf signature");
+            return VerifyResult.UnableToVerify;
+        }
+
+        try
+        {
+            if (LedgerConstant.SolutionThrottle > blockPoS.Solution)
+            {
+                var solution = new BigInteger(1, blockPoS.VrfProof);
+                var calculatedSolution = solution.Mod(new BigInteger(1, LedgerConstant.MBits.ToBytes()));
+                var cS = Convert.ToUInt64(calculatedSolution.ToString());
+                isSolution = cS == blockPoS.Solution;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Here().Error(ex, "Unable to verify solution");
         }
 
         return isSolution ? VerifyResult.Succeed : VerifyResult.UnableToVerify;
@@ -335,9 +347,11 @@ public class Validator : IValidator
     public async Task<VerifyResult> VerifyBlockAsync(Block block)
     {
         Guard.Argument(block, nameof(block)).NotNull();
-        if (VerifySloth(block.BlockPos.Bits, block.BlockPos.VrfSig, block.BlockPos.Nonce) != VerifyResult.Succeed)
+
+        if (VerifyLockTime(new LockTime(Utils.UnixTimeToDateTime(block.BlockHeader.Locktime)),
+                block.BlockHeader.LocktimeScript) != VerifyResult.Succeed)
         {
-            _logger.Here().Fatal("Unable to verify the slow function");
+            _logger.Fatal("Unable to verify the block lock time");
             return VerifyResult.UnableToVerify;
         }
 
@@ -365,29 +379,22 @@ public class Validator : IValidator
             return VerifyResult.UnableToVerify;
         }
 
-        if (await VerifyVrfProofAsync(block.BlockPos.PublicKey, block.BlockPos.VrfProof, kernel) != VerifyResult.Succeed)
-        {
-            _logger.Fatal("Unable to verify the Vrf Proof");
-            return VerifyResult.UnableToVerify;
-        }
-
-        if (VerifySolution(block.BlockPos.VrfProof, kernel, block.BlockPos.Solution) != VerifyResult.Succeed)
+        if (VerifySolution(block.BlockPos, kernel) != VerifyResult.Succeed)
         {
             _logger.Fatal("Unable to verify the solution");
             return VerifyResult.UnableToVerify;
         }
 
         var bits = Bits(block.BlockPos.Solution, block.Txs.First().Vout.First().A.DivCoin());
-        if (block.BlockPos.Bits != bits)
+        if (block.BlockPos.StakeAmount != bits)
         {
             _logger.Fatal("Unable to verify the bits");
             return VerifyResult.UnableToVerify;
         }
 
-        if (VerifyLockTime(new LockTime(Utils.UnixTimeToDateTime(block.BlockHeader.Locktime)),
-                block.BlockHeader.LocktimeScript) != VerifyResult.Succeed)
+        if (VerifySloth((uint)(block.BlockPos.Solution / LedgerConstant.TSlow), block.BlockPos.VrfSig, block.BlockPos.Nonce) != VerifyResult.Succeed)
         {
-            _logger.Fatal("Unable to verify the block lock time");
+            _logger.Here().Fatal("Unable to verify the slow function");
             return VerifyResult.UnableToVerify;
         }
 
@@ -553,7 +560,6 @@ public class Validator : IValidator
     public VerifyResult VerifyCoinbaseTransaction(Vout coinbase, ulong solution, decimal runningDistribution, ulong height)
     {
         Guard.Argument(coinbase, nameof(coinbase)).NotNull();
-        Guard.Argument(solution, nameof(solution)).NotNegative().NotZero();
         Guard.Argument(runningDistribution, nameof(runningDistribution)).NotNegative().NotZero();
         if (coinbase.Validate().Any()) return VerifyResult.UnableToVerify;
         if (coinbase.T != CoinType.Coinbase) return VerifyResult.UnableToVerify;
@@ -660,31 +666,6 @@ public class Validator : IValidator
 
     /// <summary>
     /// </summary>
-    /// <param name="publicKey"></param>
-    /// <param name="vrfProof"></param>
-    /// <param name="kernel"></param>
-    /// <returns></returns>
-    public async Task<VerifyResult> VerifyVrfProofAsync(byte[] publicKey, byte[] vrfProof, byte[] kernel)
-    {
-        Guard.Argument(publicKey, nameof(publicKey)).NotNull().MaxCount(33);
-        Guard.Argument(vrfProof, nameof(vrfProof)).NotNull().MaxCount(96);
-        Guard.Argument(kernel, nameof(kernel)).NotNull().MaxCount(32);
-        try
-        {
-            _systemCore.Crypto()
-               .GetVerifyVrfSignature(Curve.decodePoint(publicKey, 0), kernel, vrfProof);
-            return VerifyResult.Succeed;
-        }
-        catch (Exception ex)
-        {
-            _logger.Here().Fatal(ex, "Unable to verify Vrf signature");
-        }
-
-        return VerifyResult.UnableToVerify;
-    }
-
-    /// <summary>
-    /// </summary>
     /// <param name="t"></param>
     /// <param name="message"></param>
     /// <param name="nonce"></param>
@@ -752,10 +733,7 @@ public class Validator : IValidator
     {
         Guard.Argument(solution, nameof(solution)).NotNegative().NotZero();
         Guard.Argument(height, nameof(height)).NotNegative();
-        var halving = (int)(height / LedgerConstant.BlockHalving);
-        if (halving >= 64) return 0;
         var sub = unchecked((long)LedgerConstant.RewardPercentage * LedgerConstant.Coin);
-        sub >>= halving;
         return solution * (decimal)sub / LedgerConstant.Coin / LedgerConstant.Distribution;
     }
 
@@ -791,66 +769,6 @@ public class Validator : IValidator
         var diff = Math.Truncate(solution * networkShare / LedgerConstant.Bits);
         diff = diff == 0 ? 1 : diff;
         return (uint)diff;
-    }
-
-    /// <summary>
-    /// </summary>
-    /// <returns></returns>
-    public async Task<ulong> SolutionAsync(byte[] vrfBytes, byte[] kernel)
-    {
-        Guard.Argument(vrfBytes, nameof(vrfBytes)).NotNull().MaxCount(96);
-        Guard.Argument(kernel, nameof(kernel)).NotNull().MaxCount(32);
-        return await Task.Factory.StartNew(() =>
-        {
-            var sw = new Stopwatch();
-            try
-            {
-                long itr = 0;
-                var target = new BigInteger(1, Hasher.Hash(vrfBytes).HexToByte());
-                var hashTarget = new BigInteger(1, kernel);
-                var hashTargetValue = new BigInteger((target.IntValue / hashTarget.BitCount).ToString()).Abs();
-                var hashWeightedTarget = new BigInteger(1, kernel).Multiply(hashTargetValue);
-                sw.Start();
-                while (!_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested)
-                {
-                    if (sw.ElapsedMilliseconds > LedgerConstant.SolutionCancellationTimeoutFromMilliseconds)
-                    {
-                        _logger.Information("Solution time: ({@T})  iterations: ({@R})  [FAILED]",
-                            sw.Elapsed.TotalSeconds, itr);
-                        itr = 0;
-                        break;
-                    }
-
-                    var weightedTarget = target.Multiply(BigInteger.ValueOf(itr));
-                    if (hashWeightedTarget.CompareTo(weightedTarget) <= 0)
-                    {
-                        _logger.Information("Solution time: ({@T})  iterations: ({@R})  [PASSED]",
-                            sw.Elapsed.TotalSeconds, itr);
-                        break;
-                    }
-
-                    if (itr == long.MaxValue)
-                    {
-                        itr = 0;
-                        break;
-                    }
-
-                    itr++;
-                }
-
-                return (ulong)itr;
-            }
-            catch (Exception ex)
-            {
-                _logger.Here().Error("{@Message}", ex.Message);
-            }
-            finally
-            {
-                sw.Stop();
-            }
-
-            return 0ul;
-        }, TaskCreationOptions.LongRunning).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -914,8 +832,8 @@ public class Validator : IValidator
             var mainChain = (await unitOfWork.HashChainRepository.WhereAsync(x =>
                 new ValueTask<bool>(x.Height >= otherChain.Min(o => o.Height)))).OrderBy(x => x.Height).ToArray();
             var newChain = otherChain.OrderBy(x => x.Height).Take(mainChain.Length).ToArray();
-            var mainChainBits = mainChain.Aggregate(0UL, (ul, b) => ul + b.BlockPos.Bits);
-            var newChainBits = newChain.Aggregate(0UL, (ul, b) => ul + b.BlockPos.Bits);
+            var mainChainBits = mainChain.Aggregate(0UL, (ul, b) => ul + b.BlockPos.StakeAmount);
+            var newChainBits = newChain.Aggregate(0UL, (ul, b) => ul + b.BlockPos.StakeAmount);
             if (mainChainBits >= newChainBits)
             {
 

@@ -1,8 +1,8 @@
 # IDE
 /.vscode
 /.vs
-.idea/.idea.cyphernetwork/
-.idea/.idea.cypher/.idea/.gitignore
+.idea/.idea.tangram/
+.idea/.idea.tangram/.idea/.gitignore
 
 # misc
 /bin
@@ -46,4 +46,6 @@ bld/
 
 workspace.code-workspace
 publish/**
+install/windows
 install/windows/.vs/
+Node/backupDb/**

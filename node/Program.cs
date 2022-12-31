@@ -73,7 +73,7 @@ public static class Program
                 throw new Exception($"No \"{logSectionName}\" section found in appsettings.json");
             }
 
-            Console.ForegroundColor = ConsoleColor.Magenta;
+            Console.ForegroundColor = ConsoleColor.DarkMagenta;
             Console.WriteLine(@$"
                   _______                                       __   _   __   _________ _____ __  __  __  
                  |__   __|                                     / /  | |  \ \ / /__   __/ ____|  \/  | \ \ 

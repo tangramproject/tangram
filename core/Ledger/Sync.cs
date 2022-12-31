@@ -4,19 +4,23 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Blake3;
 using TangramXtgm.Extensions;
 using Dawn;
+using libsignal.ecc;
 using libsignal.util;
 using MessagePack;
+using NBitcoin.BouncyCastle.Math;
 using Serilog;
 using Spectre.Console;
+using TangramXtgm.Helper;
 using TangramXtgm.Models;
 using TangramXtgm.Models.Messages;
 using TangramXtgm.Network;
-using Block = TangramXtgm.Models.Block;
 
 namespace TangramXtgm.Ledger;
 
@@ -38,8 +42,6 @@ public class Sync : ISync, IDisposable
 
     private bool _disposed;
     private int _running;
-
-    private static readonly object LockOnSync = new();
 
     /// <summary>
     /// </summary>
@@ -214,12 +216,6 @@ public class Sync : ISync, IDisposable
                     foreach (var block in blocks.OrderBy(x => x.Height))
                         try
                         {
-                            var verifyBlockHeader = await validator.VerifyBlockAsync(block);
-                            if (verifyBlockHeader != VerifyResult.Succeed)
-                            {
-                                warpTask.StopTask();
-                                return;
-                            }
                             var saveBlockResponse =
                                 await _systemCore.Graph().SaveBlockAsync(new SaveBlockRequest(block));
                             if (saveBlockResponse.Ok)
@@ -230,7 +226,8 @@ public class Sync : ISync, IDisposable
                             }
 
                             warpTask.StopTask();
-                            AnsiConsole.MarkupLine("[red]LOG:[/] " + $"Unable to save block: {block.Hash}" + "[red]...[/]");
+                            AnsiConsole.MarkupLine("[red]LOG:[/] " + $"Unable to save block: {block.Hash}" +
+                                                   "[red]...[/]");
                             return;
                         }
                         catch (Exception ex)
@@ -253,7 +250,7 @@ public class Sync : ISync, IDisposable
     /// <param name="skip"></param>
     /// <param name="take"></param>
     /// <returns></returns>
-    private async Task<IReadOnlyList<Models.Block>> FetchBlocksAsync(Peer peer, ulong skip, int take)
+    private async Task<IReadOnlyList<Block>> FetchBlocksAsync(Peer peer, ulong skip, int take)
     {
         Guard.Argument(peer, nameof(peer)).HasValue();
         Guard.Argument(skip, nameof(skip)).NotNegative();
@@ -271,7 +268,7 @@ public class Sync : ISync, IDisposable
                     new ProgressBarColumn(), new PercentageColumn(), new SpinnerColumn())
                 .StartAsync(async ctx =>
                 {
-                    var blocks = new List<Models.Block>();
+                    var blocks = new List<Block>();
                     var warpTask = ctx.AddTask($"[bold green]DOWNLOADING[/] [bold yellow]{Math.Abs(take - (int)skip)}[/] block(s) from [bold yellow]{peer.Name.FromBytes()}[/] v{peer.Version.FromBytes()}", false).IsIndeterminate();
                     warpTask.MaxValue(take - (int)skip);
                     warpTask.StartTask();

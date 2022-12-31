@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
-using System.Numerics;
 using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,6 +20,8 @@ using TangramXtgm.Cryptography;
 using TangramXtgm.Models;
 using TangramXtgm.Models.Messages;
 using TangramXtgm.Persistence;
+using BigInteger = NBitcoin.BouncyCastle.Math.BigInteger;
+using Numerics = System.Numerics;
 using Block = TangramXtgm.Models.Block;
 using BlockHeader = TangramXtgm.Models.BlockHeader;
 using Transaction = TangramXtgm.Models.Transaction;
@@ -32,7 +33,7 @@ namespace TangramXtgm.Ledger;
 public interface IPPoS
 {
     public bool Running { get; }
-    Models.Transaction Get(in byte[] transactionId);
+    Transaction Get(in byte[] transactionId);
     int Count();
 }
 
@@ -40,9 +41,9 @@ public interface IPPoS
 /// </summary>
 internal record CoinStake
 {
-    public Models.Transaction Transaction { get; init; }
+    public Transaction Transaction { get; init; }
     public ulong Solution { get; init; }
-    public uint Bits { get; init; }
+    public uint StakeAmount { get; init; }
 }
 
 /// <summary>
@@ -60,7 +61,7 @@ public class PPoS : IPPoS, IDisposable
 {
     private readonly ISystemCore _systemCore;
     private readonly ILogger _logger;
-    private readonly Caching<Models.Transaction> _syncCacheTransactions = new();
+    private readonly Caching<Transaction> _syncCacheTransactions = new();
     private readonly IDisposable _stakeDisposable;
     private bool _disposed;
     private int _running;
@@ -85,7 +86,7 @@ public class PPoS : IPPoS, IDisposable
     /// </summary>
     /// <param name="transactionId"></param>
     /// <returns></returns>
-    public Models.Transaction Get(in byte[] transactionId)
+    public Transaction Get(in byte[] transactionId)
     {
         Guard.Argument(transactionId, nameof(transactionId)).NotNull().MaxCount(32);
         try
@@ -153,7 +154,7 @@ public class PPoS : IPPoS, IDisposable
                 VerifyResult.Succeed) return;
             _logger.Information("KERNEL <selected> for round [{@Round}]",
                 prevBlock.Height + 2); // prev round + current + next round
-            var coinStake = await CreateCoinstakeAsync(kernel);
+            var coinStake = await CoinstakeAsync(kernel);
             if (coinStake is null) return;
             RemoveAnyCoinstake();
             _syncCacheTransactions.Add(coinStake.Transaction.TxnId, coinStake.Transaction);
@@ -184,7 +185,7 @@ public class PPoS : IPPoS, IDisposable
     /// <summary>
     /// </summary>
     /// <returns></returns>
-    private async Task<Models.Block> GetPreviousBlockAdjustedTimeAsUnixTimestampAsync()
+    private async Task<Block> GetPreviousBlockAdjustedTimeAsUnixTimestampAsync()
     {
         if (await _systemCore.Graph().GetPreviousBlockAsync() is not { } prevBlock) return null;
         return Helper.Util.GetAdjustedTimeAsUnixTimestamp(LedgerConstant.BlockProposalTimeFromSeconds) >
@@ -196,13 +197,13 @@ public class PPoS : IPPoS, IDisposable
     /// <summary>
     /// </summary>
     /// <returns></returns>
-    private ImmutableArray<Models.Transaction> SortTransactions()
+    private ImmutableArray<Transaction> SortTransactions()
     {
         var transactions = _syncCacheTransactions.GetItems();
-        if (transactions.Length == 0) return ImmutableArray<Models.Transaction>.Empty;
+        if (transactions.Length == 0) return ImmutableArray<Transaction>.Empty;
         if (transactions[0].Vtime == null) return transactions.ToArray().ToImmutableArray();
         var n = transactions.Length;
-        var aux = new Models.Transaction[n];
+        var aux = new Transaction[n];
         for (var i = 0; i < n; i++) aux[i] = transactions.ElementAt(n - 1 - i);
         return aux.ToImmutableArray();
     }
@@ -247,7 +248,7 @@ public class PPoS : IPPoS, IDisposable
     {
         Guard.Argument(prevBlockHash, nameof(prevBlockHash)).NotNull().NotEmpty().MaxCount(32);
         var memPool = _systemCore.MemPool();
-        var verifiedTransactions = Array.Empty<Models.Transaction>();
+        var verifiedTransactions = Array.Empty<Transaction>();
         if (_syncCacheTransactions.Count < _systemCore.Node.Staking.MaxTransactionsPerBlock)
             verifiedTransactions = await memPool.GetVerifiedTransactionsAsync(
                 _systemCore.Node.Staking.MaxTransactionsPerBlock - _syncCacheTransactions.Count);
@@ -316,20 +317,21 @@ public class PPoS : IPPoS, IDisposable
     /// <param name="kernel"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    private async Task<CoinStake> CreateCoinstakeAsync(Kernel kernel)
+    private async Task<CoinStake> CoinstakeAsync(Kernel kernel)
     {
         Guard.Argument(kernel, nameof(kernel)).NotNull();
         _logger.Information("Begin...      [SOLUTION]");
         var validator = _systemCore.Validator();
-        var solution = await validator.SolutionAsync(kernel.CalculatedVrfSignature, kernel.Hash).ConfigureAwait(false);
-        if (solution == 0) return null;
-        var networkShare = validator.NetworkShare(solution, _systemCore.UnitOfWork().HashChainRepository.Count + 1);
-        var bits = validator.Bits(solution, networkShare);
+        var solution = new BigInteger(1, kernel.CalculatedVrfSignature);
+        var calculatedSolution = solution.Mod(new BigInteger(1, LedgerConstant.MBits.ToBytes()));
+        var cS = Convert.ToUInt64(calculatedSolution.ToString());
+        var networkShare = validator.NetworkShare(cS, _systemCore.UnitOfWork().HashChainRepository.Count + 1);
+        var bits = validator.Bits(cS, networkShare);
         _logger.Information("Begin...      [COINSTAKE]");
-        var walletTransaction = await _systemCore.Wallet()
-            .CreateTransactionAsync(bits, networkShare.ConvertToUInt64(), _systemCore.Node.Staking.RewardAddress);
+        var walletTransaction = await _systemCore.Wallet().CreateTransactionAsync(bits, networkShare.ConvertToUInt64(),
+            _systemCore.Node.Staking.RewardAddress);
         if (walletTransaction.Transaction is not null)
-            return new CoinStake { Bits = bits, Transaction = walletTransaction.Transaction, Solution = solution };
+            return new CoinStake { StakeAmount = bits, Transaction = walletTransaction.Transaction, Solution = cS };
         _logger.Warning("Unable to create coinstake transaction: {@Message}", walletTransaction.Message);
         return null;
     }
@@ -339,7 +341,7 @@ public class PPoS : IPPoS, IDisposable
     /// <param name="block"></param>
     /// <param name="prevBlock"></param>
     /// <returns></returns>
-    private BlockGraph NewBlockGraph(in Models.Block block, in Models.Block prevBlock)
+    private BlockGraph NewBlockGraph(in Block block, in Block prevBlock)
     {
         Guard.Argument(block, nameof(block)).NotNull();
         Guard.Argument(prevBlock, nameof(prevBlock)).NotNull();
@@ -389,8 +391,8 @@ public class PPoS : IPPoS, IDisposable
     /// <param name="coinStake"></param>
     /// <param name="previousBlock"></param>
     /// <returns></returns>
-    private async Task<Models.Block> NewBlockAsync(ImmutableArray<Models.Transaction> transactions, Kernel kernel, CoinStake coinStake,
-        Models.Block previousBlock)
+    private async Task<Block> NewBlockAsync(ImmutableArray<Transaction> transactions, Kernel kernel, CoinStake coinStake,
+        Block previousBlock)
     {
         Guard.Argument(transactions, nameof(transactions)).NotEmpty();
         Guard.Argument(kernel, nameof(kernel)).NotNull();
@@ -398,7 +400,7 @@ public class PPoS : IPPoS, IDisposable
         Guard.Argument(kernel.VerifiedVrfSignature, nameof(kernel.VerifiedVrfSignature)).NotNull().MaxCount(32);
         Guard.Argument(coinStake, nameof(coinStake)).NotNull();
         Guard.Argument(coinStake.Solution, nameof(coinStake.Solution)).NotZero().NotNegative();
-        Guard.Argument(coinStake.Bits, nameof(coinStake.Bits)).NotZero().NotNegative();
+        Guard.Argument(coinStake.StakeAmount, nameof(coinStake.StakeAmount)).NotZero().NotNegative();
         Guard.Argument(previousBlock, nameof(previousBlock)).NotNull();
         _logger.Information("Begin...      [BLOCK]");
         try
@@ -407,11 +409,11 @@ public class PPoS : IPPoS, IDisposable
             if (nonce.Length == 0) return null;
             var merkelRoot = BlockHeader.ToMerkleRoot(previousBlock.BlockHeader.MerkleRoot, transactions);
             var lockTime = Helper.Util.GetAdjustedTimeAsUnixTimestamp(LedgerConstant.BlockProposalTimeFromSeconds);
-            var block = new Models.Block
+            var block = new Block
             {
                 Hash = new byte[32],
                 Height = previousBlock.Height + 1,
-                BlockHeader = new Models.BlockHeader
+                BlockHeader = new BlockHeader
                 {
                     Version = 2,
                     Height = previousBlock.Height + 1,
@@ -425,7 +427,7 @@ public class PPoS : IPPoS, IDisposable
                 Txs = transactions.ToArray(),
                 BlockPos = new BlockPoS
                 {
-                    Bits = coinStake.Bits,
+                    StakeAmount = coinStake.StakeAmount,
                     Nonce = nonce,
                     Solution = coinStake.Solution,
                     VrfProof = kernel.CalculatedVrfSignature,
@@ -457,14 +459,14 @@ public class PPoS : IPPoS, IDisposable
         Guard.Argument(kernel, nameof(kernel)).NotNull();
         Guard.Argument(coinStake, nameof(coinStake)).NotNull();
         _logger.Information("Begin...      [SLOTH]");
-        var x = BigInteger.Parse(kernel.VerifiedVrfSignature.ByteToHex(), NumberStyles.AllowHexSpecifier);
+        var x = Numerics.BigInteger.Parse(kernel.VerifiedVrfSignature.ByteToHex(), NumberStyles.AllowHexSpecifier);
         if (x.Sign <= 0) x = -x;
         var nonceHash = Array.Empty<byte>();
         try
         {
             var sloth = new Sloth(LedgerConstant.SlothCancellationTimeoutFromMilliseconds,
                 _systemCore.ApplicationLifetime.ApplicationStopping);
-            var nonce = await sloth.EvalAsync((int)coinStake.Bits, x);
+            var nonce = await sloth.EvalAsync((int)coinStake.Solution / LedgerConstant.TSlow, x);
             if (!string.IsNullOrEmpty(nonce)) nonceHash = nonce.ToBytes();
         }
         catch (Exception ex)
