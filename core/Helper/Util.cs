@@ -232,7 +232,7 @@ public static class Util
             }
         }
 
-        return IPAddress.Loopback;
+        return IPAddress.Any;
     }
 
     /// <summary>
