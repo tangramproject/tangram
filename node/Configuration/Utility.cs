@@ -72,7 +72,7 @@ public class Utility
                     .AddColumn(new TableColumn("Setting").Centered())
                     .AddColumn(new TableColumn("Value").Centered())
                     .AddRow("Name", _node.Name)
-                    .AddRow("IP Address", _node.EndPoint.Address.ToString())
+                    .AddRow("IP Address", _node.Network.PublicIPAddress)
                     .AddRow("Http Port", _node.Network.HttpPort.ToString())
                     .AddRow("Tcp Port", _node.Network.P2P.TcpPort.ToString())
                     .AddRow("Web Socket Port", _node.Network.P2P.WsPort.ToString())
@@ -138,10 +138,13 @@ public class Utility
         if (ipAddressChoice == ManuallyEnterIpAddress)
         {
             var foundIpAddress = TangramXtgm.Helper.Util.GetIpAddress();
-            if (AnsiConsole.Confirm($"IP address found {foundIpAddress}"))
+            if (foundIpAddress != IPAddress.Any)
             {
-                _node.EndPoint = new(foundIpAddress, 0);
-                return;
+                if (AnsiConsole.Confirm($"IP address found {foundIpAddress}"))
+                {
+                    _node.Network.PublicIPAddress = foundIpAddress.ToString();
+                    return;
+                }
             }
 
             var ipAddress = AnsiConsole.Prompt(new TextPrompt<string>("Enter IP address (e.g. 123.1.23.123):")
@@ -154,7 +157,7 @@ public class Utility
                         false => ValidationResult.Error("[red]Something went wrong[/]")
                     };
                 }));
-            _node.EndPoint = new(IPAddress.Parse(ipAddress), 0);
+            _node.Network.PublicIPAddress = ipAddress.ToString();
         }
         else
         {
@@ -162,7 +165,7 @@ public class Utility
                 .Title("Please choose the service to use for automatic IP address detection")
                 .AddChoices(new[] { "ident.me", "ipify.org", "my-ip.io", "seeip.org" }));
             var selectedIpAddressService = _ipServices.First(service => service.Name == serviceChoice);
-            _node.EndPoint = new(selectedIpAddressService.Read(), 0);
+            _node.Network.PublicIPAddress = selectedIpAddressService.Read().ToString();
         }
     }
 
