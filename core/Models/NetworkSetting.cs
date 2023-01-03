@@ -33,6 +33,7 @@ public record Network
     public X509Certificate X509Certificate { get; set; }
     public TransactionLeakRateConfigurationOption MemoryPoolTransactionRateLimit { get; set; }
     public string SigningKeyRingName { get; set; }
+    public string PublicIPAddress { get; set; }
     public int HttpPort { get; set; }
     public int HttpsPort { get; set; }
     public P2P P2P { get; set; }
