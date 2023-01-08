@@ -10,7 +10,7 @@ using TangramXtgm.Helper;
 
 namespace TangramXtgm.Cryptography;
 
-public enum PrimeBit: sbyte
+public enum PrimeBit : sbyte
 {
     P256 = 0x00,
     P512 = 0x01,

@@ -24,7 +24,7 @@ public static class Program
 {
     private const string AppSettingsFile = "appsettings.json";
 
-    
+
     /// <summary>
     ///
     /// </summary>
