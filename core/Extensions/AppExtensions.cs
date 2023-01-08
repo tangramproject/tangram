@@ -49,7 +49,8 @@ public static class AppExtensions
             var remoteNodes = configuration.GetSection("Node:Network:SeedList").GetChildren().ToArray();
             var node = new Node
             {
-                EndPoint = new IPEndPoint(Util.GetIpAddress(), 0),
+
+                EndPoint = new IPEndPoint(IPAddress.Parse(configuration["Node:Network:PublicIPAddress"]), 0),
                 Name = configuration["Node:Name"],
                 Data =
                     new Data
@@ -61,6 +62,7 @@ public static class AppExtensions
                 {
                     Environment = configuration["Node:Network:Environment"],
                     CertificateMode = configuration["Node:Network:CertificateMode"],
+                    PublicIPAddress = configuration["Node:Network:PublicIPAddress"],
                     HttpPort = Convert.ToInt32(configuration["Node:Network:HttpPort"]),
                     HttpsPort = Convert.ToInt32(configuration["Node:Network:HttpsPort"]),
                     P2P =

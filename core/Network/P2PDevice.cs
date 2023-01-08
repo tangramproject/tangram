@@ -126,10 +126,10 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
     {
         Util.ThrowPortNotFree(_systemCore.Node.Network.P2P.TcpPort);
         _systemCore.Node.EndPoint.Port = _systemCore.Node.Network.P2P.TcpPort;
-        ListeningAsync(_systemCore.Node.EndPoint, Transport.Tcp, 5).ConfigureAwait(false);
+        ListeningAsync(new(Util.GetIpAddress(), _systemCore.Node.EndPoint.Port), Transport.Tcp, 5).ConfigureAwait(false);
         Util.ThrowPortNotFree(_systemCore.Node.Network.P2P.WsPort);
         _systemCore.Node.EndPoint.Port = _systemCore.Node.Network.P2P.WsPort;
-        ListeningAsync(_systemCore.Node.EndPoint, Transport.Ws, 1).ConfigureAwait(false);
+        ListeningAsync(new(Util.GetIpAddress(), _systemCore.Node.EndPoint.Port), Transport.Ws, 1).ConfigureAwait(false);
     }
 
     /// <summary>

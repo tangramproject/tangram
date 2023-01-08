@@ -214,7 +214,7 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     private Task DiscoverAsync()
     {
         Util.ThrowPortNotFree(_systemCore.Node.Network.P2P.DsPort);
-        var ipEndPoint = new IPEndPoint(_systemCore.Node.EndPoint.Address,
+        var ipEndPoint = new IPEndPoint(Util.GetIpAddress(),
             _systemCore.Node.Network.P2P.DsPort);
         _socket = NngFactorySingleton.Instance.Factory.SurveyorOpen()
             .ThenListen($"tcp://{ipEndPoint.Address}:{ipEndPoint.Port}", Defines.NngFlag.NNG_FLAG_NONBLOCK).Unwrap();
