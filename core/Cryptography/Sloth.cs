@@ -1,6 +1,7 @@
 ﻿// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
+using System;
 using System.Diagnostics;
 using System.Numerics;
 using System.Threading;
@@ -9,22 +10,35 @@ using TangramXtgm.Helper;
 
 namespace TangramXtgm.Cryptography;
 
+public enum PrimeBit: sbyte
+{
+    P256 = 0x00,
+    P512 = 0x01,
+    P1024 = 0x02
+}
+
 /// <summary>
 /// </summary>
 public class Sloth
 {
+    private const string PrimeBit1024 =
+        "26665316952145251691159678627219217222885850903741016853585447718947343212288750750268012668712469908106258613976547496870890438504017231007766799519535785905104605162203896873810538315838185502276890025696087480171103337359532995917850779890238106057070346163136946293278160601772800244012833993583077700483";
+    private const string PrimeBit512 =
+        "1428747867218506432894623188342974573745986827958686951828141301796511703204477877094047850395093527438571991358833787830431256534283107665764428020239091";
     private const string PrimeBit256 =
         "60464814417085833675395020742168312237934553084050601624605007846337253615407";
 
     private readonly int _runForMs;
     private readonly CancellationToken _stoppingToken;
+    private readonly PrimeBit _primeBit;
 
     /// <summary>
     /// </summary>
     /// <param name="runForMs"></param>
     /// <param name="stoppingToken"></param>
-    public Sloth(int runForMs, CancellationToken stoppingToken)
+    public Sloth(PrimeBit primeBit, int runForMs, CancellationToken stoppingToken)
     {
+        _primeBit = primeBit;
         _runForMs = runForMs;
         _stoppingToken = stoppingToken;
     }
@@ -36,7 +50,7 @@ public class Sloth
     /// <returns></returns>
     public async Task<string> EvalAsync(int t, BigInteger x)
     {
-        var p = BigInteger.Parse(PrimeBit256);
+        var p = BigInteger.Parse(GetPrimeBit(_primeBit));
         var y = await ModSqrtOpAsync(t, x, p);
         return y == BigInteger.Zero ? string.Empty : y.ToString();
     }
@@ -49,7 +63,7 @@ public class Sloth
     /// <returns></returns>
     public bool Verify(uint t, BigInteger x, BigInteger y)
     {
-        var p = BigInteger.Parse(PrimeBit256);
+        var p = BigInteger.Parse(GetPrimeBit(_primeBit));
         if (!IsQuadraticResidue(x, p)) x = Util.Mod(BigInteger.Negate(x), p);
         for (var i = 0; i < t; i++) y = Square(y, p);
 
@@ -180,5 +194,22 @@ public class Sloth
                 sw.Stop();
             }
         }, TaskCreationOptions.LongRunning).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="primeBit"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentOutOfRangeException"></exception>
+    private static string GetPrimeBit(PrimeBit primeBit)
+    {
+        return primeBit switch
+        {
+            PrimeBit.P256 => PrimeBit256,
+            PrimeBit.P512 => PrimeBit512,
+            PrimeBit.P1024 => PrimeBit1024,
+            _ => throw new ArgumentOutOfRangeException(nameof(primeBit), primeBit, null)
+        };
     }
 }

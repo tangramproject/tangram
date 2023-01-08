@@ -22,10 +22,10 @@ namespace TangramXtgm.Ledger;
 /// </summary>
 public interface IMemoryPool
 {
-    Task<VerifyResult> NewTransactionAsync(Models.Transaction transaction);
-    Models.Transaction Get(in byte[] hash);
-    Models.Transaction[] GetMany();
-    Task<Models.Transaction[]> GetVerifiedTransactionsAsync(int take);
+    Task<VerifyResult> NewTransactionAsync(Transaction transaction);
+    Transaction Get(in byte[] hash);
+    Transaction[] GetMany();
+    Task<Transaction[]> GetVerifiedTransactionsAsync(int take);
     int Count();
 }
 
@@ -36,7 +36,7 @@ public class MemoryPool : IMemoryPool, IDisposable
     private readonly ISystemCore _systemCore;
     private readonly ILogger _logger;
     private readonly Caching<string> _syncCacheSeenTransactions = new();
-    private readonly Caching<Models.Transaction> _syncCacheTransactions = new();
+    private readonly Caching<Transaction> _syncCacheTransactions = new();
     private IDisposable _disposableHandelSeenTransactions;
     private bool _disposed;
 
@@ -55,7 +55,7 @@ public class MemoryPool : IMemoryPool, IDisposable
     /// </summary>
     /// <param name="transaction"></param>
     /// <returns></returns>
-    public async Task<VerifyResult> NewTransactionAsync(Models.Transaction transaction)
+    public async Task<VerifyResult> NewTransactionAsync(Transaction transaction)
     {
         Guard.Argument(transaction, nameof(transaction)).NotNull();
         try
@@ -88,7 +88,7 @@ public class MemoryPool : IMemoryPool, IDisposable
     /// </summary>
     /// <param name="transactionId"></param>
     /// <returns></returns>
-    public Models.Transaction Get(in byte[] transactionId)
+    public Transaction Get(in byte[] transactionId)
     {
         Guard.Argument(transactionId, nameof(transactionId)).NotNull().MaxCount(32);
         try
@@ -107,7 +107,7 @@ public class MemoryPool : IMemoryPool, IDisposable
     /// <summary>
     /// </summary>
     /// <returns></returns>
-    public Models.Transaction[] GetMany()
+    public Transaction[] GetMany()
     {
         return _syncCacheTransactions.GetItems();
     }
@@ -116,10 +116,10 @@ public class MemoryPool : IMemoryPool, IDisposable
     /// </summary>
     /// <param name="take"></param>
     /// <returns></returns>
-    public async Task<Models.Transaction[]> GetVerifiedTransactionsAsync(int take)
+    public async Task<Transaction[]> GetVerifiedTransactionsAsync(int take)
     {
         Guard.Argument(take, nameof(take)).NotNegative();
-        var validTransactions = new List<Models.Transaction>();
+        var validTransactions = new List<Transaction>();
         var validator = _systemCore.Validator();
         foreach (var transaction in _syncCacheTransactions.GetItems().Take(take).Select(x => x)
                      .OrderByDescending(x => x.Vtime.I))
