@@ -141,7 +141,7 @@ public class PPoS : IPPoS, IDisposable
     {
         try
         {
-            var prevBlock = await GetPreviousBlockAdjustedTimeAsUnixTimestampAsync();
+            var prevBlock = await _systemCore.Validator().VerifyPreviousBlockAdjustedTimeAsUnixTimestampAsync();
             if (prevBlock is null) return;
             if (!await BlockHeightSynchronizedAsync())
             {
@@ -180,18 +180,6 @@ public class PPoS : IPPoS, IDisposable
             RemoveAnyCoinstake();
             Interlocked.Exchange(ref _running, 0);
         }
-    }
-
-    /// <summary>
-    /// </summary>
-    /// <returns></returns>
-    private async Task<Block> GetPreviousBlockAdjustedTimeAsUnixTimestampAsync()
-    {
-        if (await _systemCore.Graph().GetPreviousBlockAsync() is not { } prevBlock) return null;
-        return Helper.Util.GetAdjustedTimeAsUnixTimestamp(LedgerConstant.BlockProposalTimeFromSeconds) >
-               prevBlock.BlockHeader.Locktime
-            ? prevBlock
-            : null;
     }
 
     /// <summary>
@@ -405,7 +393,7 @@ public class PPoS : IPPoS, IDisposable
         _logger.Information("Begin...      [BLOCK]");
         try
         {
-            var nonce = await GetNonceAsync(kernel, coinStake);
+            var nonce = await GetNonceAsync(kernel, coinStake, transactions.Length);
             if (nonce.Length == 0) return null;
             var merkelRoot = BlockHeader.ToMerkleRoot(previousBlock.BlockHeader.MerkleRoot, transactions);
             var lockTime = Helper.Util.GetAdjustedTimeAsUnixTimestamp(LedgerConstant.BlockProposalTimeFromSeconds);
@@ -450,11 +438,13 @@ public class PPoS : IPPoS, IDisposable
     }
 
     /// <summary>
+    /// 
     /// </summary>
     /// <param name="kernel"></param>
     /// <param name="coinStake"></param>
+    /// <param name="txLength"></param>
     /// <returns></returns>
-    private async Task<byte[]> GetNonceAsync(Kernel kernel, CoinStake coinStake)
+    private async Task<byte[]> GetNonceAsync(Kernel kernel, CoinStake coinStake, int txLength)
     {
         Guard.Argument(kernel, nameof(kernel)).NotNull();
         Guard.Argument(coinStake, nameof(coinStake)).NotNull();
@@ -464,9 +454,9 @@ public class PPoS : IPPoS, IDisposable
         var nonceHash = Array.Empty<byte>();
         try
         {
-            var sloth = new Sloth(LedgerConstant.SlothCancellationTimeoutFromMilliseconds,
+            var sloth = new Sloth(PrimeBit.P256, LedgerConstant.SlothCancellationTimeoutFromMilliseconds,
                 _systemCore.ApplicationLifetime.ApplicationStopping);
-            var nonce = await sloth.EvalAsync((int)coinStake.Solution / LedgerConstant.TSlow, x);
+            var nonce = await sloth.EvalAsync((int)coinStake.Solution / LedgerConstant.CalculateTimeCost(txLength), x);
             if (!string.IsNullOrEmpty(nonce)) nonceHash = nonce.ToBytes();
         }
         catch (Exception ex)

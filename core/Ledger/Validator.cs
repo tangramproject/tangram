@@ -59,6 +59,7 @@ public interface IValidator
     VerifyResult VerifyMlsag(Transaction transaction);
     VerifyResult VerifyNoDuplicateImageKeys(IList<Transaction> transactions);
     VerifyResult VerifyNoDuplicateBlockHeights(IReadOnlyList<Block> blocks);
+    Task<Block> VerifyPreviousBlockAdjustedTimeAsUnixTimestampAsync();
 }
 
 /// <summary>
@@ -392,14 +393,22 @@ public class Validator : IValidator
             return VerifyResult.UnableToVerify;
         }
 
-        if (VerifySloth((uint)(block.BlockPos.Solution / LedgerConstant.TSlow), block.BlockPos.VrfSig, block.BlockPos.Nonce) != VerifyResult.Succeed)
+        if (block.BlockHeader.MerkleRoot.Xor(LedgerConstant.BlockZeroMerkel) &&
+            block.BlockHeader.PrevBlockHash.Xor(LedgerConstant.BlockZeroPrevHash)) return VerifyResult.Succeed;
+
+        if (await VerifyPreviousBlockAdjustedTimeAsUnixTimestampAsync() is null)
+        {
+            _logger.Fatal("Unable to verify the block time");
+            return VerifyResult.UnableToVerify;
+        }
+
+        if (VerifySloth((uint)(block.BlockPos.Solution / (ulong)LedgerConstant.CalculateTimeCost(block.NrTx)),
+                block.BlockPos.VrfSig, block.BlockPos.Nonce) != VerifyResult.Succeed)
         {
             _logger.Here().Fatal("Unable to verify the slow function");
             return VerifyResult.UnableToVerify;
         }
 
-        if (block.BlockHeader.MerkleRoot.Xor(LedgerConstant.BlockZeroMerkel) &&
-            block.BlockHeader.PrevBlockHash.Xor(LedgerConstant.BlockZeroPrevHash)) return VerifyResult.Succeed;
         if (await VerifyBlockHashAsync(block) != VerifyResult.Succeed)
         {
             _logger.Fatal("Unable to verify the block hash");
@@ -595,6 +604,19 @@ public class Validator : IValidator
     }
 
     /// <summary>
+    /// 
+    /// </summary>
+    /// <returns></returns>
+    public async Task<Block> VerifyPreviousBlockAdjustedTimeAsUnixTimestampAsync()
+    {
+        if (await _systemCore.Graph().GetPreviousBlockAsync() is not { } prevBlock) return null;
+        return Helper.Util.GetAdjustedTimeAsUnixTimestamp(LedgerConstant.BlockProposalTimeFromSeconds) >
+               prevBlock.BlockHeader.Locktime
+            ? prevBlock
+            : null;
+    }
+
+    /// <summary>
     /// </summary>
     /// <param name="transaction"></param>
     /// <returns></returns>
@@ -678,7 +700,7 @@ public class Validator : IValidator
         try
         {
             var ct = new CancellationTokenSource(TimeSpan.FromSeconds(1)).Token;
-            var sloth = new Sloth(0, ct);
+            var sloth = new Sloth(PrimeBit.P256, 0, ct);
             var x = System.Numerics.BigInteger.Parse(message.ByteToHex(), NumberStyles.AllowHexSpecifier);
             var y = System.Numerics.BigInteger.Parse(nonce.FromBytes());
             if (x.Sign <= 0) x = -x;
