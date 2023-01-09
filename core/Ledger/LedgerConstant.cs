@@ -1,6 +1,7 @@
 // Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
+using Dawn;
 using TangramXtgm.Extensions;
 
 namespace TangramXtgm.Ledger;
@@ -24,6 +25,8 @@ public static class LedgerConstant
     public static readonly byte[] BlockZeroPrevHash =
         "74616E6772616D5854474DAF915782EBC2C2FA70696E67706F6E67736E65616B".HexToByte();
 
+    public const int TransactionV3Height = 15;
+
     // PPoS
     public const uint BlockProposalTimeFromSeconds = 5;
     public const uint WaitSyncTimeFromSeconds = 5;
@@ -40,6 +43,7 @@ public static class LedgerConstant
     /// <returns></returns>
     public static int CalculateTimeCost(int x)
     {
+        Guard.Argument(x, nameof(x)).NotNegative().NotZero();
         return x switch
         {
             <= 19 => 64,

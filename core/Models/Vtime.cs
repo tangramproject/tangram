@@ -16,6 +16,8 @@ public record Vtime
     [MessagePack.Key(3)] public int I { get; set; }
     [MessagePack.Key(4)] public byte[] S { get; set; }
     [MessagePack.Key(5)] public long L { get; set; }
+    [MessagePack.Key(6)] public int T { get; set; }
+    [MessagePack.Key(7)] public int K { get; set; }
 
     /// <summary>
     /// </summary>

@@ -30,7 +30,7 @@ public record Transaction : IComparable<Transaction>
 
     [MessagePack.Key(0)] public byte[] TxnId { get; set; }
     [MessagePack.Key(1)] public Bp[] Bp { get; set; }
-    [MessagePack.Key(2)] public int Ver { get; set; }
+    [MessagePack.Key(2)] public int Ver { get; set; } = 3;
     [MessagePack.Key(3)] public int Mix { get; set; }
     [MessagePack.Key(4)] public Vin[] Vin { get; set; }
     [MessagePack.Key(5)] public Vout[] Vout { get; set; }
@@ -68,7 +68,13 @@ public record Transaction : IComparable<Transaction>
                 results.AddRange(rct.Validate());
         if (OutputType() != CoinType.Payment) return results;
         if (Vtime == null) results.Add(new ValidationResult("Argument is null", new[] { "Vtime" }));
-        if (Vtime != null) results.AddRange(Vtime.Validate());
+        if (Vtime != null)
+        {
+            results.AddRange(Vtime.Validate());
+            if (Ver < 3) return results;
+            if (Vtime.T < 5) results.Add(new ValidationResult("Range exception", new[] { "T" }));
+            if (Vtime.K < 0) results.Add(new ValidationResult("Range exception", new[] { "K" }));
+        }
         return results;
     }
 
@@ -119,14 +125,18 @@ public record Transaction : IComparable<Transaction>
                 .Append(rct.P)
                 .Append(rct.S);
 
-        if (Vtime != null)
+        if (Vtime == null) return ts.ToArray();
+        ts
+            .Append(Vtime.I)
+            .Append(Vtime.L)
+            .Append(Vtime.M)
+            .Append(Vtime.N)
+            .Append(Vtime.S)
+            .Append(Vtime.W);
+        if (Ver == 3)
             ts
-                .Append(Vtime.I)
-                .Append(Vtime.L)
-                .Append(Vtime.M)
-                .Append(Vtime.N)
-                .Append(Vtime.S)
-                .Append(Vtime.W);
+                .Append(Vtime.T)
+                .Append(Vtime.K);
 
         return ts.ToArray();
     }

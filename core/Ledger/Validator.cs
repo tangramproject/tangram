@@ -53,7 +53,7 @@ public interface IValidator
     VerifyResult VerifyNetworkShare(ulong solution, decimal previousNetworkShare, decimal runningDistributionTotal, ulong height);
     Task<VerifyResult> VerifyBlockHashAsync(Block block);
     Task<VerifyResult> VerifyMerkleAsync(Block block);
-    VerifyResult VerifyTransactionTime(in Transaction transaction);
+    VerifyResult VerifyTransactionTime(Transaction transaction);
     byte[] Kernel(byte[] prevHash, byte[] hash, ulong round);
     Task<Block[]> VerifyForkRuleAsync(Block[] xChain);
     VerifyResult VerifyMlsag(Transaction transaction);
@@ -465,7 +465,7 @@ public class Validator : IValidator
         var outputs = transaction.Vout.Select(x => Enum.GetName(x.T)).ToArray();
         if (outputs.Contains(Enum.GetName(CoinType.Payment)) && outputs.Contains(Enum.GetName(CoinType.Change)))
         {
-            if (VerifyTransactionTime(in transaction) != VerifyResult.Succeed)
+            if (VerifyTransactionTime(transaction) != VerifyResult.Succeed)
                 return VerifyResult.UnableToVerify;
         }
 
@@ -530,7 +530,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="transaction"></param>
     /// <returns></returns>
-    public VerifyResult VerifyTransactionTime(in Transaction transaction)
+    public VerifyResult VerifyTransactionTime(Transaction transaction)
     {
         Guard.Argument(transaction, nameof(transaction)).NotNull();
         try
@@ -543,8 +543,25 @@ public class Validator : IValidator
                 return VerifyResult.UnableToVerify;
             }
 
-            var t = TimeSpan.FromTicks(transaction.Vtime.W).TotalSeconds;
-            if (t < LedgerConstant.TransactionDefaultTimeDelayFromSeconds) return VerifyResult.UnableToVerify;
+            if (_systemCore.UnitOfWork().HashChainRepository.Height >= LedgerConstant.TransactionV3Height)
+            {
+                var size = ((uint)transaction.Vtime.K).ConvertFromUInt32();
+                if (size != transaction.GetSize() * 0.001M)
+                {
+                    _logger.Fatal("Unable to verify the transaction size");
+                    return VerifyResult.UnableToVerify;
+                }
+                var t =
+                    (int)(transaction.Vtime.T * decimal.Round(size, 0, MidpointRounding.ToZero) * 600 * 1.5M);
+                if (t != transaction.Vtime.I)
+                {
+                    _logger.Fatal("Unable to verify the transaction calculated time");
+                    return VerifyResult.UnableToVerify;
+                }
+            }
+
+            var w = TimeSpan.FromTicks(transaction.Vtime.W).TotalSeconds;
+            if (w < LedgerConstant.TransactionDefaultTimeDelayFromSeconds) return VerifyResult.UnableToVerify;
             if (VerifySloth((uint)transaction.Vtime.I, transaction.Vtime.M, transaction.Vtime.N) !=
                 VerifyResult.Succeed)
             {

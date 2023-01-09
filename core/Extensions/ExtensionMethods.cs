@@ -43,7 +43,7 @@ public static class ExtensionMethods
 
     public static decimal DivCoin(this ulong value)
     {
-        return Convert.ToDecimal(value) / Ledger.LedgerConstant.Coin; ;
+        return Convert.ToDecimal(value) / Ledger.LedgerConstant.Coin;
     }
 
     public static decimal DivWithAttoTan(this ulong value)
@@ -56,6 +56,18 @@ public static class ExtensionMethods
         Guard.Argument(value, nameof(value)).NotZero().NotNegative();
         var amount = (ulong)(value * 1000_000_000);
         return amount;
+    }
+    
+    public static uint ConvertToUInt32(this decimal value)
+    {
+        Guard.Argument(value, nameof(value)).NotZero().NotNegative();
+        var amount = (uint)(value * 1000_000);
+        return amount;
+    }
+    
+    public static decimal ConvertFromUInt32(this uint value)
+    {
+        return Convert.ToDecimal(value) / 1000_000;
     }
 
     public static string ShorterString(this string value, int front = 4, int back = 4)
