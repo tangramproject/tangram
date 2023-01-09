@@ -57,14 +57,14 @@ public static class ExtensionMethods
         var amount = (ulong)(value * 1000_000_000);
         return amount;
     }
-    
+
     public static uint ConvertToUInt32(this decimal value)
     {
         Guard.Argument(value, nameof(value)).NotZero().NotNegative();
         var amount = (uint)(value * 1000_000);
         return amount;
     }
-    
+
     public static decimal ConvertFromUInt32(this uint value)
     {
         return Convert.ToDecimal(value) / 1000_000;
