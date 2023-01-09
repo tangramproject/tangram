@@ -163,7 +163,6 @@ public class Sync : ISync, IDisposable
     private async Task SynchronizeAsync(Peer peer, ulong skip, int take)
     {
         Guard.Argument(peer, nameof(peer)).HasValue();
-        Guard.Argument(skip, nameof(skip)).NotNegative();
         Guard.Argument(take, nameof(take)).NotNegative();
         var isSynchronized = false;
         try
@@ -253,7 +252,6 @@ public class Sync : ISync, IDisposable
     private async Task<IReadOnlyList<Block>> FetchBlocksAsync(Peer peer, ulong skip, int take)
     {
         Guard.Argument(peer, nameof(peer)).HasValue();
-        Guard.Argument(skip, nameof(skip)).NotNegative();
         Guard.Argument(take, nameof(take)).NotNegative();
         var iSkip = skip;
         try

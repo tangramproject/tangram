@@ -90,7 +90,7 @@ public class MemoryPool : IMemoryPool, IDisposable
     /// <returns></returns>
     public Transaction Get(in byte[] transactionId)
     {
-        Guard.Argument(transactionId, nameof(transactionId)).NotNull().MaxCount(32);
+        Guard.Argument(transactionId, nameof(transactionId)).NotNull().NotEmpty().MaxCount(32);
         try
         {
             if (_syncCacheTransactions.TryGet(transactionId, out var transaction))

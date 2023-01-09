@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
+using Dawn;
 using TangramXtgm.Helper;
 
 namespace TangramXtgm.Cryptography;
@@ -34,10 +35,12 @@ public class Sloth
 
     /// <summary>
     /// </summary>
+    /// <param name="primeBit"></param>
     /// <param name="runForMs"></param>
     /// <param name="stoppingToken"></param>
     public Sloth(PrimeBit primeBit, int runForMs, CancellationToken stoppingToken)
     {
+        Guard.Argument(runForMs, nameof(runForMs)).NotNegative().NotZero();
         _primeBit = primeBit;
         _runForMs = runForMs;
         _stoppingToken = stoppingToken;
@@ -50,6 +53,7 @@ public class Sloth
     /// <returns></returns>
     public async Task<string> EvalAsync(int t, BigInteger x)
     {
+        Guard.Argument(t, nameof(t)).NotNegative().NotZero();
         var p = BigInteger.Parse(GetPrimeBit(_primeBit));
         var y = await ModSqrtOpAsync(t, x, p);
         return y == BigInteger.Zero ? string.Empty : y.ToString();
@@ -63,6 +67,7 @@ public class Sloth
     /// <returns></returns>
     public bool Verify(uint t, BigInteger x, BigInteger y)
     {
+        Guard.Argument(t, nameof(t)).NotZero();
         var p = BigInteger.Parse(GetPrimeBit(_primeBit));
         if (!IsQuadraticResidue(x, p)) x = Util.Mod(BigInteger.Negate(x), p);
         for (var i = 0; i < t; i++) y = Square(y, p);
@@ -209,7 +214,7 @@ public class Sloth
             PrimeBit.P256 => PrimeBit256,
             PrimeBit.P512 => PrimeBit512,
             PrimeBit.P1024 => PrimeBit1024,
-            _ => throw new ArgumentOutOfRangeException(nameof(primeBit), primeBit, null)
+            _ => throw new ArgumentOutOfRangeException(nameof(primeBit), primeBit, "Prime bit not supported")
         };
     }
 }

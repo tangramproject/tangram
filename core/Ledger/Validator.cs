@@ -483,6 +483,7 @@ public class Validator : IValidator
     /// <param name="transactions"></param>
     public VerifyResult VerifyNoDuplicateImageKeys(IList<Transaction> transactions)
     {
+        Guard.Argument(transactions, nameof(transactions)).NotNull().NotEmpty();
         var noDupImageKeys = new List<byte[]>();
         foreach (var transaction in transactions)
             foreach (var vin in transaction.Vin)
@@ -502,6 +503,7 @@ public class Validator : IValidator
     /// <returns></returns>
     public VerifyResult VerifyMlsag(Transaction transaction)
     {
+        Guard.Argument(transaction, nameof(transaction)).NotNull();
         using var mlsag = new MLSAG();
         var skip = 0;
         for (var i = 0; i < transaction.Vin.Length; i++)
@@ -644,7 +646,7 @@ public class Validator : IValidator
     /// <returns></returns>
     public async Task<VerifyResult> VerifyKeyImageNotExistsAsync(byte[] image)
     {
-        Guard.Argument(image, nameof(image)).NotNull();
+        Guard.Argument(image, nameof(image)).NotNull().NotEmpty().MaxCount(33);
         var unitOfWork = _systemCore.UnitOfWork();
         var block = await unitOfWork.HashChainRepository.GetAsync(x =>
             new ValueTask<bool>(x.Txs.Any(c => c.Vin.Any(k => k.Image.Xor(image)))));
@@ -754,7 +756,6 @@ public class Validator : IValidator
     public decimal NetworkShare(ulong solution, ulong height)
     {
         Guard.Argument(solution, nameof(solution)).NotNegative().NotZero();
-        Guard.Argument(height, nameof(height)).NotNegative();
         var sub = unchecked((long)LedgerConstant.RewardPercentage * LedgerConstant.Coin);
         return solution * (decimal)sub / LedgerConstant.Coin / LedgerConstant.Distribution;
     }
@@ -786,8 +787,8 @@ public class Validator : IValidator
     /// <returns></returns>
     public uint Bits(ulong solution, decimal networkShare)
     {
-        Guard.Argument(solution, nameof(solution)).NotNegative().NotZero();
-        Guard.Argument(networkShare, nameof(networkShare)).NotNegative();
+        Guard.Argument(solution, nameof(solution)).NotZero();
+        Guard.Argument(networkShare, nameof(networkShare)).NotNegative().NotZero();
         var diff = Math.Truncate(solution * networkShare / LedgerConstant.Bits);
         diff = diff == 0 ? 1 : diff;
         return (uint)diff;
@@ -880,6 +881,7 @@ public class Validator : IValidator
     /// <returns></returns>
     public VerifyResult VerifyNoDuplicateBlockHeights(IReadOnlyList<Block> blocks)
     {
+        Guard.Argument(blocks, nameof(blocks)).NotNull().NotEmpty();
         var noDupHeights = new List<ulong>();
         foreach (var block in blocks)
         {
@@ -901,7 +903,7 @@ public class Validator : IValidator
     /// <returns></returns>
     private byte[] GenerateMlsag(byte[] m, Vout[] outputs, byte[] keyOffset, int cols, int rows)
     {
-        Guard.Argument(m, nameof(m)).NotNull();
+        Guard.Argument(m, nameof(m)).NotNull().NotEmpty();
         Guard.Argument(outputs, nameof(outputs)).NotNull().NotEmpty();
         Guard.Argument(keyOffset, nameof(keyOffset)).NotNull().NotEmpty();
         Guard.Argument(cols, nameof(cols)).NotNegative().NotZero();

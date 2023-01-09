@@ -66,7 +66,7 @@ public class HashChainRepository : Repository<Block>, IHashChainRepository
     /// <returns></returns>
     public new Task<bool> PutAsync(byte[] key, Block data)
     {
-        Guard.Argument(key, nameof(key)).NotNull().MaxCount(64);
+        Guard.Argument(key, nameof(key)).NotNull().NotEmpty().MaxCount(64);
         Guard.Argument(data, nameof(data)).NotNull();
         if (data.Validate().Any()) return Task.FromResult(false);
         try

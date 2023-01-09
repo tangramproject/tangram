@@ -250,6 +250,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     /// <returns></returns>
     public async Task<BlockResponse> GetBlockAsync(BlockRequest blockRequest)
     {
+        Guard.Argument(blockRequest, nameof(blockRequest)).NotNull();
         try
         {
             var block = await _systemCore.UnitOfWork().HashChainRepository.GetAsync(blockRequest.Hash);
@@ -270,6 +271,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     /// <returns></returns>
     public async Task<BlockResponse> GetBlockByHeightAsync(BlockByHeightRequest blockByHeightRequest)
     {
+        Guard.Argument(blockByHeightRequest, nameof(blockByHeightRequest)).NotNull();
         try
         {
             var block = await _systemCore.UnitOfWork().HashChainRepository.GetAsync(x =>
@@ -337,7 +339,6 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     public async Task<VerifyResult> BlockHeightExistsAsync(BlockHeightExistsRequest blockHeightExistsRequest)
     {
         Guard.Argument(blockHeightExistsRequest, nameof(blockHeightExistsRequest)).NotNull();
-        Guard.Argument(blockHeightExistsRequest.Height, nameof(blockHeightExistsRequest.Height)).NotNegative();
         var unitOfWork = _systemCore.UnitOfWork();
         var seen = await unitOfWork.HashChainRepository.GetAsync(x => new ValueTask<bool>(x.Height == blockHeightExistsRequest.Height));
         return seen is not null ? VerifyResult.AlreadyExists : VerifyResult.Succeed;
@@ -350,7 +351,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     public async Task<VerifyResult> BlockExistsAsync(BlockExistsRequest blockExistsRequest)
     {
         Guard.Argument(blockExistsRequest, nameof(blockExistsRequest)).NotNull();
-        Guard.Argument(blockExistsRequest.Hash, nameof(blockExistsRequest.Hash)).NotEmpty().NotEmpty().MaxCount(64);
+        Guard.Argument(blockExistsRequest.Hash, nameof(blockExistsRequest.Hash)).NotNull().NotEmpty().MaxCount(64);
         var unitOfWork = _systemCore.UnitOfWork();
         var seen = await unitOfWork.HashChainRepository.GetAsync(x => new ValueTask<bool>(x.Hash.Xor(blockExistsRequest.Hash)));
         return seen is not null ? VerifyResult.AlreadyExists : VerifyResult.Succeed;

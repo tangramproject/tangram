@@ -88,7 +88,7 @@ public class PPoS : IPPoS, IDisposable
     /// <returns></returns>
     public Transaction Get(in byte[] transactionId)
     {
-        Guard.Argument(transactionId, nameof(transactionId)).NotNull().MaxCount(32);
+        Guard.Argument(transactionId, nameof(transactionId)).NotNull().NotEmpty().MaxCount(32);
         try
         {
             if (_syncCacheTransactions.TryGet(transactionId, out var transaction))
@@ -448,6 +448,7 @@ public class PPoS : IPPoS, IDisposable
     {
         Guard.Argument(kernel, nameof(kernel)).NotNull();
         Guard.Argument(coinStake, nameof(coinStake)).NotNull();
+        Guard.Argument(txLength, nameof(txLength)).NotNegative().NotZero();
         _logger.Information("Begin...      [SLOTH]");
         var x = Numerics.BigInteger.Parse(kernel.VerifiedVrfSignature.ByteToHex(), NumberStyles.AllowHexSpecifier);
         if (x.Sign <= 0) x = -x;

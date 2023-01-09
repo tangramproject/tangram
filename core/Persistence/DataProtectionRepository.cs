@@ -46,7 +46,7 @@ public class DataProtectionRepository : Repository<DataProtection>, IDataProtect
     /// <returns></returns>
     public new Task<bool> PutAsync(byte[] key, DataProtection data)
     {
-        Guard.Argument(key, nameof(key)).NotNull().MaxCount(32);
+        Guard.Argument(key, nameof(key)).NotNull().NotEmpty().MaxCount(32);
         Guard.Argument(data, nameof(data)).NotNull();
         var saved = false;
         try
