@@ -719,7 +719,7 @@ public class Validator : IValidator
         try
         {
             var ct = new CancellationTokenSource(TimeSpan.FromSeconds(1)).Token;
-            var sloth = new Sloth(PrimeBit.P256, 0, ct);
+            var sloth = new Sloth(PrimeBit.P256, LedgerConstant.SlothCancellationTimeoutFromMilliseconds, ct);
             var x = System.Numerics.BigInteger.Parse(message.ByteToHex(), NumberStyles.AllowHexSpecifier);
             var y = System.Numerics.BigInteger.Parse(nonce.FromBytes());
             if (x.Sign <= 0) x = -x;
