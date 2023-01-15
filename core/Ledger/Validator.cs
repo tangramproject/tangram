@@ -1036,4 +1036,30 @@ public class Validator : IValidator
         _logger.Fatal("Unable to verify MLSAG");
         return null;
     }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="prevMerkelRoot"></param>
+    /// <param name="txStream"></param>
+    /// <param name="index"></param>
+    /// <param name="transactions"></param>
+    /// <returns></returns>
+    /// <exception cref="ArithmeticException"></exception>
+    public byte[] MembershipProof(byte[] prevMerkelRoot, byte[] txStream, int index, Transaction[] transactions)
+    {
+        Guard.Argument(prevMerkelRoot, nameof(prevMerkelRoot)).NotNull().MaxCount(32);
+        Guard.Argument(txStream, nameof(txStream)).NotNull().NotEmpty();
+        var hasher = Hasher.New();
+        hasher.Update(prevMerkelRoot);
+        foreach (var (transaction, i) in transactions.WithIndex())
+        {
+            var hasAnyErrors = transaction.HasErrors();
+            if (hasAnyErrors.Any()) throw new ArithmeticException("Unable to validate the transaction");
+            hasher.Update(index == i ? txStream : transaction.ToStream());
+        }
+
+        var hash = hasher.Finalize();
+        return hash.HexToByte();
+    }
 }
