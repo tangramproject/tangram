@@ -13,5 +13,6 @@ public enum VerifyResult : byte
     Unknown = 0x13,
     KeyImageAlreadyExists = 0x24,
     CommitmentNotFound = 0x25,
-    SyncRunning = 0x26
+    SyncRunning = 0x26,
+    OnetimeKeyAlreadyExists = 0x27,
 }

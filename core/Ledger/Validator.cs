@@ -45,8 +45,9 @@ public interface IValidator
     VerifyResult VerifyKernel(byte[] calculateVrfSig, byte[] kernel);
     VerifyResult VerifyLockTime(LockTime target, byte[] script);
     VerifyResult VerifyCommit(Vout[] vOutputs);
-    Task<VerifyResult> VerifyKeyImageNotExistsAsync(Transaction transaction);
-    Task<VerifyResult> VerifyKeyImageNotExistsAsync(byte[] image);
+    Task<VerifyResult> VerifyKeyImageNotReusedAsync(Transaction transaction);
+    Task<VerifyResult> VerifyKeyImageNotReusedAsync(byte[] image);
+    Task<VerifyResult> VerifyOnetimeKeyNotReusedAsync(Transaction transaction);
     Task<VerifyResult> VerifyCommitmentOutputsAsync(Transaction transaction);
     Task<decimal> GetCurrentRunningDistributionAsync(ulong solution, ulong height);
     Task<decimal> GetRunningDistributionAsync();
@@ -57,9 +58,10 @@ public interface IValidator
     byte[] Kernel(byte[] prevHash, byte[] hash, ulong round);
     Task<Block[]> VerifyForkRuleAsync(Block[] xChain);
     VerifyResult VerifyMlsag(Transaction transaction);
-    VerifyResult VerifyNoDuplicateImageKeys(IList<Transaction> transactions);
-    VerifyResult VerifyNoDuplicateBlockHeights(IReadOnlyList<Block> blocks);
-    Task<Block> VerifyPreviousBlockAdjustedTimeAsUnixTimestampAsync();
+    VerifyResult VerifyTransactionsWithNoDuplicateKeys(Transaction[] transactions);
+    VerifyResult VerifyBlocksWithNoDuplicateHeights(IReadOnlyList<Block> blocks);
+    Task<Block> VerifyPreviousBlockAdjustedTimeAsync();
+    byte[] MembershipProof(byte[] prevMerkelRoot, byte[] txStream, int index, Transaction[] transactions);
 }
 
 /// <summary>
@@ -396,7 +398,7 @@ public class Validator : IValidator
         if (block.BlockHeader.MerkleRoot.Xor(LedgerConstant.BlockZeroMerkel) &&
             block.BlockHeader.PrevBlockHash.Xor(LedgerConstant.BlockZeroPrevHash)) return VerifyResult.Succeed;
 
-        if (await VerifyPreviousBlockAdjustedTimeAsUnixTimestampAsync() is null)
+        if (await VerifyPreviousBlockAdjustedTimeAsync() is null)
         {
             _logger.Fatal("Unable to verify the block time");
             return VerifyResult.UnableToVerify;
@@ -421,9 +423,9 @@ public class Validator : IValidator
             return VerifyResult.UnableToVerify;
         }
 
-        if (VerifyNoDuplicateImageKeys(block.Txs) != VerifyResult.Succeed)
+        if (VerifyTransactionsWithNoDuplicateKeys(block.Txs.ToArray()) != VerifyResult.Succeed)
         {
-            _logger.Fatal("Unable to verify transactions found duplicate image keys");
+            _logger.Fatal("Unable to verify transactions with duplicate keys");
             return VerifyResult.UnableToVerify;
         }
 
@@ -465,13 +467,12 @@ public class Validator : IValidator
         var outputs = transaction.Vout.Select(x => Enum.GetName(x.T)).ToArray();
         if (outputs.Contains(Enum.GetName(CoinType.Payment)) && outputs.Contains(Enum.GetName(CoinType.Change)))
         {
-            if (VerifyTransactionTime(transaction) != VerifyResult.Succeed)
-                return VerifyResult.UnableToVerify;
+            if (VerifyTransactionTime(transaction) != VerifyResult.Succeed) return VerifyResult.UnableToVerify;
         }
 
         if (await VerifyCommitmentOutputsAsync(transaction) != VerifyResult.Succeed) return VerifyResult.UnableToVerify;
-        if (await VerifyKeyImageNotExistsAsync(transaction) != VerifyResult.Succeed)
-            return VerifyResult.KeyImageAlreadyExists;
+        if (await VerifyOnetimeKeyNotReusedAsync(transaction) != VerifyResult.Succeed) return VerifyResult.UnableToVerify;
+        if (await VerifyKeyImageNotReusedAsync(transaction) != VerifyResult.Succeed) return VerifyResult.KeyImageAlreadyExists;
         if (VerifyCommit(transaction.Vout) != VerifyResult.Succeed) return VerifyResult.UnableToVerify;
         if (VerifyBulletProof(transaction.Vout, transaction.Bp) != VerifyResult.Succeed) return VerifyResult.UnableToVerify;
         return VerifyMlsag(transaction);
@@ -481,17 +482,86 @@ public class Validator : IValidator
     /// 
     /// </summary>
     /// <param name="transactions"></param>
-    public VerifyResult VerifyNoDuplicateImageKeys(IList<Transaction> transactions)
+    public VerifyResult VerifyTransactionsWithNoDuplicateKeys(Transaction[] transactions)
     {
         Guard.Argument(transactions, nameof(transactions)).NotNull().NotEmpty();
-        var noDupImageKeys = new List<byte[]>();
-        foreach (var transaction in transactions)
-            foreach (var vin in transaction.Vin)
+        try
+        {
+            var noDupKeys = new List<byte[]>();
+            foreach (var transaction in transactions)
             {
-                var vInput = noDupImageKeys.FirstOrDefault(x => x.Xor(vin.Image));
-                if (vInput is not null) return VerifyResult.AlreadyExists;
-                noDupImageKeys.Add(vin.Image);
+                if (noDupKeys.FirstOrDefault(x => x.Xor(transaction.TxnId)) is not null)
+                    return VerifyResult.AlreadyExists;
+                noDupKeys.Add(transaction.TxnId);
+
+                foreach (var bp in transaction.Bp)
+                {
+                    if (noDupKeys.FirstOrDefault(x => x.Xor(bp.Proof)) is not null) return VerifyResult.AlreadyExists;
+                    noDupKeys.Add(bp.Proof);
+                }
+
+                foreach (var vin in transaction.Vin)
+                {
+                    if (noDupKeys.FirstOrDefault(x => x.Xor(vin.Image)) is not null) return VerifyResult.AlreadyExists;
+                    noDupKeys.Add(vin.Image);
+                }
+
+                foreach (var vout in transaction.Vout)
+                {
+                    if (noDupKeys.FirstOrDefault(x => x.Xor(vout.C)) is not null) return VerifyResult.AlreadyExists;
+                    noDupKeys.Add(vout.C);
+                    if (noDupKeys.FirstOrDefault(x => x.Xor(vout.E)) is not null) return VerifyResult.AlreadyExists;
+                    noDupKeys.Add(vout.E);
+                    if (noDupKeys.FirstOrDefault(x => x.Xor(vout.N)) is not null) return VerifyResult.AlreadyExists;
+                    noDupKeys.Add(vout.N);
+                    if (noDupKeys.FirstOrDefault(x => x.Xor(vout.P)) is not null) return VerifyResult.AlreadyExists;
+                    noDupKeys.Add(vout.P);
+                    if (vout.D.Length != 0)
+                    {
+                        if (noDupKeys.FirstOrDefault(x => x.Xor(vout.D)) is not null) return VerifyResult.AlreadyExists;
+                        noDupKeys.Add(vout.D);
+                    }
+
+                    if (vout.S.Length == 0) continue;
+                    {
+                        if (noDupKeys.FirstOrDefault(x => x.Xor(vout.S)) is not null) return VerifyResult.AlreadyExists;
+                        noDupKeys.Add(vout.S);
+                    }
+                }
+
+                foreach (var rct in transaction.Rct)
+                {
+                    if (noDupKeys.FirstOrDefault(x => x.Xor(rct.P)) is not null) return VerifyResult.AlreadyExists;
+                    noDupKeys.Add(rct.P);
+                    if (noDupKeys.FirstOrDefault(x => x.Xor(rct.I)) is not null) return VerifyResult.AlreadyExists;
+                    noDupKeys.Add(rct.I);
+                    if (noDupKeys.FirstOrDefault(x => x.Xor(rct.M)) is not null) return VerifyResult.AlreadyExists;
+                    noDupKeys.Add(rct.M);
+                    if (noDupKeys.FirstOrDefault(x => x.Xor(rct.S)) is not null) return VerifyResult.AlreadyExists;
+                    noDupKeys.Add(rct.S);
+                }
+
+                var outputs = transaction.Vout.Select(x => Enum.GetName(x.T)).ToArray();
+                if (!outputs.Contains(Enum.GetName(CoinType.Payment)) ||
+                    !outputs.Contains(Enum.GetName(CoinType.Change))) continue;
+                {
+                    if (noDupKeys.FirstOrDefault(x => x.Xor(transaction.Vtime.M)) is not null)
+                        return VerifyResult.AlreadyExists;
+                    noDupKeys.Add(transaction.Vtime.M);
+                    if (noDupKeys.FirstOrDefault(x => x.Xor(transaction.Vtime.N)) is not null)
+                        return VerifyResult.AlreadyExists;
+                    noDupKeys.Add(transaction.Vtime.N);
+                    if (noDupKeys.FirstOrDefault(x => x.Xor(transaction.Vtime.S)) is not null)
+                        return VerifyResult.AlreadyExists;
+                    noDupKeys.Add(transaction.Vtime.S);
+                }
             }
+        }
+        catch (Exception)
+        {
+            _logger.Fatal("Unable to validate transactions with no duplicate keys check");
+            return VerifyResult.UnableToVerify;
+        }
 
         return VerifyResult.Succeed;
     }
@@ -509,7 +579,7 @@ public class Validator : IValidator
         for (var i = 0; i < transaction.Vin.Length; i++)
         {
             var take = transaction.Vout[skip].T == CoinType.Coinbase ? 3 : 2;
-            var m = GenerateMlsag(transaction.Rct[i].M, transaction.Vout.Skip(skip).Take(take).ToArray(),
+            var m = GenerateMlSag(transaction.Rct[i].M, transaction.Vout.Skip(skip).Take(take).ToArray(),
                 transaction.Vin[i].Offsets,
                 transaction.Mix, 2);
             var verifyMlsag = mlsag.Verify(transaction.Rct[i].I, transaction.Mix, 2, m,
@@ -626,7 +696,7 @@ public class Validator : IValidator
     /// 
     /// </summary>
     /// <returns></returns>
-    public async Task<Block> VerifyPreviousBlockAdjustedTimeAsUnixTimestampAsync()
+    public async Task<Block> VerifyPreviousBlockAdjustedTimeAsync()
     {
         if (await _systemCore.Graph().GetPreviousBlockAsync() is not { } prevBlock) return null;
         return Helper.Util.GetAdjustedTimeAsUnixTimestamp(LedgerConstant.BlockProposalTimeFromSeconds) >
@@ -639,18 +709,14 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="transaction"></param>
     /// <returns></returns>
-    public async Task<VerifyResult> VerifyKeyImageNotExistsAsync(Transaction transaction)
+    public async Task<VerifyResult> VerifyKeyImageNotReusedAsync(Transaction transaction)
     {
         Guard.Argument(transaction, nameof(transaction)).NotNull();
         if (transaction.HasErrors().Any()) return VerifyResult.UnableToVerify;
-        var unitOfWork = _systemCore.UnitOfWork();
         foreach (var vin in transaction.Vin)
         {
-            var block = await unitOfWork.HashChainRepository.GetAsync(x =>
-                new ValueTask<bool>(x.Txs.Any(c => c.Vin.Any(k => k.Image.Xor(vin.Image)))));
-            if (block is null) continue;
-            _logger.Fatal("Unable to verify key Image already exists");
-            return VerifyResult.KeyImageAlreadyExists;
+            if (await VerifyKeyImageNotReusedAsync(vin.Image) != VerifyResult.Succeed)
+                return VerifyResult.KeyImageAlreadyExists;
         }
 
         return VerifyResult.Succeed;
@@ -661,7 +727,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="image"></param>
     /// <returns></returns>
-    public async Task<VerifyResult> VerifyKeyImageNotExistsAsync(byte[] image)
+    public async Task<VerifyResult> VerifyKeyImageNotReusedAsync(byte[] image)
     {
         Guard.Argument(image, nameof(image)).NotNull().NotEmpty().MaxCount(33);
         var unitOfWork = _systemCore.UnitOfWork();
@@ -670,6 +736,40 @@ public class Validator : IValidator
         if (block is null) return VerifyResult.Succeed;
         _logger.Fatal("Unable to verify key Image already exists");
         return VerifyResult.KeyImageAlreadyExists;
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="transaction"></param>
+    /// <returns></returns>
+    public async Task<VerifyResult> VerifyOnetimeKeyNotReusedAsync(Transaction transaction)
+    {
+        Guard.Argument(transaction, nameof(transaction)).NotNull();
+        if (transaction.HasErrors().Any()) return VerifyResult.UnableToVerify;
+        foreach (var vout in transaction.Vout)
+        {
+            if (await VerifyOnetimeKeyNotReusedAsync(vout.P) != VerifyResult.Succeed)
+                return VerifyResult.OnetimeKeyAlreadyExists;
+        }
+
+        return VerifyResult.Succeed;
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="onetimeKey"></param>
+    /// <returns></returns>
+    private async Task<VerifyResult> VerifyOnetimeKeyNotReusedAsync(byte[] onetimeKey)
+    {
+        Guard.Argument(onetimeKey, nameof(onetimeKey)).NotNull().NotEmpty().MaxCount(33);
+        var unitOfWork = _systemCore.UnitOfWork();
+        var block = await unitOfWork.HashChainRepository.GetAsync(x =>
+            new ValueTask<bool>(x.Txs.Any(c => c.Vout.Any(k => k.P.Xor(onetimeKey)))));
+        if (block is null) return VerifyResult.Succeed;
+        _logger.Fatal("Unable to verify onetime key already exists");
+        return VerifyResult.OnetimeKeyAlreadyExists;
     }
 
     /// <summary>
@@ -896,7 +996,7 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="blocks"></param>
     /// <returns></returns>
-    public VerifyResult VerifyNoDuplicateBlockHeights(IReadOnlyList<Block> blocks)
+    public VerifyResult VerifyBlocksWithNoDuplicateHeights(IReadOnlyList<Block> blocks)
     {
         Guard.Argument(blocks, nameof(blocks)).NotNull().NotEmpty();
         var noDupHeights = new List<ulong>();
