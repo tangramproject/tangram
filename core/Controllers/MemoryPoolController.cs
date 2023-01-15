@@ -71,13 +71,13 @@ public class MemoryPoolController : Controller
         Guard.Argument(id, nameof(id)).NotNull().NotEmpty().NotWhiteSpace();
         try
         {
-            var memPoolTransaction = _systemCore.MemPool().Get(id.HexToByte());
-            if (memPoolTransaction is { })
-                return new ObjectResult(new { memPoolTransaction });
+            var transaction = _systemCore.MemPool().Get(id.HexToByte());
+            if (transaction is { })
+                return new ObjectResult(new { transaction });
 
-            var pPosMemPoolTransaction = _systemCore.PPoS().Get(id.HexToByte());
-            if (pPosMemPoolTransaction is { })
-                return new ObjectResult(new { pPosMemPoolTransaction });
+            transaction = _systemCore.PPoS().Get(id.HexToByte());
+            if (transaction is { })
+                return new ObjectResult(new { transaction });
         }
         catch (Exception ex)
         {
