@@ -918,7 +918,7 @@ public class Validator : IValidator
     /// <param name="cols"></param>
     /// <param name="rows"></param>
     /// <returns></returns>
-    private byte[] GenerateMlsag(byte[] m, Vout[] outputs, byte[] keyOffset, int cols, int rows)
+    private byte[] GenerateMlSag(byte[] m, Vout[] outputs, byte[] keyOffset, int cols, int rows)
     {
         Guard.Argument(m, nameof(m)).NotNull().NotEmpty();
         Guard.Argument(outputs, nameof(outputs)).NotNull().NotEmpty();

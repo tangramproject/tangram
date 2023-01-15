@@ -178,7 +178,7 @@ public class Sync : ISync, IDisposable
             {
                 _logger.Information("CONTINUE BOOTSTRAPPING");
                 _logger.Information("CHECKING [BLOCK DUPLICATES]");
-                var verifyNoDuplicateBlockHeights = validator.VerifyNoDuplicateBlockHeights(blocks);
+                var verifyNoDuplicateBlockHeights = validator.VerifyBlocksWithNoDuplicateHeights(blocks);
                 if (verifyNoDuplicateBlockHeights == VerifyResult.AlreadyExists)
                 {
                     _systemCore.PeerDiscovery().SetPeerCooldown(new PeerCooldown

@@ -141,7 +141,7 @@ public class PPoS : IPPoS, IDisposable
     {
         try
         {
-            var prevBlock = await _systemCore.Validator().VerifyPreviousBlockAdjustedTimeAsUnixTimestampAsync();
+            var prevBlock = await _systemCore.Validator().VerifyPreviousBlockAdjustedTimeAsync();
             if (prevBlock is null) return;
             if (!await BlockHeightSynchronizedAsync())
             {

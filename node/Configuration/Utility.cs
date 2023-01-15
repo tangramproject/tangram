@@ -354,6 +354,6 @@ public class Utility
     private static void WriteDivider(string text)
     {
         AnsiConsole.WriteLine();
-        AnsiConsole.Write(new Rule($"[yellow]{text}[/]").RuleStyle("grey").LeftAligned());
+        AnsiConsole.Write(new Rule($"[yellow]{text}[/]").RuleStyle("grey"));
     }
 }
