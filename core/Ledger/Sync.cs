@@ -225,8 +225,7 @@ public class Sync : ISync, IDisposable
                             }
 
                             warpTask.StopTask();
-                            AnsiConsole.MarkupLine("[red]LOG:[/] " + $"Unable to save block: {block.Hash}" +
-                                                   "[red]...[/]");
+                            AnsiConsole.MarkupLine("[bold red]LOG:[/] " + $"[red]Unable to save block: {block.Hash}[/]");
                             return;
                         }
                         catch (Exception ex)
