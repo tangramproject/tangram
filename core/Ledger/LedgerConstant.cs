@@ -25,7 +25,7 @@ public static class LedgerConstant
     public static readonly byte[] BlockZeroPrevHash =
         "74616E6772616D5854474DAF915782EBC2C2FA70696E67706F6E67736E65616B".HexToByte();
 
-    public const int TransactionV3Height = 15;
+    public const int TransactionV3Height = 18;
 
     // PPoS
     public const uint BlockProposalTimeFromSeconds = 5;
