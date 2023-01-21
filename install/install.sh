@@ -547,8 +547,7 @@ install_archive() {
       mkdir -p ${SAVE_DIR}
       sudo cp ${TANGRAM_XTGMNODE_OPT_PATH}/appsettings.json ${SAVE_DIR}
       sudo cp -r ${TANGRAM_XTGMNODE_OPT_PATH}/keys ${SAVE_DIR}
-      # Not sure we need to save/restore the database
-      #sudo cp -r ${TANGRAM_XTGMNODE_OPT_PATH}/storedb ${SAVE_DIR}
+      sudo cp -r ${TANGRAM_XTGMNODE_OPT_PATH}/storedb ${SAVE_DIR}
       printf "%b  %b Upgrade requested - saving existing node data to %s\n" "${OVER}" "${TICK}" "${SAVE_DIR}"
   fi;
 
@@ -578,8 +577,7 @@ install_archive() {
       SAVE_DIR=/tmp/xtgmnode_data
       sudo cp ${SAVE_DIR}/appsettings.json ${TANGRAM_XTGMNODE_OPT_PATH}
       sudo cp -r ${SAVE_DIR}/keys ${TANGRAM_XTGMNODE_OPT_PATH}
-      # Not sure we need to save/restore the database
-      #sudo cp -r ${SAVE_DIR}/storedb ${TANGRAM_XTGMNODE_OPT_PATH}
+      sudo cp -r ${SAVE_DIR}/storedb ${TANGRAM_XTGMNODE_OPT_PATH}
       # Apply a new chmod/chown to the keys and database in case the user has changed
       sudo chmod -R 775 "${TANGRAM_XTGMNODE_OPT_PATH}/keys"
       sudo chown -R "${CUSER}":"${CGROUP}" "${TANGRAM_XTGMNODE_OPT_PATH}/keys"
