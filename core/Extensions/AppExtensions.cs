@@ -68,7 +68,6 @@ public static class AppExtensions
                     P2P =
                         new P2P
                         {
-                            DsPort = Convert.ToInt32(configuration["Node:Network:P2P:DsPort"]),
                             TcpPort = Convert.ToInt32(configuration["Node:Network:P2P:TcpPort"]),
                             WsPort = Convert.ToInt32(configuration["Node:Network:P2P:WsPort"])
                         },
@@ -141,7 +140,6 @@ public static class AppExtensions
     public static ContainerBuilder AddP2PDevice(this ContainerBuilder builder)
     {
         builder.RegisterType<P2PDeviceApi>().As<IP2PDeviceApi>().InstancePerDependency();
-        builder.RegisterType<P2PDeviceReq>().As<IP2PDeviceReq>().InstancePerDependency();
         builder.RegisterType<P2PDevice>().As<IP2PDevice>().SingleInstance();
         return builder;
     }

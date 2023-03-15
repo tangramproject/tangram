@@ -43,7 +43,6 @@ public record Network
 
 public record P2P
 {
-    public int DsPort { get; set; }
     public int TcpPort { get; set; }
     public int WsPort { get; set; }
 }
