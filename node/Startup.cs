@@ -2,7 +2,7 @@
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
-using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +21,7 @@ using TangramXtgm.Services;
 using TangramXtgm.Wallet;
 using Serilog;
 using Spectre.Console;
+using TangramXtgm.Network.Mesh;
 using Log = Serilog.Log;
 
 namespace TangramXtgmNode;
@@ -58,6 +59,10 @@ public class Startup
         {
             services.AddLettuceEncrypt();
         }
+        
+        services.AddSingleton<IGossipMemberStore, GossipMemberStore>();
+        services.AddSingleton<IGossipMemberEventsStore, GossipMemberEventsStore>();
+        services.AddSingleton<IMemberListener, MemberListener>();
     }
 
     /// <summary>
