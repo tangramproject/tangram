@@ -4,23 +4,21 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
+using System.Net;
+using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Blake3;
 using TangramXtgm.Extensions;
 using Dawn;
-using libsignal.ecc;
-using libsignal.util;
 using MessagePack;
-using NBitcoin.BouncyCastle.Math;
 using Serilog;
 using Spectre.Console;
 using TangramXtgm.Helper;
 using TangramXtgm.Models;
 using TangramXtgm.Models.Messages;
 using TangramXtgm.Network;
+using Block = TangramXtgm.Models.Block;
 
 namespace TangramXtgm.Ledger;
 
@@ -60,58 +58,68 @@ public class Sync : ISync, IDisposable
     /// </summary>
     private void Init()
     {
-        _disposableInit = Observable.Timer(TimeSpan.Zero, TimeSpan.FromMinutes(_systemCore.Node.Network.AutoSyncEveryMinutes)).Subscribe(_ =>
-        {
-            if (_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
-            try
+        _disposableInit = Observable
+            .Timer(TimeSpan.Zero, TimeSpan.FromMinutes(_systemCore.Node.Network.AutoSyncEveryMinutes))
+            .SubscribeOn(Scheduler.Default).Subscribe(o =>
             {
-                if (Running) return;
-                _running = 1;
-                SynchronizeAsync().SafeFireAndForget(ex =>
+                if (_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
+                try
                 {
-                    _logger.Here().Error("{@Message}", ex.Message);
-                });
-            }
-            catch (TaskCanceledException)
-            {
-                // Ignore
-            }
-        });
+                    if (Running) return;
+                    if (AsyncHelper.RunSync(async () =>
+                        {
+                            var currentRetry = 0;
+                            for (;;)
+                            {
+                                if (_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested)
+                                    return true;
+                                var hasAnyPeers = await WaitForPeersAsync(currentRetry, RetryCount);
+                                if (hasAnyPeers) break;
+                                currentRetry++;
+                            }
+
+                            var shouldSync = await _systemCore.Graph().BlockCountSynchronizedAsync();
+                            var sync = !shouldSync;
+                            _logger.Information("Sync... [REQUIRED]:[{@Sync}]", sync);
+                            if (!sync)
+                            {
+                                _logger.Information("OPENING block height [{@Height}]", _systemCore.UnitOfWork().HashChainRepository.Height);
+                            }
+                            return shouldSync;
+                        })) return;
+                    Interlocked.Exchange(ref _running, 1);
+                    Synchronize();
+                }
+                catch (TaskCanceledException)
+                {
+                    // Ignore
+                }
+            });
     }
 
     /// <summary>
     /// </summary>
     /// <returns></returns>
-    private async Task SynchronizeAsync()
+    private void Synchronize()
     {
         _logger.Information("Begin... [SYNCHRONIZATION]");
         try
         {
             var blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
             _logger.Information("OPENING block height [{@Height}]", blockCount);
-            var currentRetry = 0;
-            for (; ; )
-            {
-                if (_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
-                var hasAny = await WaitForPeersAsync(currentRetry, RetryCount);
-                if (hasAny) break;
-                currentRetry++;
-            }
-
-            var peers = _systemCore.PeerDiscovery().GetDiscoveryStore().Where(x => x.BlockCount > blockCount).ToArray();
+            var peers = _systemCore.PeerDiscovery().GetGossipMemberStore();
             if (peers.Any() != true) return;
-            peers.Shuffle();
-            var maxBlockHeight = peers.Max(x => (long)x.BlockCount);
-            var chunk = maxBlockHeight / peers.Length;
+            var maxBlockHeight = AsyncHelper.RunSync(async () => await _systemCore.PeerDiscovery().NetworkBlockCountAsync());
+            var chunk = maxBlockHeight / (ulong)peers.Length;
             _logger.Information("Peer count [{@PeerCount}]", peers.Length);
             _logger.Information("Network block height [{@MaxBlockHeight}]", maxBlockHeight);
             foreach (var peer in peers)
             {
                 var skip = blockCount <= 6 ? blockCount : blockCount - 6; // +- Depth of blocks to compare.
-                var take = (int)((int)blockCount + chunk);
+                var take = (int)blockCount + (int)chunk;
                 if (take > (int)maxBlockHeight)
                 {
-                    take = (int)(maxBlockHeight - (long)blockCount) + (int)blockCount;
+                    take = (int)(maxBlockHeight - blockCount) + (int)blockCount;
                 }
                 SynchronizeAsync(peer, skip, take).Wait();
                 blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
@@ -185,7 +193,7 @@ public class Sync : ISync, IDisposable
                     {
                         IpAddress = peer.IpAddress,
                         PublicKey = peer.PublicKey,
-                        ClientId = peer.ClientId,
+                        NodeId = peer.NodeId,
                         PeerState = PeerState.DupBlocks
                     });
                     _logger.Warning("DUPLICATE block height [UNABLE TO VERIFY]");
@@ -193,7 +201,7 @@ public class Sync : ISync, IDisposable
                 }
 
                 _logger.Information("CHECKING [FORK RULE]");
-                var forkRuleBlocks = await validator.VerifyForkRuleAsync(blocks.OrderBy(x => x.Height).ToArray());
+                var forkRuleBlocks = await validator.ForkRuleAsync(blocks.OrderBy(x => x.Height).ToArray());
                 if (forkRuleBlocks.Length == 0)
                 {
                     _logger.Fatal("FORK RULE CHECK [UNABLE TO VERIFY]");
@@ -225,7 +233,6 @@ public class Sync : ISync, IDisposable
                             }
 
                             warpTask.StopTask();
-                            AnsiConsole.MarkupLine("[bold red]LOG:[/] " + $"[red]Unable to save block: {block.Hash}[/]");
                             return;
                         }
                         catch (Exception ex)
@@ -266,15 +273,19 @@ public class Sync : ISync, IDisposable
                 .StartAsync(async ctx =>
                 {
                     var blocks = new List<Block>();
-                    var warpTask = ctx.AddTask($"[bold green]DOWNLOADING[/] [bold yellow]{Math.Abs(take - (int)skip)}[/] block(s) from [bold yellow]{peer.Name.FromBytes()}[/] v{peer.Version.FromBytes()}", false).IsIndeterminate();
+                    var warpTask = ctx
+                        .AddTask(
+                            $"[bold green]DOWNLOADING[/] [bold yellow]{Math.Abs(take - (int)skip)}[/] block(s) from [bold yellow]{peer.Name.FromBytes()}[/] v{peer.Version.FromBytes()}",
+                            false).IsIndeterminate();
                     warpTask.MaxValue(take - (int)skip);
                     warpTask.StartTask();
                     warpTask.IsIndeterminate(false);
                     while (!ctx.IsFinished)
                         foreach (var chunk in chunks)
                         {
-                            var blocksResponse = await _systemCore.P2PDeviceReq().SendAsync<BlocksResponse>(
-                                peer.IpAddress, peer.TcpPort, peer.PublicKey,
+                            var blocksResponse = await _systemCore.GossipMemberStore().SendAsync<BlocksResponse>(
+                                new IPEndPoint(IPAddress.Parse(peer.IpAddress.FromBytes()), peer.TcpPort.ToInt32()),
+                                peer.PublicKey,
                                 MessagePackSerializer.Serialize(new Parameter[]
                                 {
                                     new() { Value = iSkip.ToBytes(), ProtocolCommand = ProtocolCommand.GetBlocks },
