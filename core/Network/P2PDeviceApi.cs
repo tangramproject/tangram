@@ -16,7 +16,6 @@ using TangramXtgm.Consensus.Models;
 using TangramXtgm.Helper;
 using TangramXtgm.Models;
 using TangramXtgm.Models.Messages;
-using Block = TangramXtgm.Models.Block;
 
 namespace TangramXtgm.Network;
 
@@ -62,10 +61,9 @@ public class P2PDeviceApi : IP2PDeviceApi
     /// </summary>
     private void RegisterCommand()
     {
-        Commands.Add((int)ProtocolCommand.GetPeer, OnGetPeerAsync);
+        Commands.Add((int)ProtocolCommand.GetLocalNode, OnGetLocalNodeAsync);
         Commands.Add((int)ProtocolCommand.GetPeers, OnGetPeersAsync);
         Commands.Add((int)ProtocolCommand.GetBlocks, OnGetBlocksAsync);
-        Commands.Add((int)ProtocolCommand.SaveBlock, OnSaveBlockAsync);
         Commands.Add((int)ProtocolCommand.GetBlockHeight, OnGetBlockHeightAsync);
         Commands.Add((int)ProtocolCommand.GetBlockCount, OnGetBlockCountAsync);
         Commands.Add((int)ProtocolCommand.GetMemTransaction, OnGetMemoryPoolTransactionAsync);
@@ -82,9 +80,9 @@ public class P2PDeviceApi : IP2PDeviceApi
     /// <summary>
     /// </summary>
     /// <returns></returns>
-    private async Task<ReadOnlySequence<byte>> OnGetPeerAsync(Parameter[] none = default)
+    private async Task<ReadOnlySequence<byte>> OnGetLocalNodeAsync(Parameter[] none = default)
     {
-        var localPeerResponse = _systemCore.PeerDiscovery().GetLocalPeer();
+        var localPeerResponse = _systemCore.PeerDiscovery().GetLocalNode();
         return await SerializeAsync(localPeerResponse);
     }
 
@@ -95,7 +93,7 @@ public class P2PDeviceApi : IP2PDeviceApi
     /// <returns></returns>
     private async Task<ReadOnlySequence<byte>> OnGetPeersAsync(Parameter[] none = default)
     {
-        return await SerializeAsync(_systemCore.PeerDiscovery());
+        return await SerializeAsync(_systemCore.PeerDiscovery().GetGossipMemberStore());
     }
 
     /// <summary>
@@ -109,19 +107,6 @@ public class P2PDeviceApi : IP2PDeviceApi
         var take = Convert.ToInt32(parameters[1].Value.FromBytes());
         var blocksResponse = await _systemCore.Graph().GetBlocksAsync(new BlocksRequest(skip, take));
         return await SerializeAsync(blocksResponse);
-    }
-
-    /// <summary>
-    /// </summary>
-    /// <param name="parameters"></param>
-    /// <returns></returns>
-    private async Task<ReadOnlySequence<byte>> OnSaveBlockAsync(Parameter[] parameters)
-    {
-        Guard.Argument(parameters, nameof(parameters)).NotNull().NotEmpty();
-        _logger.Here().Information("Saved in p2p device api");
-        var saveBlockResponse = await _systemCore.Graph()
-            .SaveBlockAsync(new SaveBlockRequest(MessagePackSerializer.Deserialize<Models.Block>(parameters[0].Value)));
-        return await SerializeAsync(saveBlockResponse);
     }
 
     /// <summary>

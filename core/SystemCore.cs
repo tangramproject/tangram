@@ -38,8 +38,10 @@ public interface ISystemCore
     ICrypto Crypto();
     IP2PDevice P2PDevice();
     IP2PDeviceApi P2PDeviceApi();
-    IP2PDeviceReq P2PDeviceReq();
     Cache<object> Cache();
+    IGossipMemberStore GossipMemberStore();
+    uint NodeId();
+
 }
 
 /// <summary>
@@ -62,6 +64,8 @@ public class SystemCore : ISystemCore
     private readonly ILogger _logger;
     private readonly Cache<object> _cache = new();
 
+    private uint _nodeId;
+    
     private IUnitOfWork _unitOfWork;
     private IPeerDiscovery _peerDiscovery;
     private IGraph _graph;
@@ -71,9 +75,10 @@ public class SystemCore : ISystemCore
     private IWalletSession _walletSession;
     private IP2PDevice _p2PDevice;
     private IP2PDeviceApi _p2PDeviceApi;
-    private IP2PDeviceReq _p2PDeviceReq;
     private ICrypto _crypto;
+    private IGossipMemberStore _gossipMemberStore;
 
+    
     /// <summary>
     /// </summary>
     /// <param name="applicationLifetime"></param>
@@ -88,6 +93,11 @@ public class SystemCore : ISystemCore
         Node = node;
         _logger = logger;
         Init();
+    }
+
+    public uint NodeId()
+    {
+        return _nodeId;
     }
 
     /// <summary>
@@ -106,6 +116,16 @@ public class SystemCore : ISystemCore
     /// </summary>
     public Node Node { get; }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns></returns>
+    public IGossipMemberStore GossipMemberStore()
+    {
+        _gossipMemberStore ??= GetGossipMemberStore();
+        return _gossipMemberStore;
+    }
+    
     /// <summary>
     /// </summary>
     /// <returns></returns>
@@ -207,16 +227,6 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
-    /// 
-    /// </summary>
-    /// <returns></returns>
-    public IP2PDeviceReq P2PDeviceReq()
-    {
-        _p2PDeviceReq ??= GetP2PDeviceReq();
-        return _p2PDeviceReq;
-    }
-
-    /// <summary>
     /// </summary>
     /// <returns></returns>
     public INodeWallet Wallet()
@@ -306,26 +316,6 @@ public class SystemCore : ISystemCore
     /// 
     /// </summary>
     /// <returns></returns>
-    private IP2PDeviceReq GetP2PDeviceReq()
-    {
-        try
-        {
-            using var scope = ServiceScopeFactory.CreateAsyncScope();
-            var p2PDeviceReq = scope.ServiceProvider.GetRequiredService<IP2PDeviceReq>();
-            return p2PDeviceReq;
-        }
-        catch (Exception ex)
-        {
-            _logger.Here().Error("{@Message}", ex.Message);
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <returns></returns>
     private IP2PDeviceApi GetP2PDeviceApi()
     {
         try
@@ -363,6 +353,7 @@ public class SystemCore : ISystemCore
             PublicKey = keyPair.PublicKey
         };
         keyPair.PrivateKey.Destroy();
+        _nodeId = keyPair.PublicKey.ToHashIdentifier();
     }
 
     /// <summary>
@@ -384,7 +375,27 @@ public class SystemCore : ISystemCore
 
         return null;
     }
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns></returns>
+    private IGossipMemberStore GetGossipMemberStore()
+    {
+        try
+        {
+            using var scope = ServiceScopeFactory.CreateScope();
+            var gossipMemberStore = scope.ServiceProvider.GetRequiredService<IGossipMemberStore>();
+            return gossipMemberStore;
+        }
+        catch (Exception ex)
+        {
+            _logger.Here().Error("{@Message}", ex.Message);
+        }
 
+        return null;
+    }
+    
     /// <summary>
     /// 
     /// </summary>

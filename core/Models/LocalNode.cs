@@ -2,23 +2,23 @@
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
+using MessagePack;
 
 namespace TangramXtgm.Models;
 
 /// <summary>
 /// 
 /// </summary>
-[Serializable]
+[MessagePackObject, Serializable]
 public record LocalNode
 {
-    public ulong Identifier { get; init; }
-    public byte[] PublicKey { get; init; }
-    public byte[] Name { get; init; }
-    public byte[] TcpPort { get; init; }
-    public byte[] WsPort { get; init; }
-    public byte[] DsPort { get; init; }
-    public byte[] HttpPort { get; init; }
-    public byte[] HttpsPort { get; init; }
-    public byte[] IpAddress { get; init; }
-    public byte[] Version { get; init; }
+    [Key(0)] public ulong NodeId { get; init; }
+    [Key(1)] public byte[] PublicKey { get; init; }
+    [Key(2)] public byte[] Name { get; init; }
+    [Key(3)] public byte[] TcpPort { get; init; }
+    [Key(4)] public byte[] WsPort { get; init; }
+    [Key(5)] public byte[] HttpPort { get; init; }
+    [Key(6)] public byte[] HttpsPort { get; init; }
+    [Key(7)] public byte[] IpAddress { get; init; }
+    [Key(8)] public byte[] Version { get; init; }
 }

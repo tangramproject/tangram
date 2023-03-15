@@ -3,9 +3,7 @@
 
 using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.Net;
-using System.Reactive.Linq;
 using System.Threading.Tasks;
 using TangramXtgm.Extensions;
 using MessagePack;
@@ -72,7 +70,6 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
 {
     private readonly ISystemCore _systemCore;
     private readonly ILogger _logger;
-    private readonly IList<IDisposable> _disposables = new List<IDisposable>();
 
     private IRepSocket _repSocket;
     private bool _disposed;
@@ -126,7 +123,7 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
     {
         Util.ThrowPortNotFree(_systemCore.Node.Network.P2P.TcpPort);
         _systemCore.Node.EndPoint.Port = _systemCore.Node.Network.P2P.TcpPort;
-        ListeningAsync(new(Util.GetIpAddress(), _systemCore.Node.EndPoint.Port), Transport.Tcp, 5).ConfigureAwait(false);
+        ListeningAsync(new(Util.GetIpAddress(), _systemCore.Node.EndPoint.Port), Transport.Tcp, 3).ConfigureAwait(false);
         Util.ThrowPortNotFree(_systemCore.Node.Network.P2P.WsPort);
         _systemCore.Node.EndPoint.Port = _systemCore.Node.Network.P2P.WsPort;
         ListeningAsync(new(Util.GetIpAddress(), _systemCore.Node.EndPoint.Port), Transport.Ws, 1).ConfigureAwait(false);
@@ -136,36 +133,34 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
     /// 
     /// </summary>
     /// <returns></returns>
-    private Task ListeningAsync(IPEndPoint ipEndPoint, Transport transport, int workerCount)
+    private async Task ListeningAsync(IPEndPoint ipEndPoint, Transport transport, int workerCount)
     {
         try
         {
             _repSocket = NngFactorySingleton.Instance.Factory.ReplierOpen()
-                .ThenListen($"{GetTransportType(transport)}://{ipEndPoint.Address.ToString()}:{ipEndPoint.Port}", Defines.NngFlag.NNG_FLAG_NONBLOCK).Unwrap();
+                .ThenListen($"{GetTransportType(transport)}://{ipEndPoint.Address}:{ipEndPoint.Port}", Defines.NngFlag.NNG_FLAG_NONBLOCK).Unwrap();
             _repSocket.SetOpt(Defines.NNG_OPT_RECVMAXSZ, 20000000);
             for (var i = 0; i < workerCount; i++)
             {
-                var ctx = _repSocket.CreateAsyncContext(NngFactorySingleton.Instance.Factory).Unwrap();
-                _disposables.Add(Observable.Interval(TimeSpan.Zero).Subscribe(_ =>
+                await Task.Run(async () =>
                 {
                     if (_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
                     try
                     {
-                        WorkerAsync(ctx).Wait();
+                        var ctx = _repSocket.CreateAsyncContext(NngFactorySingleton.Instance.Factory).Unwrap();
+                        await WorkerAsync(ctx);
                     }
-                    catch (AggregateException)
+                    catch (Exception ex)
                     {
-                        // Ignore
+                        _logger.Here().Error("{@Message}", ex.Message);
                     }
-                }));
+                });
             }
         }
         catch (Exception ex)
         {
             _logger.Here().Error("{@Message}", ex.Message);
         }
-
-        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -174,59 +169,62 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
     /// <param name="ctx"></param>
     private async Task WorkerAsync(IRepReqAsyncContext<INngMsg> ctx)
     {
-        var nngResult = (await ctx.Receive()).Unwrap();
-        try
+        while (!_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested)
         {
-            var message = await _systemCore.P2PDevice().DecryptAsync(nngResult);
-            if (message.Memory.Length == 0)
+            var nngResult = (await ctx.Receive()).Unwrap();
+            try
             {
-                await EmptyReplyAsync(ctx);
-                return;
-            }
-
-            var unwrapMessage = await UnWrapAsync(message.Memory);
-            if (unwrapMessage.ProtocolCommand != ProtocolCommand.NotFound)
-            {
-                try
+                var message = await _systemCore.P2PDevice().DecryptAsync(nngResult);
+                if (message.Memory.Length == 0)
                 {
-                    var newMsg = NngFactorySingleton.Instance.Factory.CreateMessage();
-                    var readOnlySequence =
-                        await _systemCore.P2PDeviceApi().Commands[(int)unwrapMessage.ProtocolCommand](
-                            unwrapMessage.Parameters);
+                    await EmptyReplyAsync(ctx);
+                    continue;
+                }
 
-                    var cipher = _systemCore.Crypto().BoxSeal(
-                        readOnlySequence.IsSingleSegment ? readOnlySequence.First.Span : readOnlySequence.ToArray(),
-                        message.PublicKey);
-                    if (cipher.Length != 0)
+                var unwrapMessage = await UnWrapAsync(message.Memory);
+                if (unwrapMessage.ProtocolCommand != ProtocolCommand.NotFound)
+                {
+                    try
                     {
-                        await using var packetStream = Util.Manager.GetStream() as RecyclableMemoryStream;
-                        packetStream.Write(_systemCore.KeyPair.PublicKey[1..33].WrapLengthPrefix());
-                        packetStream.Write(cipher.WrapLengthPrefix());
-                        foreach (var memory in packetStream.GetReadOnlySequence()) newMsg.Append(memory.Span);
-                        (await ctx.Reply(newMsg)).Unwrap();
-                        newMsg.Dispose();
-                        return;
+                        var newMsg = NngFactorySingleton.Instance.Factory.CreateMessage();
+                        var readOnlySequence =
+                            await _systemCore.P2PDeviceApi().Commands[(int)unwrapMessage.ProtocolCommand](
+                                unwrapMessage.Parameters);
+
+                        var cipher = _systemCore.Crypto().BoxSeal(
+                            readOnlySequence.IsSingleSegment ? readOnlySequence.First.Span : readOnlySequence.ToArray(),
+                            message.PublicKey);
+                        if (cipher.Length != 0)
+                        {
+                            await using var packetStream = Util.Manager.GetStream() as RecyclableMemoryStream;
+                            packetStream.Write(_systemCore.KeyPair.PublicKey[1..33].WrapLengthPrefix());
+                            packetStream.Write(cipher.WrapLengthPrefix());
+                            foreach (var memory in packetStream.GetReadOnlySequence()) newMsg.Append(memory.Span);
+                            (await ctx.Reply(newMsg)).Unwrap();
+                            newMsg.Dispose();
+                            continue;
+                        }
+                    }
+                    catch (MessagePackSerializationException)
+                    {
+                        // Ignore
+                    }
+                    catch (AccessViolationException ex)
+                    {
+                        _logger.Here().Fatal("{@Message}", ex.Message);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Here().Fatal("{@Message}", ex.Message);
                     }
                 }
-                catch (MessagePackSerializationException)
-                {
-                    // Ignore
-                }
-                catch (AccessViolationException ex)
-                {
-                    _logger.Here().Fatal("{@Message}", ex.Message);
-                }
-                catch (Exception ex)
-                {
-                    _logger.Here().Fatal("{@Message}", ex.Message);
-                }
-            }
 
-            await EmptyReplyAsync(ctx);
-        }
-        finally
-        {
-            nngResult.Dispose();
+                await EmptyReplyAsync(ctx);
+            }
+            finally
+            {
+                nngResult.Dispose();
+            }
         }
     }
 
@@ -304,10 +302,6 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
         if (disposing)
         {
             _repSocket?.Dispose();
-            foreach (var disposable in _disposables)
-            {
-                disposable.Dispose();
-            }
         }
 
         _disposed = true;
