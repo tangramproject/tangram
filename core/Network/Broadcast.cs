@@ -60,39 +60,15 @@ public class Broadcast : ReceivedActor<(TopicType, byte[])>, IBroadcast
         try
         {
             var (topicType, data) = message;
-            var peers = await _systemCore.PeerDiscovery().GetDiscoveryAsync();
-            if (peers.Any())
+            var command = topicType switch
             {
-                var command = topicType switch
-                {
-                    TopicType.AddTransaction => ProtocolCommand.Transaction,
-                    _ => ProtocolCommand.BlockGraph
-                };
-                var msg = MessagePackSerializer.Serialize(new Parameter[]
-                {
-                    new() { ProtocolCommand = command, Value = data }
-                });
-                await Parallel.ForEachAsync(peers, (knownPeer, cancellationToken) =>
-                {
-                    try
-                    {
-                        if (cancellationToken.IsCancellationRequested) return ValueTask.CompletedTask;
-                        var _ = _systemCore.P2PDeviceReq().SendAsync<EmptyMessage>(knownPeer.IpAddress,
-                            knownPeer.TcpPort,
-                            knownPeer.PublicKey, msg, 250).SafeForgetAsync(_logger).ConfigureAwait(false);
-                    }
-                    catch (Exception)
-                    {
-                        // Ignore
-                    }
-
-                    return ValueTask.CompletedTask;
-                });
-            }
-            else
+                TopicType.AddTransaction => ProtocolCommand.Transaction,
+                _ => ProtocolCommand.BlockGraph
+            };
+            await _systemCore.GossipMemberStore().SendAllAsync(MessagePackSerializer.Serialize(new Parameter[]
             {
-                _logger.Warning("Broadcast no peers");
-            }
+                new() { ProtocolCommand = command, Value = data }
+            }));
         }
         catch (Exception ex)
         {
