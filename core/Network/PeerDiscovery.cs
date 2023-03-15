@@ -6,18 +6,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Reactive.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using TangramXtgm.Extensions;
 using MessagePack;
-using Microsoft.Toolkit.HighPerformance;
+using TangramXtgm.Extensions;
 using NBitcoin;
-using Nerdbank.Streams;
 using Serilog;
-using nng;
-using nng.Native;
 using TangramXtgm.Helper;
 using TangramXtgm.Models;
+using TangramXtgm.Models.Messages;
+using TangramXtgm.Network.Mesh;
 using TangramXtgm.Persistence;
 
 namespace TangramXtgm.Network;
@@ -27,7 +24,7 @@ public interface IPeerDiscovery
     /// <summary>
     /// </summary>
     /// <returns></returns>
-    Peer[] GetDiscoveryStore();
+    Peer[] GetGossipMemberStore();
 
     /// <summary>
     /// </summary>
@@ -37,59 +34,62 @@ public interface IPeerDiscovery
     /// <summary>
     /// </summary>
     /// <returns></returns>
-    Peer GetLocalPeer();
-
-    /// <summary>
-    /// </summary>
-    /// <returns></returns>
-    Task<Peer[]> GetDiscoveryAsync();
-
-    /// <summary>
-    /// </summary>
-    /// <returns></returns>
     int Count();
 
-    /// <summary>
-    /// 
-    /// </summary>
-    void TryBootstrap();
-
     void SetPeerCooldown(PeerCooldown peer);
+
+    Task<ulong> NetworkBlockCountAsync();
 }
 
 /// <summary>
 /// </summary>
 public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
 {
-    private const int PrunedTimeoutFromSeconds = 120;
-    private const int SurveyorWaitTimeMilliseconds = 2500;
-    private const int ReceiveWaitTimeMilliseconds = 1000;
-    private readonly Caching<Peer> _caching = new();
+    private const int CooldownTimeoutFromMinutes = 10;
     private readonly Caching<PeerCooldown> _peerCooldownCaching = new();
     private readonly ISystemCore _systemCore;
     private readonly ILogger _logger;
-    private IDisposable _discoverDisposable;
-    private IDisposable _receiverDisposable;
     private IDisposable _coolDownDisposable;
     private LocalNode _localNode;
-    private Peer _localPeer;
-    private RemoteNode[] _seedNodes;
-    private ISurveyorSocket _socket;
-    private ISurveyorAsyncContext<INngMsg> _ctx;
     private bool _disposed;
-
-    private static readonly object LockOnReady = new();
-    private static readonly object LockOnBootstrap = new();
+    private Gossiper _gossiper;
+    
+    private readonly IMemberListener _memberListener;
 
     /// <summary>
     /// </summary>
     /// <param name="systemCore"></param>
     /// <param name="logger"></param>
-    public PeerDiscovery(ISystemCore systemCore, ILogger logger)
+    /// <param name="memberListener"></param>
+    public PeerDiscovery(ISystemCore systemCore, IMemberListener memberListener, ILogger logger)
     {
         _systemCore = systemCore;
         _logger = logger;
+        _memberListener = memberListener;
         Init();
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns></returns>
+    public async Task<ulong> NetworkBlockCountAsync()
+    {
+        var blockHeightResponses = new List<BlockHeightResponse>();
+        await Parallel.ForEachAsync(GetGossipMemberStore(), async (knownPeer, cancellationToken) =>
+        {
+            var msg = MessagePackSerializer.Serialize(new Parameter[]
+            {
+                new() {ProtocolCommand = ProtocolCommand.GetBlockHeight}
+            });
+            var blockCountResponse = await _systemCore.GossipMemberStore()
+                .SendAsync<BlockHeightResponse>(
+                    new IPEndPoint(IPAddress.Parse(knownPeer.IpAddress.FromBytes()), knownPeer.TcpPort.ToInt32()),
+                    knownPeer.PublicKey, msg);
+            if (blockCountResponse is not null)
+                blockHeightResponses.Add(blockCountResponse);
+        });
+        return blockHeightResponses.Any() ? blockHeightResponses.Max(x => x.Count) : 0;
     }
 
     /// <summary>
@@ -97,44 +97,17 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     /// <returns></returns>
     public int Count()
     {
-        return _caching.Count;
+        return _systemCore.GossipMemberStore().GetPeers().Length;
     }
-
+    
     /// <summary>
     /// </summary>
     /// <returns></returns>
-    public Peer[] GetDiscoveryStore()
+    public Peer[] GetGossipMemberStore()
     {
-        var peers = _caching.GetItems();
-        return peers.Where(peer => _peerCooldownCaching.GetItems().All(coolDown =>
-            !coolDown.IpAddress.Xor(peer.IpAddress.AsSpan()) || !coolDown.PublicKey.Xor(peer.PublicKey.AsSpan()))).ToArray();
-    }
-
-    /// <summary>
-    /// </summary>
-    /// <returns></returns>
-    public Task<Peer[]> GetDiscoveryAsync() => Task.FromResult(GetDiscoveryStore());
-
-    /// <summary>
-    /// </summary>
-    /// <returns></returns>
-    public Peer GetLocalPeer()
-    {
-        return _localPeer;
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <summary>
-    /// 
-    /// </summary>
-    private void UpdateLocalPeerInfo()
-    {
-        _localPeer.BlockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
-        _localPeer.Timestamp = Util.GetAdjustedTimeAsUnixTimestamp();
-        _localPeer.Signature = _systemCore.Crypto().Sign(
-            _systemCore.KeyPair.PrivateKey.FromSecureString().HexToByte(), _localPeer.Timestamp.ToBytes());
+        var peers = _systemCore.GossipMemberStore().GetPeers();
+        return peers.Where(node => _peerCooldownCaching.GetItems().All(coolDown =>
+            !coolDown.IpAddress.Xor(node.IpAddress.AsSpan()) && coolDown.PeerState != PeerState.OrphanBlock)).ToArray();
     }
 
     /// <summary>
@@ -143,17 +116,6 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     public LocalNode GetLocalNode()
     {
         return _localNode;
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="clientId"></param>
-    /// <param name="ipAddress"></param>
-    /// <param name="peer"></param>
-    private void UpdatePeer(ulong clientId, byte[] ipAddress, Peer peer)
-    {
-        _caching.AddOrUpdate(StoreDb.Key(clientId.ToString(), ipAddress), peer);
     }
 
     /// <summary>
@@ -174,334 +136,42 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
         _localNode = new LocalNode
         {
             IpAddress = _systemCore.Node.EndPoint.Address.ToString().ToBytes(),
-            Identifier = _systemCore.KeyPair.PublicKey.ToHashIdentifier(),
+            NodeId = _systemCore.NodeId(),
             TcpPort = _systemCore.Node.Network.P2P.TcpPort.ToBytes(),
             WsPort = _systemCore.Node.Network.P2P.WsPort.ToBytes(),
-            DsPort = _systemCore.Node.Network.P2P.DsPort.ToBytes(),
             HttpPort = _systemCore.Node.Network.HttpPort.ToBytes(),
             HttpsPort = _systemCore.Node.Network.HttpsPort.ToBytes(),
             Name = _systemCore.Node.Name.ToBytes(),
             PublicKey = _systemCore.KeyPair.PublicKey,
-            Version = Util.GetAssemblyVersion().ToBytes()
+            Version = Util.GetAssemblyVersionString().ToBytes()
         };
-        _localPeer = new Peer
-        {
-            IpAddress = _localNode.IpAddress,
-            HttpPort = _localNode.HttpPort,
-            HttpsPort = _localNode.HttpsPort,
-            ClientId = _localNode.PublicKey.ToHashIdentifier(),
-            TcpPort = _localNode.TcpPort,
-            WsPort = _localNode.WsPort,
-            DsPort = _localNode.DsPort,
-            Name = _localNode.Name,
-            PublicKey = _localNode.PublicKey,
-            Version = _localNode.Version
-        };
-        _seedNodes = new RemoteNode[_systemCore.Node.Network.SeedList.Count];
+        var endPoints = new IPEndPoint[_systemCore.Node.Network.SeedList.Count];
         foreach (var seedNode in _systemCore.Node.Network.SeedList.WithIndex())
         {
             var endpoint = Util.GetIpEndPoint(seedNode.item);
-            _seedNodes[seedNode.index] = new RemoteNode(endpoint.Address.ToString().ToBytes(), endpoint.Port.ToBytes(), null);
+            endPoints[seedNode.index] = endpoint;
         }
-        DiscoverAsync().ConfigureAwait(false);
-        ReceiverAsync().ConfigureAwait(false);
+        StartGossiperAsync(endPoints).ConfigureAwait(false);
         HandlePeerCooldown();
     }
 
     /// <summary>
     /// 
     /// </summary>
-    private Task DiscoverAsync()
-    {
-        Util.ThrowPortNotFree(_systemCore.Node.Network.P2P.DsPort);
-        var ipEndPoint = new IPEndPoint(Util.GetIpAddress(),
-            _systemCore.Node.Network.P2P.DsPort);
-        _socket = NngFactorySingleton.Instance.Factory.SurveyorOpen()
-            .ThenListen($"tcp://{ipEndPoint.Address}:{ipEndPoint.Port}", Defines.NngFlag.NNG_FLAG_NONBLOCK).Unwrap();
-        _socket.SetOpt(Defines.NNG_OPT_RECVMAXSZ, 5000000);
-        _ctx = _socket.CreateAsyncContext(NngFactorySingleton.Instance.Factory).Unwrap();
-        _ctx.Ctx.SetOpt(Defines.NNG_OPT_SURVEYOR_SURVEYTIME,
-            new nng_duration { TimeMs = SurveyorWaitTimeMilliseconds });
-        _discoverDisposable = Observable.Timer(TimeSpan.Zero, TimeSpan.FromMilliseconds(1000)).Subscribe(_ =>
-        {
-            if (_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
-            StartWorkerAsync(_ctx).Wait();
-        });
-
-        return Task.CompletedTask;
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="ctx"></param>
-    private async Task StartWorkerAsync(IReceiveAsyncContext<INngMsg> ctx)
-    {
-        INngMsg nngMsg = default;
-        try
-        {
-            var msg = NngFactorySingleton.Instance.Factory.CreateMessage();
-            (await _ctx.Send(msg)).Unwrap();
-            var nngResult = await ctx.Receive(CancellationToken.None);
-            if (!nngResult.IsOk()) return;
-            nngMsg = nngResult.Unwrap();
-            await ReceivedPeersAsync(nngMsg);
-        }
-        catch (Exception ex)
-        {
-            _logger.Here().Error("{@Message}", ex.Message);
-        }
-        finally
-        {
-            nngMsg?.Dispose();
-        }
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    private Task ReceiverAsync()
-    {
-        _receiverDisposable = Observable.Timer(TimeSpan.FromMilliseconds(5000), TimeSpan.FromMilliseconds(1000)).Subscribe(t =>
-        {
-            if (_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
-            if (!Monitor.TryEnter(LockOnReady)) return;
-            try
-            {
-                if (_seedNodes.Length != 0) TryBootstrap();
-                if (_caching.Count == 0) return;
-                OnReadyAsync().Wait();
-            }
-            finally
-            {
-                Monitor.Exit(LockOnReady);
-            }
-        });
-
-        return Task.CompletedTask;
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    private async Task BootstrapSeedsAsync()
-    {
-        var tasks = new List<Task>();
-        var sequence = new Sequence<byte>();
-        try
-        {
-            UpdateLocalPeerInfo();
-            IList<Peer> discoveryStore = new List<Peer> { _localPeer };
-            ReadOnlyPeerSequence(ref discoveryStore, ref sequence);
-            for (var index = 0; index < _seedNodes.Length; index++)
-            {
-                var i = index;
-                tasks.Add(Task.Run(async () =>
-                {
-                    var seedNode = _seedNodes[i];
-                    var nngMsg = NngFactorySingleton.Instance.Factory.CreateMessage();
-                    try
-                    {
-                        await BroadcastAsync(seedNode.IpAddress, seedNode.TcpPort, sequence, nngMsg);
-                    }
-                    catch (NngException ex)
-                    {
-                        if (ex.Error == Defines.NngErrno.ECONNREFUSED) return;
-                        _logger.Here().Error("{@Message}", ex.Message);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Here().Error("{@Message}", ex.Message);
-                    }
-                    finally
-                    {
-                        nngMsg.Dispose();
-                    }
-                }));
-            }
-
-            await Task.WhenAll(tasks).ConfigureAwait(false);
-        }
-        finally
-        {
-            sequence.Reset();
-            sequence.Dispose();
-        }
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="peers"></param>
-    /// <param name="sequence"></param>
+    /// <param name="seeds"></param>
     /// <returns></returns>
-    private static void ReadOnlyPeerSequence(ref IList<Peer> peers, ref Sequence<byte> sequence)
+    private async Task StartGossiperAsync(IPEndPoint[] seeds)
     {
-        var writer = new MessagePackWriter(sequence);
-        writer.WriteArrayHeader(peers.Count);
-        foreach (var peer in peers)
+        var logger = Util.CreateLogger<PeerDiscovery>();
+        var options = new GossiperOptions
         {
-            MessagePackSerializer.Serialize(ref writer, peer);
-            writer.Flush();
-        }
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    private async Task OnReadyAsync()
-    {
-        var sequence = new Sequence<byte>();
-        try
-        {
-            IList<Peer> discoveryStore = _caching.GetItems().ToList();
-            UpdateLocalPeerInfo();
-            discoveryStore.Add(_localPeer);
-            ReadOnlyPeerSequence(ref discoveryStore, ref sequence);
-            for (var index = 0; index < discoveryStore.Count; index++)
-            {
-                var peer = discoveryStore[index];
-                if (peer.ClientId == _localPeer.ClientId) continue;
-                var nngMsg = NngFactorySingleton.Instance.Factory.CreateMessage();
-                try
-                {
-                    await BroadcastAsync(peer.IpAddress, peer.DsPort, sequence, nngMsg);
-                }
-                catch (NngException ex)
-                {
-                    if (ex.Error == Defines.NngErrno.ECONNREFUSED) return;
-                    _logger.Here().Error("{@Message}", ex.Message);
-                }
-                catch (Exception ex)
-                {
-                    _logger.Here().Error("{@Message}", ex.Message);
-                }
-                finally
-                {
-                    if (peer.Timestamp < Util.GetUtcNow().AddSeconds(-PrunedTimeoutFromSeconds).ToUnixTimestamp())
-                    {
-                        SetPeerCooldown(new PeerCooldown
-                        {
-                            IpAddress = peer.IpAddress,
-                            PublicKey = peer.PublicKey,
-                            ClientId = peer.ClientId,
-                            PeerState = PeerState.Unreachable
-                        });
-                        _caching.Remove(GetKey(peer.ClientId, peer.IpAddress));
-                    }
-
-                    nngMsg.Dispose();
-                }
-            }
-        }
-        finally
-        {
-            sequence.Reset();
-            sequence.Dispose();
-        }
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="ipAddress"></param>
-    /// <param name="dsPort"></param>
-    /// <param name="sequence"></param>
-    /// <param name="nngMsg"></param>
-    private static async Task BroadcastAsync(byte[] ipAddress, byte[] dsPort, Sequence<byte> sequence, INngMsg nngMsg)
-    {
-        var address = string.Create(ipAddress.Length, ipAddress.AsMemory(), (chars, state) =>
-        {
-            Span<char> address = System.Text.Encoding.UTF8.GetString(state.Span).ToCharArray();
-            address.CopyTo(chars);
-        });
-        var port = string.Create(dsPort.Length, dsPort.AsMemory(), (chars, state) =>
-        {
-            Span<char> port = System.Text.Encoding.UTF8.GetString(state.Span).ToCharArray();
-            port.CopyTo(chars);
-        });
-        using var socket = NngFactorySingleton.Instance.Factory.RespondentOpen()
-            .ThenDial($"tcp://{address}:{port}", Defines.NngFlag.NNG_FLAG_NONBLOCK).Unwrap();
-        using var ctx = socket.CreateAsyncContext(NngFactorySingleton.Instance.Factory).Unwrap();
-        ctx.Ctx.SetOpt(Defines.NNG_OPT_RECVTIMEO,
-            new nng_duration { TimeMs = ReceiveWaitTimeMilliseconds });
-        var nngResult = await ctx.Receive(CancellationToken.None);
-        if (!nngResult.IsOk()) return;
-        foreach (var memory in sequence.AsReadOnlySequence) nngMsg.Append(memory.Span);
-        await ctx.Send(nngMsg);
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="nngMsg"></param>
-    private async Task ReceivedPeersAsync(INngMsgPart nngMsg)
-    {
-        await using var stream = Util.Manager.GetStream(nngMsg.AsSpan());
-        var reader = new MessagePackStreamReader(stream);
-        var length = await reader.ReadArrayHeaderAsync(CancellationToken.None);
-        for (var i = 0; i < length; i++)
-        {
-            var elementSequence = await reader.ReadAsync(CancellationToken.None);
-            if (elementSequence == null) continue;
-            var peer = MessagePackSerializer.Deserialize<Peer>(elementSequence.Value);
-            if (peer.ClientId == _localPeer.ClientId) continue;
-#if !DEBUG
-            if (!IsAcceptedAddress(peer.IpAddress)) return;
-#endif
-            if (!_systemCore.Crypto()
-                    .VerifySignature(peer.PublicKey, peer.Timestamp.ToBytes(), peer.Signature)) continue;
-            var key = GetKey(peer.ClientId, peer.IpAddress);
-            if (!_caching.TryGet(key, out var cachedPeer) && _peerCooldownCaching[key].IsDefault())
-            {
-                UpdatePeer(peer.ClientId, peer.IpAddress, peer);
-                continue;
-            }
-
-            if (!cachedPeer.IsDefault())
-            {
-                if (cachedPeer.Timestamp >= peer.Timestamp) continue;
-                // ReSharper disable once RedundantAssignment
-                cachedPeer = peer;
-                continue;
-            }
-
-            if (_peerCooldownCaching[key].IsDefault()) continue;
-            if (_peerCooldownCaching[key].Timestamp >= peer.Timestamp) continue;
-            _peerCooldownCaching.Remove(key);
-            UpdatePeer(peer.ClientId, peer.IpAddress, peer);
-        }
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    public void TryBootstrap()
-    {
-        if (!Monitor.TryEnter(LockOnBootstrap)) return;
-        try
-        {
-            var peers = GetDiscoveryStore().Enumerate();
-            var count = 0;
-            foreach (var node in _seedNodes)
-            {
-                foreach (var item in peers)
-                {
-                    ref var peer = ref item.Value;
-                    if (peer.IpAddress.AsSpan().Xor(node.IpAddress.AsSpan()))
-                    {
-                        count++;
-                    }
-                }
-            }
-
-            if (!(_caching.Count == 0 | count != _seedNodes.Length)) return;
-            AsyncHelper.RunSync(BootstrapSeedsAsync);
-        }
-        finally
-        {
-            Monitor.Exit(LockOnBootstrap);
-        }
+            SeedMembers = seeds, MemberListeners = new List<IMemberListener> { _memberListener }
+        };
+        var listenPort = (ushort)_systemCore.Node.Network.P2P.TcpPort;
+        _gossiper = new Gossiper(listenPort, _systemCore.NodeId(), _systemCore.Node.Name.ToBytes(), Util.GetAssemblyVersionBytes(),
+            _systemCore.KeyPair.PublicKey, listenPort, options,
+            _systemCore.ApplicationLifetime.ApplicationStopping, logger);
+        await _gossiper.StartAsync();
     }
 
     /// <summary>
@@ -510,9 +180,9 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     /// <param name="peer"></param>
     public void SetPeerCooldown(PeerCooldown peer)
     {
-        if (!_peerCooldownCaching.TryGet(GetKey(peer.ClientId, peer.IpAddress), out _))
+        if (!_peerCooldownCaching.TryGet(GetKey(peer.NodeId, peer.IpAddress), out _))
         {
-            _peerCooldownCaching.AddOrUpdate(StoreDb.Key(peer.ClientId.ToString(), peer.IpAddress), peer);
+            _peerCooldownCaching.AddOrUpdate(StoreDb.Key(peer.NodeId.ToString(), peer.IpAddress), peer);
         }
     }
 
@@ -521,12 +191,12 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     /// </summary>
     private void HandlePeerCooldown()
     {
-        _coolDownDisposable = Observable.Interval(TimeSpan.FromMinutes(30)).Subscribe(_ =>
+        _coolDownDisposable = Observable.Interval(TimeSpan.FromMinutes(CooldownTimeoutFromMinutes)).Subscribe(_ =>
         {
             if (_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
             try
             {
-                var removePeerCooldownBeforeTimestamp = Util.GetUtcNow().AddMinutes(-30).ToUnixTimestamp();
+                var removePeerCooldownBeforeTimestamp = Util.GetUtcNow().AddMinutes(-CooldownTimeoutFromMinutes).ToUnixTimestamp();
                 var removePeersCooldown = AsyncHelper.RunSync(async delegate
                 {
                     return await _peerCooldownCaching.WhereAsync(x =>
@@ -581,10 +251,8 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
 
         if (disposing)
         {
-            _discoverDisposable?.Dispose();
-            _receiverDisposable?.Dispose();
-            _socket?.Dispose();
-            _ctx?.Dispose();
+            _gossiper?.Dispose();
+            _coolDownDisposable?.Dispose();
         }
 
         _disposed = true;

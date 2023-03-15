@@ -8,6 +8,7 @@ using TangramXtgm.Extensions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
+using TangramXtgm.Models;
 
 namespace TangramXtgm.Controllers;
 
@@ -38,17 +39,15 @@ public class MembershipController : Controller
     {
         try
         {
-            var peer = _systemCore.PeerDiscovery().GetLocalPeer();
+            var peer = _systemCore.PeerDiscovery().GetLocalNode();
             return new ObjectResult(new
             {
                 IPAddress = peer.IpAddress.FromBytes(),
-                BlockHeight = peer.BlockCount,
-                peer.ClientId,
+                peer.NodeId,
                 HttpPort = peer.HttpPort.FromBytes(),
                 HttpsPort = peer.HttpsPort.FromBytes(),
                 TcpPort = peer.TcpPort.FromBytes(),
                 WsPort = peer.WsPort.FromBytes(),
-                DsPort = peer.DsPort.FromBytes(),
                 Name = peer.Name.FromBytes(),
                 PublicKey = peer.PublicKey.ByteToHex(),
                 Version = peer.Version.FromBytes()
@@ -56,7 +55,7 @@ public class MembershipController : Controller
         }
         catch (Exception ex)
         {
-            _logger.Here().Error(ex.Message);
+            _logger.Here().Error("{Message}", ex.Message);
         }
 
         return NotFound();
@@ -72,17 +71,12 @@ public class MembershipController : Controller
     {
         try
         {
-            var peers = await _systemCore.PeerDiscovery().GetDiscoveryAsync();
+            var peers = _systemCore.PeerDiscovery().GetGossipMemberStore();
             return new ObjectResult(peers.Select(peer => new
             {
                 IPAddress = peer.IpAddress.FromBytes(),
-                BlockHeight = peer.BlockCount,
-                peer.ClientId,
-                HttpPort = peer.HttpPort.FromBytes(),
-                HttpsPort = peer.HttpsPort.FromBytes(),
-                TcpPort = peer.TcpPort.FromBytes(),
-                WsPort = peer.WsPort.FromBytes(),
-                DsPort = peer.DsPort.FromBytes(),
+                peer.NodeId,
+                ServicePort = peer.TcpPort.FromBytes(),
                 Name = peer.Name.FromBytes(),
                 PublicKey = peer.PublicKey.ByteToHex(),
                 Version = peer.Version.FromBytes()
@@ -90,7 +84,7 @@ public class MembershipController : Controller
         }
         catch (Exception ex)
         {
-            _logger.Here().Error(ex.Message);
+            _logger.Here().Error("{Message}", ex.Message);
         }
 
         return NotFound();

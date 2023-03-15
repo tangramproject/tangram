@@ -10,13 +10,13 @@ public struct PeerCooldown : IComparable<PeerCooldown>
 {
     public byte[] IpAddress { get; set; }
     public byte[] PublicKey { get; set; }
-    public ulong ClientId { get; set; }
+    public uint NodeId { get; set; }
     public long Timestamp { get; }
     public PeerState PeerState { get; set; }
 
     public PeerCooldown()
     {
-        ClientId = 0;
+        NodeId = 0;
         IpAddress = null;
         PublicKey = null;
         Timestamp = Util.GetAdjustedTimeAsUnixTimestamp();
