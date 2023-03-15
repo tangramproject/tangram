@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Blake3;
 using TangramXtgm.Extensions;
 using MessagePack;
@@ -13,17 +14,9 @@ namespace TangramXtgm.Consensus.Models;
 [MessagePackObject]
 public record BlockGraph
 {
-    [Key(0)]
-    public Block Block { get; init; }
-    [Key(1)]
-    public IList<Dependency> Dependencies { get; } = new List<Dependency>();
-    [Key(2)]
-    public Block Prev { get; init; }
-    [Key(3)]
-    public byte[] PublicKey { get; set; }
-    [Key(4)]
-    public byte[] Signature { get; set; }
-
+    [Key(0)] public Block Block { get; init; }
+    [Key(1)] public IList<Dependency> Dependencies { get; } = new List<Dependency>();
+    [Key(2)] public Block Prev { get; init; }
     /// <summary>
     /// 
     /// </summary>
@@ -65,7 +58,6 @@ public record BlockGraph
                 .Append(Prev.Hash)
                 .Append(Prev.Node)
                 .Append(Prev.Round);
-
         return ts.ToArray();
     }
 

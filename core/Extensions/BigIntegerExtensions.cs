@@ -1,6 +1,7 @@
 ﻿// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
+using System;
 using System.Numerics;
 using System.Text;
 
@@ -28,6 +29,11 @@ public static class BigIntegerExtensions
         var reverse = new byte[len];
         for (var i = 0; i < len; i++) reverse[i] = data[len - i - 1];
         return reverse;
+    }
+    
+    public static BigInteger ToBigInteger(this byte[] data)
+    {
+        return new BigInteger(data);
     }
 
     public static BigInteger Mod(this BigInteger a, BigInteger n)

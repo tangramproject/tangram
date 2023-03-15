@@ -152,22 +152,22 @@ public class Startup
             AnsiConsole.Status()
                 .Start("initialising...", ctx =>
                 {
-                    AnsiConsole.MarkupLine("Start...     [bold green]PEER DISCOVERY[/]");
+                    AutofacContainer.Resolve<IGraph>();
+                    AnsiConsole.MarkupLine("Start: [bold green]PEER DISCOVERY[/]");
                     AutofacContainer.Resolve<IPeerDiscovery>();
-
-                    AnsiConsole.MarkupLine("Start...     [bold green]P2P DEVICE[/]");
+                    
+                    AnsiConsole.MarkupLine("Start: [bold green]P2P DEVICE[/]");
                     AutofacContainer.Resolve<IP2PDevice>();
-
-                    AnsiConsole.MarkupLine("Start...     [bold green]WALLET SESSION[/]");
+                    
+                    AnsiConsole.MarkupLine("Start: [bold green]WALLET SESSION[/]");
                     AutofacContainer.Resolve<IWalletSession>();
-
-                    AnsiConsole.MarkupLine("Start...     [bold green]PURE PROOF OF STAKE[/] [bold yellow]Staking:false[/]");
+                    
+                    AnsiConsole.MarkupLine("Start: [bold green]PURE PROOF OF STAKE[/] [bold yellow]Staking:false[/]");
                     AutofacContainer.Resolve<IPPoS>();
 
-                    AnsiConsole.MarkupLine("Start...     [bold green]SYNC[/]");
+                    AnsiConsole.MarkupLine("Start: [bold green]SYNC[/]");
                     AutofacContainer.Resolve<ISync>();
                 });
-
         });
         lifetime.ApplicationStopping.Register(() => { });
     }

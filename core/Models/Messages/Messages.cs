@@ -189,6 +189,13 @@ public record PosPoolTransactionRequest(byte[] TransactionId);
 public record PeerDiscoveryResponse([property: Key(0)] Peer[] Peers);
 
 /// <summary>
+/// 
+/// </summary>
+/// <param name="PublicKey"></param>
+[MessagePackObject, Serializable]
+public record PeerPublicKeyResponse([property: Key(0)] byte[] PublicKey);
+
+/// <summary>
 /// </summary>
 /// <param name="Signature"></param>
 /// <param name="PublicKey"></param>

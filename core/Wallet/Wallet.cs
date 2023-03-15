@@ -446,7 +446,6 @@ public class NodeWallet : INodeWallet
                 Bp = new[] { new Bp { Proof = bp } },
                 Mix = nCols,
                 Rct = new[] { new Rct { I = preimage, M = m, P = pc, S = ss } },
-                Ver = 2,
                 Vin = new[] { new Vin { Image = ki, Offsets = offsets } },
                 Vout = new[]
                 {

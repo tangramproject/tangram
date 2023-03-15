@@ -53,6 +53,11 @@ public static class ByteExtensions
     {
         return Encoding.UTF8.GetBytes(value.ToString());
     }
+    
+    public static int ToInt32(this byte[] value)
+    {
+        return Convert.ToInt32(value.FromBytes());
+    }
 
     public static string ByteToHex(this byte[] data)
     {
@@ -111,12 +116,12 @@ public static class ByteExtensions
         return id;
     }
 
-    public static ulong ToHashIdentifier(this byte[] hash)
+    public static uint ToHashIdentifier(this byte[] hash)
     {
         var byteHex = Hasher.Hash(hash);
         ReadOnlySpan<byte> h = byteHex.AsSpanUnsafe();
-        var id = (ulong)BitConverter.ToInt64(h);
-        id = (ulong)Convert.ToInt64(id.ToString()[..5]);
+        var id = (uint)BitConverter.ToInt64(h);
+        id = (uint)Convert.ToInt64(id.ToString()[..5]);
         return id;
     }
 

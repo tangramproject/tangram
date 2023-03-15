@@ -40,7 +40,7 @@ public class BlockController : Controller
     {
         try
         {
-            var distribution = await _systemCore.Validator().GetRunningDistributionAsync();
+            var distribution = await _systemCore.Validator().RunningDistributionAsync();
             return new ObjectResult(new { distribution });
         }
         catch (Exception ex)
@@ -223,7 +223,7 @@ public class BlockController : Controller
     {
         try
         {
-            var distribution = await _systemCore.Validator().GetRunningDistributionAsync();
+            var distribution = await _systemCore.Validator().RunningDistributionAsync();
             return new ObjectResult(new { emission = Ledger.LedgerConstant.Distribution - distribution });
         }
         catch (Exception ex)

@@ -25,7 +25,7 @@ public static class SwaggerExtensions
                     Url = new Uri("https://raw.githubusercontent.com/tangramproject/tangram/initial/LICENSE")
                 },
                 Title = "XTGM Node API",
-                Version = TangramXtgm.Helper.Util.GetAssemblyVersion(),
+                Version = TangramXtgm.Helper.Util.GetAssemblyVersionString(),
                 Description = "Tangram is an early, unaudited, and unverified release of Cypher. Cypher will serve as a testing ground, allowing teams and developers to build and deploy nodes, send and receive transactions.",
                 TermsOfService = new Uri("https://tangram.network/home/privacy/"),
                 Contact = new Microsoft.OpenApi.Models.OpenApiContact

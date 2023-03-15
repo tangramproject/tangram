@@ -21,7 +21,7 @@ public interface IHashChainRepository : IRepository<Block>
 {
     ValueTask<List<Block>> OrderByRangeAsync(Func<Block, ulong> selector, int skip, int take);
     new Task<bool> PutAsync(byte[] key, Block data);
-    new bool Delete(byte[] key);
+    new bool Delete(byte[] key, byte[] hash);
     ulong Height { get; }
     ulong Count { get; }
 }
@@ -45,8 +45,12 @@ public class HashChainRepository : Repository<Block>, IHashChainRepository
         _logger = logger.ForContext("SourceContext", nameof(HashChainRepository));
 
         SetTableName(StoreDb.HashChainTable.ToString());
-        Height = (ulong)AsyncHelper.RunSync(GetBlockHeightAsync);
-        Count = (ulong)AsyncHelper.RunSync(CountAsync);
+        
+        AsyncHelper.Invoke(async () =>
+        {
+            Height = (ulong)await GetBlockHeightAsync();
+            Count = (ulong)await CountAsync();
+        });
     }
 
     /// <summary>
@@ -93,10 +97,12 @@ public class HashChainRepository : Repository<Block>, IHashChainRepository
     /// 
     /// </summary>
     /// <param name="key"></param>
+    /// <param name="hash"></param>
     /// <returns></returns>
-    public new bool Delete(byte[] key)
+    public new bool Delete(byte[] key, byte[] hash)
     {
-        Guard.Argument(key, nameof(key)).NotNull().NotEmpty();
+        Guard.Argument(key, nameof(key)).NotNull().NotEmpty().MaxCount(64);
+        Guard.Argument(hash, nameof(hash)).NotNull().NotEmpty().MaxCount(32);
         try
         {
             using (_sync.Write())

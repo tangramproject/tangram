@@ -22,8 +22,8 @@ public interface ICrypto
     Task<Models.KeyPair> GetOrUpsertKeyNameAsync(string keyName);
     Task<byte[]> GetPublicKeyAsync(string keyName);
     Task<SignatureResponse> SignAsync(string keyName, byte[] message);
-    byte[] Sign(byte[] privateKey, byte[] message);
-    bool VerifySignature(byte[] signature, byte[] message);
+    byte[] SignXEdDSA(byte[] privateKey, byte[] message);
+    bool VerifyXEdDSASignature(byte[] signature, byte[] message, byte[] publicKey);
     bool VerifySignature(byte[] publicKey, byte[] message, byte[] signature);
     byte[] GetCalculateVrfSignature(ECPrivateKey ecPrivateKey, byte[] msg);
     byte[] GetVerifyVrfSignature(ECPublicKey ecPublicKey, byte[] msg, byte[] sig);
@@ -138,36 +138,29 @@ public class Crypto : ICrypto
     /// <param name="privateKey"></param>
     /// <param name="message"></param>
     /// <returns></returns>
-    public byte[] Sign(byte[] privateKey, byte[] message)
+    public byte[] SignXEdDSA(byte[] privateKey, byte[] message)
     {
-        Guard.Argument(privateKey, nameof(privateKey)).NotNull();
-        Guard.Argument(message, nameof(message)).NotNull();
-        try
-        {
-            return Curve.calculateSignature(Curve.decodePrivatePoint(privateKey), message);
-        }
-        catch (Exception ex)
-        {
-            _logger.Here().Error(ex, "Unable to sign the message");
-        }
-
-        return null;
+        Guard.Argument(privateKey, nameof(privateKey)).NotNull().MaxCount(32);
+        Guard.Argument(message, nameof(message)).NotNull().MaxCount(32);
+        return Curve.calculateSignature(Curve.decodePrivatePoint(privateKey), message);
     }
 
     /// <summary>
     /// </summary>
     /// <param name="signature"></param>
     /// <param name="message"></param>
+    /// <param name="publicKey"></param>
     /// <returns></returns>
-    public bool VerifySignature(byte[] signature, byte[] message)
+    public bool VerifyXEdDSASignature(byte[] signature, byte[] message, byte[] publicKey)
     {
-        Guard.Argument(signature, nameof(signature)).NotNull();
-        Guard.Argument(message, nameof(message)).NotNull();
+        Guard.Argument(signature, nameof(signature)).NotNull().MaxCount(64);
+        Guard.Argument(message, nameof(message)).NotNull().MaxCount(32);
+        Guard.Argument(publicKey, nameof(publicKey)).NotNull().MaxCount(33);
+        
         var verified = false;
         try
         {
-            var keyPair = GetKeyPair();
-            verified = Curve.verifySignature(Curve.decodePoint(keyPair.PublicKey, 0), message, signature);
+            verified = Curve.verifySignature(Curve.decodePoint(publicKey, 0), message, signature);
         }
         catch (Exception ex)
         {

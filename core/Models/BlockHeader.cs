@@ -16,7 +16,7 @@ namespace TangramXtgm.Models;
 [MessagePack.MessagePackObject]
 public record BlockHeader
 {
-    [MessagePack.Key(0)] public uint Version { get; set; }
+    [MessagePack.Key(0)] public uint Version { get; set; } = 3;
     [MessagePack.Key(1)] public byte[] PrevBlockHash { get; set; }
     [MessagePack.Key(2)] public byte[] MerkleRoot { get; set; }
     [MessagePack.Key(3)] public ulong Height { get; set; }

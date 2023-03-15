@@ -13,8 +13,11 @@ using System.Runtime.InteropServices;
 using System.Security;
 using System.Threading.Tasks;
 using Blake3;
+using Microsoft.Extensions.Logging;
 using TangramXtgm.Extensions;
 using Microsoft.IO;
+using Serilog.Extensions.Logging;
+using MathBigInteger = NBitcoin.BouncyCastle.Math.BigInteger;
 
 namespace TangramXtgm.Helper;
 
@@ -43,10 +46,16 @@ public static class Util
     /// <summary>
     /// </summary>
     /// <returns></returns>
-    public static string GetAssemblyVersion()
+    public static string GetAssemblyVersionString()
     {
         var version = Assembly.GetExecutingAssembly().GetName().Version;
         return version != null ? $"{version.ToString()}" : string.Empty;
+    }
+    
+    public static byte[] GetAssemblyVersionBytes()
+    {
+        var version = Assembly.GetExecutingAssembly().GetName().Version;
+        return version != null ? version.ToString().ToBytes() : Array.Empty<byte>();
     }
 
     /// <summary>
@@ -222,14 +231,21 @@ public static class Util
     /// <returns></returns>
     public static IPAddress GetIpAddress()
     {
-        var host1 = Dns.GetHostEntry(Dns.GetHostName());
-        foreach (var ip in host1.AddressList)
+        try
         {
-            if (ip.AddressFamily != AddressFamily.InterNetwork) continue;
-            if (!ip.IsPrivate())
+            var host1 = Dns.GetHostEntry(Dns.GetHostName());
+            foreach (var ip in host1.AddressList)
             {
-                return ip;
+                if (ip.AddressFamily != AddressFamily.InterNetwork) continue;
+                if (!ip.IsPrivate())
+                {
+                    return ip;
+                }
             }
+        }
+        catch (Exception)
+        {
+            // Ignore
         }
 
         return IPAddress.Any;
@@ -278,6 +294,17 @@ public static class Util
         }
 
         return null;
+    }
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="ipEndPointString"></param>
+    /// <returns></returns>
+    public static IPEndPoint IpEndPointFromString(string ipEndPointString)
+    {
+        var endpoint = ipEndPointString.Split(':');
+        return new IPEndPoint(IPAddress.Parse(endpoint[0]), int.Parse(endpoint[1]));
     }
 
     /// <summary>
@@ -459,6 +486,36 @@ public static class Util
 
     public static void Throw(Exception e)
     {
-        throw e;
+        throw e; 
+    }
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    public static ILogger CreateLogger<T>()
+    {
+        var loggerFactory = new LoggerFactory();
+        loggerFactory.AddProvider(new SerilogLoggerProvider());
+        return loggerFactory
+            .CreateLogger<T>();
+    }
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="transactionsHash"></param>
+    /// <param name="vrfOutput"></param>
+    /// <param name="height"></param>
+    /// <param name="lockTime"></param>
+    /// <returns></returns>
+    public  static byte[] SlothEvalT(byte[] transactionsHash, byte[] vrfOutput, ulong height, long lockTime)
+    {
+        var bigInteger = new MathBigInteger(1, transactionsHash)
+            .Multiply(new MathBigInteger(Hasher.Hash(vrfOutput).HexToByte()).Multiply(
+                new MathBigInteger(Hasher.Hash(height.ToBytes()).HexToByte())))
+            .Multiply(new MathBigInteger(Hasher.Hash(lockTime.ToBytes()).HexToByte()));
+        return Hasher.Hash(bigInteger.ToByteArray()).HexToByte();
     }
 }

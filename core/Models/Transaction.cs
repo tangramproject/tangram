@@ -1,4 +1,4 @@
-﻿// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
@@ -31,7 +31,7 @@ public record Transaction : IComparable<Transaction>
     [MessagePack.Key(0)] public byte[] TxnId { get; set; }
     [MessagePack.Key(1)] public Bp[] Bp { get; set; }
     [MessagePack.Key(2)] public int Ver { get; set; } = 3;
-    [MessagePack.Key(3)] public int Mix { get; set; }
+    [MessagePack.Key(3)] public int Mix { get; set; } = 22;
     [MessagePack.Key(4)] public Vin[] Vin { get; set; }
     [MessagePack.Key(5)] public Vout[] Vout { get; set; }
     [MessagePack.Key(6)] public Rct[] Rct { get; set; }

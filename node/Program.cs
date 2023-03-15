@@ -83,7 +83,7 @@ public static class Program
                     | | (_| | | | | (_| | | | (_| | | | | | | | |  (   /  / . \   | | | |__| | |  | |  | |
                     |_|\__,_|_| |_|\__, |_|  \__,_|_| |_| |_| | |   |_|  /_/ \_\  |_|  \_____|_|  |_|  | |
                                     __/ |                      \_\                                    /_/ 
-                                   |___/                                   v{Util.GetAssemblyVersion()} {config.GetSection("Node:Network:Environment").Value}");
+                                   |___/                                   v{Util.GetAssemblyVersionString()} {config.GetSection("Node:Network:Environment").Value}");
             Console.WriteLine();
             Console.ResetColor();
             Log.Information("Starting Tangram...");
