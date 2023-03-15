@@ -1,4 +1,4 @@
-// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+﻿// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
@@ -6,8 +6,10 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using Blake3;
+using TangramXtgm.Cryptography;
 using TangramXtgm.Extensions;
 using TangramXtgm.Helper;
+using TangramXtgm.Ledger;
 
 namespace TangramXtgm.Models;
 
@@ -132,7 +134,7 @@ public record Transaction : IComparable<Transaction>
     /// <returns></returns>
     public CoinType OutputType()
     {
-        var coinType = CoinType.Empty;
+        var coinType = CoinType.System;
         var outputs = Vout.Select(x => Enum.GetName(x.T)).ToArray();
         if (outputs.Contains(Enum.GetName(CoinType.Payment)) && outputs.Contains(Enum.GetName(CoinType.Change)))
             coinType = CoinType.Payment;
@@ -156,7 +158,7 @@ public record Transaction : IComparable<Transaction>
     {
         return HashCode.Combine(TxnId.ByteToHex());
     }
-
+    
     /// <summary>
     /// 
     /// </summary>
@@ -210,6 +212,7 @@ public record Transaction : IComparable<Transaction>
     private IEnumerable<ValidationResult> HasDuplicateOutputs(List<ValidationResult> validationResults, Vout[] vOutputs)
     {
         var duplicateOutputs = new List<byte[]>();
+        if (vOutputs.Length == 1 && vOutputs[0].T == CoinType.System) return validationResults;
         foreach (var vout in vOutputs)
         {
             if (duplicateOutputs.FirstOrDefault(x => x.Xor(vout.C)) is not null)

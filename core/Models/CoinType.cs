@@ -8,11 +8,11 @@ namespace TangramXtgm.Models;
 [Flags]
 public enum CoinType : sbyte
 {
-    Empty = 0x00,
+    System = 0x00,
     Coin = 0x01,
     Coinbase = 0x02,
     Coinstake = 0x03,
     Payment = 0x06,
     Change = 0x07,
-    Stash = 0x09
+    Stash = 0x09,
 }

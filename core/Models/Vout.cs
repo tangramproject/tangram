@@ -38,7 +38,7 @@ public record Vout
             if (S != null && S.Length != 16) results.Add(new ValidationResult("Range exception", new[] { "Vout.S" }));
         }
 
-        if (T != CoinType.Payment && T != CoinType.Coinbase && T != CoinType.Coinstake && T != CoinType.Change)
+        if (T != CoinType.Payment && T != CoinType.Coinbase && T != CoinType.Coinstake && T != CoinType.Change && T != CoinType.System)
             results.Add(new ValidationResult("Argument exception", new[] { "Vout.T" }));
         if (T != CoinType.Coinbase && T != CoinType.Coinstake) return results;
         if (D == null) results.Add(new ValidationResult("Argument is null", new[] { "Vout.D" }));

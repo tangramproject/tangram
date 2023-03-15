@@ -1,13 +1,11 @@
 // Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
-using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using Blake3;
 using TangramXtgm.Extensions;
-using Dawn;
 using MessagePack;
 using TangramXtgm.Helper;
 using TangramXtgm.Ledger;
@@ -52,8 +50,18 @@ public record Block
         if (Size != 0 && Size != 1) ts.Append(Size);
         ts
             .Append(BlockHeader.ToStream())
-            .Append(NrTx).Append(Util.Combine(Txs.Select(x => x.ToHash()).ToArray()))
-            .Append(BlockPos.ToStream());
+            .Append(NrTx).Append(Util.Combine(Txs.Select(x => x.ToHash()).ToArray()));
+
+        switch (Height)
+        {
+            case >= LedgerConstant.BlockV3Height:
+                ts.Append(BlockPos.ToStreamBlockV3Height());
+                break;
+            default:
+                ts.Append(BlockPos.ToStream());
+                break;
+        }
+        
         return ts.ToArray();
     }
 

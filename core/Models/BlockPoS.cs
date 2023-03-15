@@ -7,6 +7,7 @@ using System.Linq;
 using Blake3;
 using TangramXtgm.Extensions;
 using TangramXtgm.Helper;
+using TangramXtgm.Ledger;
 
 namespace TangramXtgm.Models;
 
@@ -19,6 +20,7 @@ public record BlockPoS
     [MessagePack.Key(3)] public byte[] VrfProof { get; set; }
     [MessagePack.Key(4)] public byte[] VrfSig { get; set; }
     [MessagePack.Key(5)] public byte[] PublicKey { get; set; }
+    [MessagePack.Key(6)] public StakeType StakeType { get; set; }
 
     /// <summary>
     /// </summary>
@@ -43,17 +45,45 @@ public record BlockPoS
     {
         if (Validate().Any()) return null;
         using var ts = new BufferStream();
-        ts.Append(StakeAmount).Append(Solution).Append(Nonce).Append(VrfProof).Append(VrfSig).Append(PublicKey);
+        ts
+            .Append(StakeAmount)
+            .Append(Solution)
+            .Append(Nonce)
+            .Append(VrfProof)
+            .Append(VrfSig)
+            .Append(PublicKey);
         return ts.ToArray();
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns></returns>
+    public byte[] ToStreamBlockV3Height()
+    {
+        if (Validate().Any()) return null;
+        using var ts = new BufferStream();
+        ts
+            .Append(StakeAmount)
+            .Append(Solution)
+            .Append(Nonce)
+            .Append(VrfProof)
+            .Append(VrfSig)
+            .Append(PublicKey)
+            .Append(StakeType.ToString());
+        return ts.ToArray();
+    }
+    
     /// <summary>
     /// </summary>
     /// <returns></returns>
     public IEnumerable<ValidationResult> Validate()
     {
         var results = new List<ValidationResult>();
-        if (StakeAmount <= 0) results.Add(new ValidationResult("Range exception", new[] { "Stake Amount" }));
+        if (StakeType != StakeType.System && StakeType != StakeType.Node)
+            results.Add(new ValidationResult("Argument exception", new[] { "StakeType" }));
+        if(StakeType != StakeType.System) 
+            if (StakeAmount <= 0) results.Add(new ValidationResult("Range exception", new[] { "Stake Amount" }));
         if (Solution <= 0) results.Add(new ValidationResult("Range exception", new[] { "Solution" }));
         if (Nonce == null) results.Add(new ValidationResult("Argument is null", new[] { "Nonce" }));
         if (Nonce is { Length: > 77 }) results.Add(new ValidationResult("Range exception", new[] { "Nonce" }));
