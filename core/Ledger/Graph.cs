@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Reactive;
 using System.Reactive.Concurrency;
 using System.Reactive.Linq;
@@ -23,6 +24,7 @@ using TangramXtgm.Consensus.Models;
 using TangramXtgm.Helper;
 using TangramXtgm.Models;
 using TangramXtgm.Models.Messages;
+using TangramXtgm.Network;
 using TangramXtgm.Persistence;
 using Block = TangramXtgm.Models.Block;
 
@@ -45,6 +47,7 @@ public interface IGraph
     Task<VerifyResult> BlockHeightExistsAsync(BlockHeightExistsRequest blockHeightExistsRequest);
     Task<VerifyResult> BlockExistsAsync(BlockExistsRequest blockExistsRequest);
     byte[] HashTransactions(HashTransactionsRequest hashTransactionsRequest);
+    Task<bool> BlockCountSynchronizedAsync();
 }
 
 /// <summary>
@@ -81,6 +84,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     private IDisposable _disposableHandelSeenBlockGraphs;
     private bool _disposed;
     private readonly SemaphoreSlim _slimDecideWinner = new(1, 1);
+    private int _roundCompleted = 1;
 
     /// <summary>
     /// </summary>
@@ -110,10 +114,10 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
         Guard.Argument(blockGraph, nameof(blockGraph)).NotNull();
         if (_systemCore.Sync().Running) return;
         if (blockGraph.Block.Round != NextRound()) return;
+        var identifier = blockGraph.ToIdentifier();
         if (await BlockHeightExistsAsync(new BlockHeightExistsRequest(blockGraph.Block.Round)) != VerifyResult.Succeed) return;
-        if (!_syncCacheSeenBlockGraph.Contains(blockGraph.ToIdentifier()))
+        if (!_syncCacheSeenBlockGraph.Contains(identifier))
         {
-            var identifier = blockGraph.ToIdentifier();
             _syncCacheSeenBlockGraph.Add(identifier,
                 new SeenBlockGraph
                 { Hash = blockGraph.Block.BlockHash, Round = blockGraph.Block.Round, Key = identifier });
@@ -372,6 +376,16 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
+    /// 
+    /// </summary>
+    /// <returns></returns>
+    public async Task<bool> BlockCountSynchronizedAsync()
+    {
+        var maxBlockCount = await _systemCore.PeerDiscovery().NetworkBlockCountAsync();
+        return _systemCore.UnitOfWork().HashChainRepository.Count >= maxBlockCount;
+    }
+
+    /// <summary>
     /// </summary>
     private void Init()
     {
@@ -383,7 +397,8 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     /// <param name="e"></param>
     private void OnRoundReady(BlockGraphEventArgs e)
     {
-        if (e.BlockGraph.Block.Round == NextRound()) _onRoundCompletedEventHandler?.Invoke(this, e);
+        if (e.BlockGraph.Block.Round != NextRound()) return;
+        _onRoundCompletedEventHandler?.Invoke(this, e);
     }
 
     /// <summary>
@@ -426,19 +441,19 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
         var onRoundCompletedSubscription = _onRoundCompleted
             .Where(data => data.EventArgs.BlockGraph.Block.Round == NextRound())
             .Throttle(TimeSpan.FromSeconds(LedgerConstant.OnRoundThrottleFromSeconds), NewThreadScheduler.Default)
+            .SubscribeOn(Scheduler.Default)
             .Subscribe(_ =>
             {
                 try
                 {
                     var blockGraphs = _syncCacheBlockGraph.GetItems().Where(x => x.Block.Round == NextRound()).ToList();
-                    if (blockGraphs.Count < 2) return;
                     var nodeCount = blockGraphs.Select(n => n.Block.Node).Distinct().Count();
                     var f = (nodeCount - 1) / 3;
                     var quorum2F1 = 2 * f + 1;
                     if (nodeCount < quorum2F1) return;
                     var lastInterpreted = GetRound();
                     var config = new Consensus.Models.Config(lastInterpreted, Array.Empty<ulong>(),
-                        _systemCore.KeyPair.PublicKey.ToHashIdentifier(), (ulong)nodeCount);
+                        _systemCore.NodeId(), (ulong)nodeCount);
                     var blockmania = new Blockmania(config, _logger) { NodeCount = nodeCount };
                     blockmania.TrackingDelivered.Subscribe(x =>
                     {
@@ -470,7 +485,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
         Guard.Argument(blockGraph, nameof(blockGraph)).NotNull();
         try
         {
-            if (_systemCore.Validator().VerifyBlockGraphSignatureNodeRound(blockGraph) != VerifyResult.Succeed)
+            if (_systemCore.Validator().VerifyBlockGraphNodeRound(ref blockGraph) != VerifyResult.Succeed)
             {
                 _logger.Error("Unable to verify block for {@Node} and round {@Round}", blockGraph.Block.Node,
                     blockGraph.Block.Round);
@@ -492,28 +507,32 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
 
     /// <summary>
     /// </summary>
-    /// <param name="blockGraph"></param>
     /// <returns></returns>
-    private async Task<BlockGraph> SignAsync(BlockGraph blockGraph)
+    private async Task FinalizeAsync(BlockGraph blockGraph)
     {
         Guard.Argument(blockGraph, nameof(blockGraph)).NotNull();
         try
         {
-            var (signature, publicKey) = await _systemCore.Crypto()
-                .SignAsync(_systemCore.Node.Network.SigningKeyRingName, blockGraph.ToHash());
-            blockGraph.PublicKey = publicKey;
-            blockGraph.Signature = signature;
-            return blockGraph;
-        }
-        catch (Exception ex)
-        {
-            _logger.Here().Error("{@Message}", ex.Message);
-        }
+            if (!Save(blockGraph)) return;
+            if (_systemCore.NodeId() == blockGraph.Block.Node)
+            {
+                await BroadcastAsync(blockGraph);
+                return;
+            }
 
-        return null;
+            var copy = Copy(blockGraph);
+            await BroadcastAsync(copy);
+            OnRoundReady(new BlockGraphEventArgs(blockGraph));
+        }
+        catch (Exception)
+        {
+            _logger.Here().Error("Unable to add block for {@Node} and round {@Round}", blockGraph.Block.Node,
+                blockGraph.Block.Round);
+        }
     }
 
     /// <summary>
+    /// 
     /// </summary>
     /// <param name="blockGraph"></param>
     /// <returns></returns>
@@ -522,7 +541,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
         Guard.Argument(blockGraph, nameof(blockGraph)).NotNull();
         try
         {
-            var localNodeId = _systemCore.KeyPair.PublicKey.ToHashIdentifier();
+            var localNodeId = _systemCore.NodeId();
             var copy = new BlockGraph
             {
                 Block = new Consensus.Models.Block
@@ -537,8 +556,8 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
                 Prev = new Consensus.Models.Block
                 {
                     BlockHash = blockGraph.Prev.BlockHash,
-                    Data = blockGraph.Prev.Data,
-                    DataHash = blockGraph.Prev.DataHash,
+                    Data = Array.Empty<byte>(),
+                    DataHash = string.Empty,
                     Hash = blockGraph.Prev.Hash,
                     Node = localNodeId,
                     Round = blockGraph.Prev.Round
@@ -556,45 +575,6 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
 
     /// <summary>
     /// </summary>
-    /// <returns></returns>
-    private async Task FinalizeAsync(BlockGraph blockGraph)
-    {
-        Guard.Argument(blockGraph, nameof(blockGraph)).NotNull();
-        try
-        {
-            var copy = blockGraph.Block.Node != _systemCore.KeyPair.PublicKey.ToHashIdentifier();
-            if (copy)
-            {
-                _logger.Information("BlockGraph Copy: [{@Node}] Round: [{@Round}]", blockGraph.Block.Node,
-                    blockGraph.Block.Round);
-                if (!Save(blockGraph)) return;
-                var copyBlockGraph = Copy(blockGraph);
-                if (copyBlockGraph is null) return;
-                var signBlockGraph = await SignAsync(copyBlockGraph);
-                if (signBlockGraph is null) return;
-                if (!Save(signBlockGraph)) return;
-                await BroadcastAsync(signBlockGraph);
-                OnRoundReady(new BlockGraphEventArgs(blockGraph));
-            }
-            else
-            {
-                _logger.Information("BlockGraph Self: [{@Node}] Round: [{@Round}]", blockGraph.Block.Node,
-                    blockGraph.Block.Round);
-                var signBlockGraph = await SignAsync(blockGraph);
-                if (signBlockGraph is null) return;
-                if (!Save(signBlockGraph)) return;
-                await BroadcastAsync(signBlockGraph);
-            }
-        }
-        catch (Exception)
-        {
-            _logger.Here().Error("Unable to add block for {@Node} and round {@Round}", blockGraph.Block.Node,
-                blockGraph.Block.Round);
-        }
-    }
-
-    /// <summary>
-    /// </summary>
     /// <param name="deliver"></param>
     /// <returns></returns>
     private async Task OnDeliveredReadyAsync(Consensus.Models.Interpreted deliver)
@@ -607,8 +587,28 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
             try
             {
                 if (deliveredBlock.Round != NextRound()) continue;
-                await using var stream = Helper.Util.Manager.GetStream(deliveredBlock.Data.AsSpan()) as RecyclableMemoryStream;
+                await using var stream =
+                    Helper.Util.Manager.GetStream(deliveredBlock.Data.AsSpan()) as RecyclableMemoryStream;
                 var block = await MessagePackSerializer.DeserializeAsync<Block>(stream);
+                if (await _systemCore.Validator().VerifyBlockHashAsync(block) != VerifyResult.Succeed)
+                {
+                    var nodeId = block.BlockPos.PublicKey.ToHashIdentifier();
+                    var ipAddress = _systemCore.PeerDiscovery().GetGossipMemberStore()
+                        .FirstOrDefault(x => x.NodeId == nodeId).IpAddress;
+                    _systemCore.PeerDiscovery().SetPeerCooldown(new PeerCooldown
+                    {
+                        IpAddress = ipAddress ?? Array.Empty<byte>(),
+                        PublicKey = block.BlockPos.PublicKey,
+                        NodeId = nodeId,
+                        PeerState = PeerState.OrphanBlock
+                    });
+                    await _systemCore.UnitOfWork().OrphanBlockRepository.PutAsync(block.Hash, block);
+                    _logger.Warning(
+                        "Orphan block [UNABLE TO VERIFY] Hash: {@Hash} Round: {@Round} Node: {@Node} Sol: {@Sol}",
+                        block.Hash.ByteToHex(), deliveredBlock.Round, deliveredBlock.Node, block.BlockPos.Solution);
+                    continue;
+                }
+
                 _syncCacheDelivered.AddOrUpdate(block.Hash, block);
             }
             catch (Exception ex)
@@ -624,61 +624,47 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     private async Task DecideWinnerAsync()
     {
         await _slimDecideWinner.WaitAsync();
-
         Block[] deliveredBlocks = null;
         try
         {
-            deliveredBlocks = _syncCacheDelivered.Where(x => x.Value.Height == NextRound()).Select(n => n.Value)
+            deliveredBlocks = _syncCacheDelivered.Where(x => x.Value.Height == NextRound())
+                .Select(n => n.Value)
                 .ToArray();
             if (deliveredBlocks.Any() != true) return;
-            _logger.Information("DecideWinnerAsync");
-            var winners = deliveredBlocks.Where(x =>
-                x.BlockPos.Solution == deliveredBlocks.Select(n => n.BlockPos.Solution).Max()).ToArray();
-            _logger.Information("Potential winners");
-            foreach (var winner in winners)
-                _logger.Here().Information("Hash {@Hash} Solution {@Sol} Node {@Node}", winner.Hash.ByteToHex(),
-                    winner.BlockPos.Solution, winner.BlockPos.PublicKey.ToHashIdentifier());
-            var block = winners.Length switch
+            Block block = null;
+            foreach (var x in deliveredBlocks)
             {
-                > 2 => winners.FirstOrDefault(winner =>
-                    winner.BlockPos.Solution >= deliveredBlocks.Select(x => x.BlockPos.Solution).Max()),
-                _ => winners[0]
-            };
-            if (block is { })
-            {
-                if (block.Height != NextRound()) return;
-                if (await BlockHeightExistsAsync(new BlockHeightExistsRequest(block.Height)) == VerifyResult.AlreadyExists)
-                {
-                    _logger.Error("Block winner already exists");
-                    return;
-                }
+                if (BinomialCdfWalk(
+                        Hasher.Hash(x.BlockPos.VrfSig).HexToByte().ToBigInteger() % LedgerConstant.MagicNumber,
+                        deliveredBlocks.Length) != deliveredBlocks.Select(n =>
+                        BinomialCdfWalk(
+                            Hasher.Hash(n.BlockPos.VrfSig).HexToByte().ToBigInteger() % LedgerConstant.MagicNumber,
+                            deliveredBlocks.Length)).Min()) continue;
+                block = x;
+                break;
+            }
 
-                var saveBlockResponse = await SaveBlockAsync(new SaveBlockRequest(block));
-                if (saveBlockResponse.Ok)
-                {
-                    if (block.BlockPos.PublicKey.ToHashIdentifier() ==
-                        _systemCore.PeerDiscovery().GetLocalNode().Identifier)
-                    {
-                        AnsiConsole.Write(
-                            new FigletText("# Block Winner #")
-                                .Centered()
-                                .Color(Color.Magenta1));
-                    }
-                    else
-                    {
-                        _logger.Information("We have a winner {@Hash}", block.Hash.ByteToHex());
-                    }
-                }
+            if (block.Height != NextRound()) return;
+            if (await BlockHeightExistsAsync(new BlockHeightExistsRequest(block.Height)) == VerifyResult.AlreadyExists)
+            {
+                _logger.Error("Block winner already exists");
+                return;
+            }
+
+            var saveBlockResponse = await SaveBlockAsync(new SaveBlockRequest(block));
+            if (saveBlockResponse.Ok)
+            {
+                if (block.BlockPos.PublicKey.ToHashIdentifier() == _systemCore.PeerDiscovery().GetLocalNode().NodeId)
+                    AnsiConsole.Write(new FigletText("# Block Winner #").Centered().Color(Color.Magenta1));
                 else
-                {
-                    var seenBlockGraph =
-                        _syncCacheSeenBlockGraph.GetItems().FirstOrDefault(x => x.Hash.Xor(block.Hash));
-                    if (seenBlockGraph != null) _syncCacheBlockGraph.Remove(seenBlockGraph.Key);
-
-                    _logger.Error("Unable to save the block winner");
-                }
-
-                _systemCore.WalletSession().Notify(block.Txs.ToArray());
+                    _logger.Information("We have a winner {@Hash} Solution {@Sol} Node {@Node}", block.Hash.ByteToHex(),
+                        block.BlockPos.Solution, block.BlockPos.PublicKey.ToHashIdentifier());
+            }
+            else
+            {
+                var seenBlockGraph = _syncCacheSeenBlockGraph.GetItems().FirstOrDefault(x => x.Hash.Xor(block.Hash));
+                if (seenBlockGraph != null) _syncCacheBlockGraph.Remove(seenBlockGraph.Key);
+                _logger.Error("Unable to save the block winner");
             }
         }
         catch (Exception ex)
@@ -689,7 +675,12 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
         {
             if (deliveredBlocks is { })
                 foreach (var block in deliveredBlocks)
+                {
                     _syncCacheDelivered.Remove(block.Hash);
+                    if (block.BlockPos.PublicKey.ToHashIdentifier() == _systemCore.NodeId())
+                        _systemCore.WalletSession().Notify(block.Txs.ToArray());
+                }
+            
             _slimDecideWinner.Release();
         }
     }
@@ -731,6 +722,38 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
         }
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="n"></param>
+    /// <param name="k"></param>
+    /// <returns></returns>
+    private static BigInteger BinomialCdfWalk(BigInteger n, int k)
+    {
+        BigInteger result = 0;
+        for (var i = 0; i <= k; i++)
+        {
+            result += BinomialCoefficient(n, i);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="n"></param>
+    /// <param name="k"></param>
+    /// <returns></returns>
+    private static BigInteger BinomialCoefficient(BigInteger n, int k)
+    {
+        BigInteger result = 1;
+        for (var i = 0; i < k; i++)
+        {
+            result = result * (n - i) / (i + 1);
+        }
+        return result;
+    }
+    
     /// <summary>
     /// 
     /// </summary>

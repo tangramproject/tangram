@@ -8,15 +8,18 @@ namespace TangramXtgm.Ledger;
 
 public static class LedgerConstant
 {
+    public const int MagicNumber = 860243278;
+    
     // Graph
     public const double
         OnRoundThrottleFromSeconds =
-            5; // Block size will have an effect. Should increase/decrease.
+            3.5; // Block size will have an effect. Should increase/decrease.
 
     // Validator
     public const decimal Distribution = 110_080_100M;
     public const int RewardPercentage = 50;
-    public const ulong SolutionThrottle = 70_000_000;
+    public const ulong SolutionThrottle = 7_000_000;
+    public const ushort SystemSolutionTime = 5120;
     public const int Coin = 1000_000_000;
     public const int Bits = 8192;
     public const int MBits = 960;
