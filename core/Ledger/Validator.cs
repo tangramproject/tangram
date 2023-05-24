@@ -663,7 +663,8 @@ public class Validator : IValidator
                     noDupKeys.Add(rct.S);
                 }
 
-                if (outputs.All(x => x != transaction.OutputType().ToString())) continue;
+                if (transaction.OutputType() == CoinType.Coinstake ||
+                    transaction.OutputType() == CoinType.System) continue;
                 if (noDupKeys.FirstOrDefault(x => x.Xor(transaction.Vtime.M)) is not null)
                     return VerifyResult.AlreadyExists;
                 noDupKeys.Add(transaction.Vtime.M);
