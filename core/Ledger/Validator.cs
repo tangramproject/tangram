@@ -265,8 +265,7 @@ public class Validator : IValidator
                         new List<byte[]> { payment, change }))
                 {
                     index++;
-                    vCount -= 2;
-                    if (vCount <= 0) break;
+                    if (vCount == index) break;
                     continue;
                 }
 

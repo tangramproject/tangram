@@ -131,7 +131,7 @@ public class Sync : ISync, IDisposable
         try
         {
             var blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
-            _logger.Information("OPENING block height [{@Height}]", blockCount - 1);
+            _logger.Information("OPENING block height [{@Height}]", _systemCore.UnitOfWork().HashChainRepository.Height);
             var peers = _systemCore.PeerDiscovery().GetGossipMemberStore();
             if (peers.Any() != true) return;
             var maxBlockCount = AsyncHelper.RunSync(async () => await _systemCore.PeerDiscovery().NetworkBlockCountAsync());
@@ -206,7 +206,7 @@ public class Sync : ISync, IDisposable
                     if (blockCount < peerBlockCount)
                     {
                         var x = peerBlockCount - (blockCount + 1);
-                        var n = blocks.Count - (int)x;
+                        var n = blocks.Count - (int)x - 1;
                         _logger.Information("TAKING LONGEST CHAIN");
                         blocks = blocks.Skip(n).ToList();
                     }
