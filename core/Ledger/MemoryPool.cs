@@ -50,7 +50,7 @@ public class MemoryPool : IMemoryPool, IDisposable
         _logger = logger.ForContext("SourceContext", nameof(MemoryPool));
         Init();
     }
-
+    
     /// <summary>
     /// </summary>
     /// <param name="transaction"></param>
@@ -69,10 +69,9 @@ public class MemoryPool : IMemoryPool, IDisposable
             if (transaction.HasErrors().Any()) return VerifyResult.Invalid;
             if (!_syncCacheSeenTransactions.Contains(transaction.TxnId))
             {
-                var broadcast = _systemCore.Broadcast();
                 _syncCacheTransactions.Add(transaction.TxnId, transaction);
                 _syncCacheSeenTransactions.Add(transaction.TxnId, transaction.TxnId.ByteToHex());
-                await broadcast.PostAsync((TopicType.AddTransaction, MessagePackSerializer.Serialize(transaction)));
+                await _systemCore.Broadcast().PostAsync((TopicType.AddTransaction, MessagePackSerializer.Serialize(transaction)));
             }
         }
         catch (Exception ex)
