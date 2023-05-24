@@ -39,6 +39,8 @@ public interface IPeerDiscovery
     void SetPeerCooldown(PeerCooldown peer);
 
     Task<ulong> NetworkBlockCountAsync();
+
+    Task<ulong> PeerBlockCountAsync(Peer peer);
 }
 
 /// <summary>
@@ -80,8 +82,8 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
         {
             var msg = MessagePackSerializer.Serialize(new Parameter[]
             {
-                new() {ProtocolCommand = ProtocolCommand.GetBlockHeight}
-            });
+                new() {ProtocolCommand = ProtocolCommand.GetBlockCount}
+            }, cancellationToken: cancellationToken);
             var blockCountResponse = await _systemCore.GossipMemberStore()
                 .SendAsync<BlockHeightResponse>(
                     new IPEndPoint(IPAddress.Parse(knownPeer.IpAddress.FromBytes()), knownPeer.TcpPort.ToInt32()),
@@ -92,6 +94,24 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
         return blockHeightResponses.Any() ? blockHeightResponses.Max(x => x.Count) : 0;
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="peer"></param>
+    /// <returns></returns>
+    public async Task<ulong> PeerBlockCountAsync(Peer peer)
+    {
+        var blockCountResponse = await _systemCore.GossipMemberStore()
+            .SendAsync<BlockHeightResponse>(
+                new IPEndPoint(IPAddress.Parse(peer.IpAddress.FromBytes()), peer.TcpPort.ToInt32()),
+                peer.PublicKey, MessagePackSerializer.Serialize(new Parameter[]
+                {
+                    new() { ProtocolCommand = ProtocolCommand.GetBlockCount }
+                }));
+        
+        return blockCountResponse?.Count ?? 0;
+    }
+    
     /// <summary>
     /// </summary>
     /// <returns></returns>
