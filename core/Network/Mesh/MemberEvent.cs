@@ -66,7 +66,6 @@ public class MemberEvent
             ServicePort = member.ServicePort;
             PublicKey = member.PublicKey;
             ServiceName = member.ServiceName;
-            ServiceVersion = member.ServiceVersion;
         }
 
         /// <summary>
@@ -100,7 +99,6 @@ public class MemberEvent
             memberEvent.ServicePort = stream.ReadPort();
             memberEvent.PublicKey = stream.ReadPublicKey()[..33];
             memberEvent.ServiceName = stream.ReadServiceName();
-            memberEvent.ServiceVersion = stream.ReadServiceVersion();
 
             return memberEvent;
         }

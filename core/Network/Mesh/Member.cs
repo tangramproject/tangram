@@ -16,7 +16,6 @@ using System.Threading;
         public byte Generation { get; internal set; }
         public uint Service { get; private set; }
         public byte[] ServiceName { get; private set; }
-        public byte[] ServiceVersion { get; private set; }
         public byte[] PublicKey { get; private set; }
         public ushort ServicePort { get; private set; }
         internal long GossipCounter => Interlocked.Read(ref _gossipCounter);
@@ -34,6 +33,7 @@ using System.Threading;
             Service = memberEvent.Service;
             ServicePort = memberEvent.ServicePort;
             PublicKey = memberEvent.PublicKey;
+            ServiceName = memberEvent.ServiceName;
         }
 
         /// <summary>
@@ -44,12 +44,11 @@ using System.Threading;
         /// <param name="gossipPort"></param>
         /// <param name="generation"></param>
         /// <param name="service"></param>
-        /// <param name="serviceVersion"></param>
         /// <param name="publicKey"></param>
         /// <param name="servicePort"></param>
         /// <param name="serviceName"></param>
         public Member(MemberState state, IPAddress ip, ushort gossipPort, byte generation, uint service,
-            byte[] serviceName, byte[] serviceVersion, byte[] publicKey, ushort servicePort)
+            byte[] serviceName, byte[] publicKey, ushort servicePort)
         {
             State = state;
             IP = ip;
@@ -59,7 +58,6 @@ using System.Threading;
             ServicePort = servicePort;
             PublicKey = publicKey;
             ServiceName = serviceName;
-            ServiceVersion = serviceVersion;
         }
 
         /// <summary>
@@ -81,6 +79,7 @@ using System.Threading;
                 Service = memberEvent.Service;
                 ServicePort = memberEvent.ServicePort;
                 PublicKey = memberEvent.PublicKey;
+                ServiceName = memberEvent.ServiceName;
             }
 
             Interlocked.Exchange(ref _gossipCounter, 0);

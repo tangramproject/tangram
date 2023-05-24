@@ -44,7 +44,7 @@ public class Gossiper : IDisposable
             _cancellationToken = stoppingToken;
             _logger = logger;
 
-            _self = new Member(MemberState.Alive, IPAddress.Any, listenPort, 1, service, serviceName, serviceVersion,
+            _self = new Member(MemberState.Alive, IPAddress.Any, listenPort, 1, service, serviceName,
                 publicKey, servicePort);
         }
 
@@ -534,6 +534,7 @@ public class Gossiper : IDisposable
                 stream.WritePort(_self.ServicePort);
                 stream.WritePublicKey(_self.PublicKey);
                 stream.WriteServiceName(_self.ServiceName);
+                stream.WriteByte(0x01);
                 if (_members.TryGetValue(destinationGossipEndPoint, out var destinationMember))
                 {
                     stream.WriteByte((byte)destinationMember.State);

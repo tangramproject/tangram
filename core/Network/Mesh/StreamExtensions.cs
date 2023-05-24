@@ -1,7 +1,7 @@
-using Microsoft.Toolkit.HighPerformance;
 using System;
 using System.IO;
 using System.Net;
+using System.Text;
 using TangramXtgm.Extensions;
 
 namespace TangramXtgm.Network.Mesh;
@@ -74,25 +74,14 @@ public static class StreamExtensions
                 ms.Write(buffer, 0, read);
             }
 
-            return ms.ToArray();
-        }
-        
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="stream"></param>
-        /// <returns></returns>
-        public static byte[] ReadServiceVersion(this Stream stream)
-        {
-            var buffer = new byte[8];
-            using var ms = new MemoryStream();
-            int read;
-            while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
+            byte[] trimmed = null;
+            var bufferString = Encoding.UTF8.GetString(buffer);
+            var index = bufferString.IndexOf('\x01');
+            if (index >= 0)
             {
-                ms.Write(buffer, 0, read);
+                trimmed = Encoding.UTF8.GetBytes(bufferString[..index]);
             }
-
-            return ms.ToArray();
+            return trimmed ?? ms.ToArray();
         }
 
         /// <summary>

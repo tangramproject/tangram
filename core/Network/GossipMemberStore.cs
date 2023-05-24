@@ -108,8 +108,7 @@ public class GossipMemberStore : IGossipMemberStore
             NodeId = memberEvent.Service,
             TcpPort = memberEvent.GossipPort.ToBytes(),
             PublicKey = memberEvent.PublicKey[..33],
-            Name = memberEvent.ServiceName,
-            Version = memberEvent.ServiceVersion
+            Name = memberEvent.ServiceName
         };
         return peer;
     }

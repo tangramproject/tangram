@@ -78,8 +78,7 @@ public class MembershipController : Controller
                 peer.NodeId,
                 ServicePort = peer.TcpPort.FromBytes(),
                 Name = peer.Name.FromBytes(),
-                PublicKey = peer.PublicKey.ByteToHex(),
-                Version = peer.Version.FromBytes()
+                PublicKey = peer.PublicKey.ByteToHex()
             }));
         }
         catch (Exception ex)
