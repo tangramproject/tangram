@@ -14,5 +14,6 @@ public enum CoinType : sbyte
     Coinstake = 0x03,
     Payment = 0x06,
     Change = 0x07,
-    Stash = 0x09,
+    Burn = 0x09,
+    Mint = 0x0A,
 }

@@ -80,7 +80,8 @@ public record Transaction : IComparable<Transaction>
             results = HasDuplicateRing(results, Rct).ToList();
         }
 
-        if (OutputType() != CoinType.Payment) return results;
+        var outputType = OutputType();
+        if (outputType != CoinType.Payment && outputType != CoinType.Burn && outputType != CoinType.Mint) return results;
         if (Vtime == null) results.Add(new ValidationResult("Argument is null", new[] { "Vtime" }));
         if (Vtime != null)
         {
@@ -138,6 +139,8 @@ public record Transaction : IComparable<Transaction>
         var outputs = Vout.Select(x => Enum.GetName(x.T)).ToArray();
         if (outputs.Contains(Enum.GetName(CoinType.Payment)) && outputs.Contains(Enum.GetName(CoinType.Change)))
             coinType = CoinType.Payment;
+        if (outputs.Contains(Enum.GetName(CoinType.Burn)) && outputs.Contains(Enum.GetName(CoinType.Mint)))
+            coinType = CoinType.Mint;
         if (outputs.Contains(Enum.GetName(CoinType.Coinbase)) && outputs.Contains(Enum.GetName(CoinType.Coinstake)))
             coinType = CoinType.Coinstake;
         return coinType;
@@ -222,13 +225,17 @@ public record Transaction : IComparable<Transaction>
             }
 
             duplicateOutputs.Add(vout.C);
-            if (duplicateOutputs.FirstOrDefault(x => x.Xor(vout.E)) is not null)
+            if (vout.E.Length != 9 && !vout.E.Xor("OP_RETURN".ToBytes()))
             {
-                validationResults.Add(new ValidationResult("Duplicate ephemeral key exists", new[] { "vout" }));
-                return validationResults;
+                if (duplicateOutputs.FirstOrDefault(x => x.Xor(vout.E)) is not null)
+                {
+                    validationResults.Add(new ValidationResult("Duplicate ephemeral key exists", new[] { "vout" }));
+                    return validationResults;
+                }
+
+                duplicateOutputs.Add(vout.E);
             }
 
-            duplicateOutputs.Add(vout.E);
             if (duplicateOutputs.FirstOrDefault(x => x.Xor(vout.N)) is not null)
             {
                 validationResults.Add(new ValidationResult("Duplicate encrypted message exists", new[] { "vout" }));

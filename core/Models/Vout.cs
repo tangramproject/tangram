@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using TangramXtgm.Extensions;
 
 namespace TangramXtgm.Models;
 
@@ -28,7 +29,11 @@ public record Vout
         if (C == null) results.Add(new ValidationResult("Argument is null", new[] { "Vout.C" }));
         if (C != null && C.Length != 33) results.Add(new ValidationResult("Range exception", new[] { "Vout.C" }));
         if (E == null) results.Add(new ValidationResult("Argument is null", new[] { "Vout.E" }));
-        if (E != null && E.Length != 33) results.Add(new ValidationResult("Range exception", new[] { "Vout.E" }));
+        if (E != null && E.Length != 33)
+        {
+            if (E.Length != 9 && !E.Xor("OP_RETURN".ToBytes()))
+                results.Add(new ValidationResult("Range exception", new[] { "Vout.E" }));
+        }
         if (N == null) results.Add(new ValidationResult("Argument is null", new[] { "Vout.N" }));
         if (N is { Length: > 512 }) results.Add(new ValidationResult("Range exception", new[] { "Vout.N" }));
         if (P == null) results.Add(new ValidationResult("Argument is null", new[] { "Vout.P" }));
@@ -38,7 +43,8 @@ public record Vout
             if (S != null && S.Length != 16) results.Add(new ValidationResult("Range exception", new[] { "Vout.S" }));
         }
 
-        if (T != CoinType.Payment && T != CoinType.Coinbase && T != CoinType.Coinstake && T != CoinType.Change && T != CoinType.System)
+        if (T != CoinType.Payment && T != CoinType.Coinbase && T != CoinType.Coinstake && T != CoinType.Change &&
+            T != CoinType.System && T != CoinType.Mint && T != CoinType.Burn)
             results.Add(new ValidationResult("Argument exception", new[] { "Vout.T" }));
         if (T != CoinType.Coinbase && T != CoinType.Coinstake) return results;
         if (D == null) results.Add(new ValidationResult("Argument is null", new[] { "Vout.D" }));

@@ -177,7 +177,7 @@ public class Validator : IValidator
         {
             using var secp256K1 = new Secp256k1();
             using var bulletProof = new BulletProof();
-            var commitments = vOutputs.Where(x => x.T == CoinType.Change).ToArray();
+            var commitments = vOutputs.Where(x => x.T is CoinType.Change or CoinType.Mint).ToArray();
             foreach (var (bp, i) in bulletProofs.WithIndex())
             {
                 if (bulletProof.Verify(commitments[i].C, bp.Proof, null!)) continue;
@@ -238,7 +238,25 @@ public class Validator : IValidator
                         return VerifyResult.UnableToVerify;
                     }
                 }
+                
+                if (vOutputs[index].T == CoinType.Mint)
+                {
+                    var commitments = vOutputs.Where(x => x.T == CoinType.Burn).Select(x => x.C).ToList();
+                    if (!pedersen.VerifyCommitSum(new List<byte[]> { vOutputs[index].C }, commitments))
+                    {
+                        _logger.Fatal("Unable to verify mint committed sum");
+                        return VerifyResult.UnableToVerify;
+                    }
 
+                    if (vOutputs.Last().T != CoinType.Mint)
+                    {
+                        _logger.Fatal("Unable to verify last mint type");
+                        return VerifyResult.UnableToVerify;
+                    }
+                    
+                    break;
+                }
+                
                 var payment = vOutputs[index].C;
                 index++;
                 var change = vOutputs[index].C;
@@ -247,7 +265,7 @@ public class Validator : IValidator
                         new List<byte[]> { payment, change }))
                 {
                     index++;
-                    vCount -= index;
+                    vCount -= 2;
                     if (vCount <= 0) break;
                     continue;
                 }
@@ -558,7 +576,8 @@ public class Validator : IValidator
 
         var outputs = transaction.Vout.Select(x => Enum.GetName(x.T)).ToArray();
         if (outputs.Contains(Enum.GetName(CoinType.System))) return VerifyResult.Succeed;
-        if (outputs.Contains(Enum.GetName(CoinType.Payment)) && outputs.Contains(Enum.GetName(CoinType.Change)))
+        if (outputs.Contains(Enum.GetName(CoinType.Payment)) && outputs.Contains(Enum.GetName(CoinType.Change)) &&
+            outputs.Contains(Enum.GetName(CoinType.Burn)) && outputs.Contains(Enum.GetName(CoinType.Mint)))
         {
             if (VerifyTransactionTime(transaction) != VerifyResult.Succeed) return VerifyResult.UnableToVerify;
         }
@@ -606,21 +625,28 @@ public class Validator : IValidator
                     {
                         if (noDupKeys.FirstOrDefault(x => x.Xor(vout.C)) is not null) return VerifyResult.AlreadyExists;
                         noDupKeys.Add(vout.C);
-                        if (noDupKeys.FirstOrDefault(x => x.Xor(vout.E)) is not null) return VerifyResult.AlreadyExists;
-                        noDupKeys.Add(vout.E);
+                        if (vout.E.Length != 9 && !vout.E.Xor("OP_RETURN".ToBytes()))
+                        {
+                            if (noDupKeys.FirstOrDefault(x => x.Xor(vout.E)) is not null)
+                                return VerifyResult.AlreadyExists;
+                            noDupKeys.Add(vout.E);
+                        }
+
                         if (noDupKeys.FirstOrDefault(x => x.Xor(vout.N)) is not null) return VerifyResult.AlreadyExists;
                         noDupKeys.Add(vout.N);
                         if (noDupKeys.FirstOrDefault(x => x.Xor(vout.P)) is not null) return VerifyResult.AlreadyExists;
                         noDupKeys.Add(vout.P);
                         if (vout.D.Length != 0)
                         {
-                            if (noDupKeys.FirstOrDefault(x => x.Xor(vout.D)) is not null) return VerifyResult.AlreadyExists;
+                            if (noDupKeys.FirstOrDefault(x => x.Xor(vout.D)) is not null)
+                                return VerifyResult.AlreadyExists;
                             noDupKeys.Add(vout.D);
                         }
 
                         if (vout.S.Length == 0) continue;
                         {
-                            if (noDupKeys.FirstOrDefault(x => x.Xor(vout.S)) is not null) return VerifyResult.AlreadyExists;
+                            if (noDupKeys.FirstOrDefault(x => x.Xor(vout.S)) is not null)
+                                return VerifyResult.AlreadyExists;
                             noDupKeys.Add(vout.S);
                         }
                     }
@@ -637,21 +663,17 @@ public class Validator : IValidator
                     if (noDupKeys.FirstOrDefault(x => x.Xor(rct.S)) is not null) return VerifyResult.AlreadyExists;
                     noDupKeys.Add(rct.S);
                 }
-
                 
-                if (!outputs.Contains(Enum.GetName(CoinType.Payment)) ||
-                    !outputs.Contains(Enum.GetName(CoinType.Change))) continue;
-                {
-                    if (noDupKeys.FirstOrDefault(x => x.Xor(transaction.Vtime.M)) is not null)
-                        return VerifyResult.AlreadyExists;
-                    noDupKeys.Add(transaction.Vtime.M);
-                    if (noDupKeys.FirstOrDefault(x => x.Xor(transaction.Vtime.N)) is not null)
-                        return VerifyResult.AlreadyExists;
-                    noDupKeys.Add(transaction.Vtime.N);
-                    if (noDupKeys.FirstOrDefault(x => x.Xor(transaction.Vtime.S)) is not null)
-                        return VerifyResult.AlreadyExists;
-                    noDupKeys.Add(transaction.Vtime.S);
-                }
+                if (outputs.All(x => x != transaction.OutputType().ToString())) continue;
+                if (noDupKeys.FirstOrDefault(x => x.Xor(transaction.Vtime.M)) is not null)
+                    return VerifyResult.AlreadyExists;
+                noDupKeys.Add(transaction.Vtime.M);
+                if (noDupKeys.FirstOrDefault(x => x.Xor(transaction.Vtime.N)) is not null)
+                    return VerifyResult.AlreadyExists;
+                noDupKeys.Add(transaction.Vtime.N);
+                if (noDupKeys.FirstOrDefault(x => x.Xor(transaction.Vtime.S)) is not null)
+                    return VerifyResult.AlreadyExists;
+                noDupKeys.Add(transaction.Vtime.S);
             }
         }
         catch (Exception)
