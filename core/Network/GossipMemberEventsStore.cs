@@ -10,9 +10,9 @@ namespace TangramXtgm.Network;
 public interface IGossipMemberEventsStore
 {
     void Add(MemberEvent memberEvent);
-    MemberEvent[]  GetAll();
+    MemberEvent[] GetAll();
 }
-    
+
 /// <summary>
 /// 
 /// </summary>

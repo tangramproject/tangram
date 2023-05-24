@@ -65,7 +65,7 @@ public class SystemCore : ISystemCore
     private readonly Cache<object> _cache = new();
 
     private uint _nodeId;
-    
+
     private IUnitOfWork _unitOfWork;
     private IPeerDiscovery _peerDiscovery;
     private IGraph _graph;
@@ -78,7 +78,7 @@ public class SystemCore : ISystemCore
     private ICrypto _crypto;
     private IGossipMemberStore _gossipMemberStore;
 
-    
+
     /// <summary>
     /// </summary>
     /// <param name="applicationLifetime"></param>
@@ -125,7 +125,7 @@ public class SystemCore : ISystemCore
         _gossipMemberStore ??= GetGossipMemberStore();
         return _gossipMemberStore;
     }
-    
+
     /// <summary>
     /// </summary>
     /// <returns></returns>
@@ -375,7 +375,7 @@ public class SystemCore : ISystemCore
 
         return null;
     }
-    
+
     /// <summary>
     /// 
     /// </summary>
@@ -395,7 +395,7 @@ public class SystemCore : ISystemCore
 
         return null;
     }
-    
+
     /// <summary>
     /// 
     /// </summary>

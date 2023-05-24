@@ -42,9 +42,9 @@ public class GossipMemberStore : IGossipMemberStore
     private readonly object _memberGraphLocker = new();
     private readonly Dictionary<IPEndPoint, Peer> _peers = new();
     private readonly Ping _ping = new();
-    
+
     private Dictionary<IPEndPoint, List<IServiceClient>> _serviceToServiceClients = new();
-    
+
     /// <summary>
     /// 
     /// </summary>
@@ -55,7 +55,7 @@ public class GossipMemberStore : IGossipMemberStore
         using var serviceScope = systemCore.ServiceScopeFactory.CreateScope();
         _logger = serviceScope.ServiceProvider.GetService<ILogger>()?.ForContext("SourceContext", nameof(GossipMemberStore));
     }
-    
+
     /// <summary>
     /// 
     /// </summary>
@@ -124,7 +124,7 @@ public class GossipMemberStore : IGossipMemberStore
             return _peers.Values.ToArray();
         }
     }
-    
+
     /// <summary>
     /// 
     /// </summary>

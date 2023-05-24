@@ -51,7 +51,7 @@ public static class Util
         var version = Assembly.GetExecutingAssembly().GetName().Version;
         return version != null ? $"{version.ToString()}" : string.Empty;
     }
-    
+
     public static byte[] GetAssemblyVersionBytes()
     {
         var version = Assembly.GetExecutingAssembly().GetName().Version;
@@ -295,7 +295,7 @@ public static class Util
 
         return null;
     }
-    
+
     /// <summary>
     /// 
     /// </summary>
@@ -486,9 +486,9 @@ public static class Util
 
     public static void Throw(Exception e)
     {
-        throw e; 
+        throw e;
     }
-    
+
     /// <summary>
     /// 
     /// </summary>
@@ -501,7 +501,7 @@ public static class Util
         return loggerFactory
             .CreateLogger<T>();
     }
-    
+
     /// <summary>
     /// 
     /// </summary>
@@ -510,7 +510,7 @@ public static class Util
     /// <param name="height"></param>
     /// <param name="lockTime"></param>
     /// <returns></returns>
-    public  static byte[] SlothEvalT(byte[] transactionsHash, byte[] vrfOutput, ulong height, long lockTime)
+    public static byte[] SlothEvalT(byte[] transactionsHash, byte[] vrfOutput, ulong height, long lockTime)
     {
         var bigInteger = new MathBigInteger(1, transactionsHash)
             .Multiply(new MathBigInteger(Hasher.Hash(vrfOutput).HexToByte()).Multiply(

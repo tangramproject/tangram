@@ -41,13 +41,13 @@ public static class AsyncHelper
             .GetAwaiter()
             .GetResult();
     }
-    
+
     /// <summary>
     /// 
     /// </summary>
     /// <param name="workItem"></param>
     public static void Invoke(Func<Task> workItem)
     {
-         workItem.Invoke();
+        workItem.Invoke();
     }
 }

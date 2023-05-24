@@ -16,7 +16,7 @@ public struct Peer : IComparable<Peer>
     [Key(3)] public byte[] Name { get; set; }
     [Key(4)] public byte[] PublicKey { get; set; }
     [Key(5)] public byte[] Version { get; set; }
-    
+
     /// <summary>
     /// </summary>s
     /// <param name="other"></param>

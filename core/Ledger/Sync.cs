@@ -69,48 +69,48 @@ public class Sync : ISync, IDisposable
                     AsyncHelper.RunSync(async () =>
                     {
                         var currentRetry = 0;
-                                              
-                            await AnsiConsole.Progress().AutoClear(false).Columns(new TaskDescriptionColumn(), new ProgressBarColumn(),
-                                new PercentageColumn(), new SpinnerColumn()).StartAsync(async ctx =>
-                            {
-                                var warpTask = ctx.AddTask($"[bold green]WAITING FOR PEERS[/]", false).IsIndeterminate();
-                                warpTask.MaxValue(63);
-                                warpTask.StartTask();
-                                warpTask.IsIndeterminate(false);
-                                while (!ctx.IsFinished)
-                                {
-                                    if (_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested)
-                                        return;
-                                    
-                                    var jitter = new Random();
-                                    var discovery = _systemCore.PeerDiscovery();
-                                    if (currentRetry >= RetryCount || discovery.Count() != 0)
-                                    {
-                                        warpTask.Description = "[bold green]PEERS FOUND[/]...";
-                                        await Task.Delay(1);
-                                        warpTask.Increment(63);
-                                        warpTask.StopTask();
-                                        return;
-                                    }
-                                    var retryDelay = TimeSpan.FromSeconds(Math.Pow(2, currentRetry)) +
-                                                     TimeSpan.FromMilliseconds(jitter.Next(0, 1000));
 
-                                    warpTask.Description = $"[bold blue]WAITING FOR PEERS[/]... [bold yellow]RETRYING in {retryDelay.Seconds}s[/]";
-                                    await Task.Delay(retryDelay);
+                        await AnsiConsole.Progress().AutoClear(false).Columns(new TaskDescriptionColumn(), new ProgressBarColumn(),
+                            new PercentageColumn(), new SpinnerColumn()).StartAsync(async ctx =>
+                        {
+                            var warpTask = ctx.AddTask($"[bold green]WAITING FOR PEERS[/]", false).IsIndeterminate();
+                            warpTask.MaxValue(63);
+                            warpTask.StartTask();
+                            warpTask.IsIndeterminate(false);
+                            while (!ctx.IsFinished)
+                            {
+                                if (_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested)
+                                    return;
+
+                                var jitter = new Random();
+                                var discovery = _systemCore.PeerDiscovery();
+                                if (currentRetry >= RetryCount || discovery.Count() != 0)
+                                {
+                                    warpTask.Description = "[bold green]PEERS FOUND[/]...";
                                     await Task.Delay(1);
-                                    warpTask.Increment(retryDelay.Seconds);
-                                    if (retryDelay.Seconds == 32)
-                                    {
-                                        warpTask.Description = "[bold red]NO PEERS FOUND[/]...";
-                                        await Task.Delay(1);
-                                        warpTask.StopTask();
-                                        return;
-                                    }
-                                    
-                                    currentRetry++;
+                                    warpTask.Increment(63);
+                                    warpTask.StopTask();
+                                    return;
                                 }
-                            });
-                            
+                                var retryDelay = TimeSpan.FromSeconds(Math.Pow(2, currentRetry)) +
+                                                 TimeSpan.FromMilliseconds(jitter.Next(0, 1000));
+
+                                warpTask.Description = $"[bold blue]WAITING FOR PEERS[/]... [bold yellow]RETRYING in {retryDelay.Seconds}s[/]";
+                                await Task.Delay(retryDelay);
+                                await Task.Delay(1);
+                                warpTask.Increment(retryDelay.Seconds);
+                                if (retryDelay.Seconds == 32)
+                                {
+                                    warpTask.Description = "[bold red]NO PEERS FOUND[/]...";
+                                    await Task.Delay(1);
+                                    warpTask.StopTask();
+                                    return;
+                                }
+
+                                currentRetry++;
+                            }
+                        });
+
                     });
                     Interlocked.Exchange(ref _running, 1);
                     Synchronize();
@@ -147,8 +147,8 @@ public class Sync : ISync, IDisposable
                     take = (int)(maxBlockCount - blockCount) + (int)blockCount;
                 }
                 AsyncHelper.RunSync(async () => await SynchronizeAsync(peer, skip, take));
-                    blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
-                    if (blockCount == maxBlockCount) break;
+                blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
+                if (blockCount == maxBlockCount) break;
             }
         }
         catch (Exception ex)

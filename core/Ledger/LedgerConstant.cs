@@ -9,7 +9,7 @@ namespace TangramXtgm.Ledger;
 public static class LedgerConstant
 {
     public const int MagicNumber = 860243278;
-    
+
     // Graph
     public const double
         OnRoundThrottleFromSeconds =

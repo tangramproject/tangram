@@ -45,7 +45,7 @@ public class HashChainRepository : Repository<Block>, IHashChainRepository
         _logger = logger.ForContext("SourceContext", nameof(HashChainRepository));
 
         SetTableName(StoreDb.HashChainTable.ToString());
-        
+
         AsyncHelper.Invoke(async () =>
         {
             Height = (ulong)await GetBlockHeightAsync();

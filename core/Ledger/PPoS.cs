@@ -45,7 +45,7 @@ public interface IPPoS
 public enum StakeType
 {
     System = 0x00,
-    Node  = 0x01
+    Node = 0x01
 }
 
 /// <summary>
@@ -72,11 +72,11 @@ internal record Kernel
 /// </summary>
 internal record ReadyTransaction
 {
-    public byte[] PrivateKey  { get; init; }
-    public byte[] PublicKey  { get; init; }
-    public byte[] PrevBlockHash  { get; init; }
-    public byte[] PrevVrfSig  { get; init; }
-    public ulong Round  { get; init; }
+    public byte[] PrivateKey { get; init; }
+    public byte[] PublicKey { get; init; }
+    public byte[] PrevBlockHash { get; init; }
+    public byte[] PrevVrfSig { get; init; }
+    public ulong Round { get; init; }
 }
 
 /// <summary>
@@ -263,7 +263,7 @@ public class PPoS : IPPoS, IDisposable
             // Ignore
         }
     }
-    
+
     /// <summary>
     /// 
     /// </summary>
@@ -371,7 +371,7 @@ public class PPoS : IPPoS, IDisposable
         _logger.Warning("Unable to create coinstake transaction: {@Message}", walletTransaction.Message);
         return null;
     }
-    
+
     /// <summary>
     /// 
     /// </summary>
@@ -419,7 +419,7 @@ public class PPoS : IPPoS, IDisposable
 
         return null;
     }
-    
+
     /// <summary>
     /// </summary>
     /// <param name="transactions"></param>
@@ -486,7 +486,7 @@ public class PPoS : IPPoS, IDisposable
 
         return null;
     }
-    
+
     /// <summary>
     /// 
     /// </summary>

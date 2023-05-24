@@ -161,7 +161,7 @@ public record Transaction : IComparable<Transaction>
     {
         return HashCode.Combine(TxnId.ByteToHex());
     }
-    
+
     /// <summary>
     /// 
     /// </summary>

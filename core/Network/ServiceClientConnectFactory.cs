@@ -35,7 +35,7 @@ public class ServiceClient : IServiceClient
 /// <summary>
 /// 
 /// </summary>
-public class ServiceClientConnectFactory: IServiceClientFactory
+public class ServiceClientConnectFactory : IServiceClientFactory
 {
     /// <summary>
     /// 

@@ -55,7 +55,7 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     private LocalNode _localNode;
     private bool _disposed;
     private Gossiper _gossiper;
-    
+
     private readonly IMemberListener _memberListener;
 
     /// <summary>
@@ -108,10 +108,10 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
                 {
                     new() { ProtocolCommand = ProtocolCommand.GetBlockCount }
                 }));
-        
+
         return blockCountResponse?.Count ?? 0;
     }
-    
+
     /// <summary>
     /// </summary>
     /// <returns></returns>
@@ -119,7 +119,7 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     {
         return _systemCore.GossipMemberStore().GetPeers().Length;
     }
-    
+
     /// <summary>
     /// </summary>
     /// <returns></returns>
@@ -185,7 +185,8 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
         var logger = Util.CreateLogger<PeerDiscovery>();
         var options = new GossiperOptions
         {
-            SeedMembers = seeds, MemberListeners = new List<IMemberListener> { _memberListener }
+            SeedMembers = seeds,
+            MemberListeners = new List<IMemberListener> { _memberListener }
         };
         var listenPort = (ushort)_systemCore.Node.Network.P2P.TcpPort;
         _gossiper = new Gossiper(listenPort, _systemCore.NodeId(), _systemCore.Node.Name.ToBytes(), Util.GetAssemblyVersionBytes(),

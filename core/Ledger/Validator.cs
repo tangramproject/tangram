@@ -109,7 +109,7 @@ public class Validator : IValidator
     public async Task<VerifyResult> VerifyMerkleAsync(Block block)
     {
         Guard.Argument(block, nameof(block)).NotNull();
-        
+
         var prevBlock = await _systemCore.Graph().GetPreviousBlockAsync();
         if (prevBlock is null) return VerifyResult.UnableToVerify;
         var merkelRoot =
@@ -238,7 +238,7 @@ public class Validator : IValidator
                         return VerifyResult.UnableToVerify;
                     }
                 }
-                
+
                 if (vOutputs[index].T == CoinType.Mint)
                 {
                     var commitments = vOutputs.Where(x => x.T == CoinType.Burn).Select(x => x.C).ToList();
@@ -253,10 +253,10 @@ public class Validator : IValidator
                         _logger.Fatal("Unable to verify last mint type");
                         return VerifyResult.UnableToVerify;
                     }
-                    
+
                     break;
                 }
-                
+
                 var payment = vOutputs[index].C;
                 index++;
                 var change = vOutputs[index].C;
@@ -292,7 +292,7 @@ public class Validator : IValidator
     {
         Guard.Argument(blockPoS, nameof(blockPoS)).NotNull();
         var isSolution = false;
-        
+
         try
         {
             if (LedgerConstant.SolutionThrottle > blockPoS.Solution)
@@ -343,7 +343,7 @@ public class Validator : IValidator
             _logger.Fatal("Unable to verify the block lock time");
             return VerifyResult.UnableToVerify;
         }
-        
+
         if (block.Txs.First().Vout.First().T == CoinType.System)
         {
             if (VerifySystemCoinbase(block.Txs.First(), block.BlockPos.PublicKey, block.Height) != VerifyResult.Succeed)
@@ -403,7 +403,7 @@ public class Validator : IValidator
         _logger.Fatal("Unable to verify the block transactions");
         return VerifyResult.UnableToVerify;
     }
-    
+
     /// <summary>
     /// 
     /// </summary>
@@ -422,7 +422,7 @@ public class Validator : IValidator
         {
             if (_systemCore.Graph().HashTransactions(
                     new HashTransactionsRequest(block.Txs.Skip(1).ToArray(block.Txs.Count - 1))) is not
-                { } transactionsHash)
+                    { } transactionsHash)
             {
                 _logger.Fatal("Unable to verify hashed transactions");
                 return null;
@@ -440,7 +440,7 @@ public class Validator : IValidator
         _logger.Fatal("Unable to verify Vrf signature with proof signature");
         return null;
     }
-    
+
     /// <summary>
     /// 
     /// </summary>
@@ -532,7 +532,7 @@ public class Validator : IValidator
 
         return VerifyResult.UnableToVerify;
     }
-    
+
     /// <summary>
     /// 
     /// </summary>
@@ -663,7 +663,7 @@ public class Validator : IValidator
                     if (noDupKeys.FirstOrDefault(x => x.Xor(rct.S)) is not null) return VerifyResult.AlreadyExists;
                     noDupKeys.Add(rct.S);
                 }
-                
+
                 if (outputs.All(x => x != transaction.OutputType().ToString())) continue;
                 if (noDupKeys.FirstOrDefault(x => x.Xor(transaction.Vtime.M)) is not null)
                     return VerifyResult.AlreadyExists;
@@ -785,13 +785,13 @@ public class Validator : IValidator
             return VerifyResult.UnableToVerify;
         var rewardLockTime = Helper.Util.UnixTimeToDateTime(coinbase.L);
         var blockLockTime = Helper.Util.UnixTimeToDateTime(lockTime);
-        var timeSpan =  rewardLockTime - blockLockTime;
+        var timeSpan = rewardLockTime - blockLockTime;
         if (timeSpan.Ticks < 862000000000) return VerifyResult.UnableToVerify; // 2 min grace
         using var pedersen = new Pedersen();
         var commit = pedersen.Commit(coinbase.A, coinbase.D);
         return commit.Xor(coinbase.C) ? VerifyResult.Succeed : VerifyResult.UnableToVerify;
     }
-    
+
     /// <summary>
     /// 
     /// </summary>
@@ -1117,7 +1117,7 @@ public class Validator : IValidator
 
         return null;
     }
-    
+
     /// <summary>
     /// 
     /// </summary>

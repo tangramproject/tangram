@@ -53,7 +53,7 @@ public static class ByteExtensions
     {
         return Encoding.UTF8.GetBytes(value.ToString());
     }
-    
+
     public static int ToInt32(this byte[] value)
     {
         return Convert.ToInt32(value.FromBytes());

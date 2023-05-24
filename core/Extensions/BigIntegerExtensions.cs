@@ -30,7 +30,7 @@ public static class BigIntegerExtensions
         for (var i = 0; i < len; i++) reverse[i] = data[len - i - 1];
         return reverse;
     }
-    
+
     public static BigInteger ToBigInteger(this byte[] data)
     {
         return new BigInteger(data);

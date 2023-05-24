@@ -73,7 +73,7 @@ public record BlockPoS
             .Append(StakeType.ToString());
         return ts.ToArray();
     }
-    
+
     /// <summary>
     /// </summary>
     /// <returns></returns>
@@ -82,7 +82,7 @@ public record BlockPoS
         var results = new List<ValidationResult>();
         if (StakeType != StakeType.System && StakeType != StakeType.Node)
             results.Add(new ValidationResult("Argument exception", new[] { "StakeType" }));
-        if(StakeType != StakeType.System) 
+        if (StakeType != StakeType.System)
             if (StakeAmount <= 0) results.Add(new ValidationResult("Range exception", new[] { "Stake Amount" }));
         if (Solution <= 0) results.Add(new ValidationResult("Range exception", new[] { "Solution" }));
         if (Nonce == null) results.Add(new ValidationResult("Argument is null", new[] { "Nonce" }));

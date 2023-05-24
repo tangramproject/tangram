@@ -156,7 +156,7 @@ public class Crypto : ICrypto
         Guard.Argument(signature, nameof(signature)).NotNull().MaxCount(64);
         Guard.Argument(message, nameof(message)).NotNull().MaxCount(32);
         Guard.Argument(publicKey, nameof(publicKey)).NotNull().MaxCount(33);
-        
+
         var verified = false;
         try
         {

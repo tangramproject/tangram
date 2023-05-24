@@ -50,7 +50,7 @@ public class MemoryPool : IMemoryPool, IDisposable
         _logger = logger.ForContext("SourceContext", nameof(MemoryPool));
         Init();
     }
-    
+
     /// <summary>
     /// </summary>
     /// <param name="transaction"></param>

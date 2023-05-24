@@ -61,7 +61,7 @@ public record Block
                 ts.Append(BlockPos.ToStream());
                 break;
         }
-        
+
         return ts.ToArray();
     }
 

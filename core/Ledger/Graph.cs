@@ -680,7 +680,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
                     if (block.BlockPos.PublicKey.ToHashIdentifier() == _systemCore.NodeId())
                         _systemCore.WalletSession().Notify(block.Txs.ToArray());
                 }
-            
+
             _slimDecideWinner.Release();
         }
     }
@@ -753,7 +753,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
         }
         return result;
     }
-    
+
     /// <summary>
     /// 
     /// </summary>
