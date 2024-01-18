@@ -9,6 +9,7 @@ public enum ProtocolCommand : byte
     Version = 0x01,
     GetLocalNode = 0x10,
     GetPeers = 0x11,
+    GetBlock = 0x12,
     GetBlocks = 0x14,
     GetBlockHeight = 0x17,
     GetBlockCount = 0x18,
