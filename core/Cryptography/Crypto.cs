@@ -23,7 +23,10 @@ public interface ICrypto
     Task<byte[]> GetPublicKeyAsync(string keyName);
     Task<SignatureResponse> SignAsync(string keyName, byte[] message);
     byte[] SignXEdDSA(byte[] privateKey, byte[] message);
+    byte[] SignSchnorr(byte[] privateKey, byte[] message);
     bool VerifyXEdDSASignature(byte[] signature, byte[] message, byte[] publicKey);
+    bool VerifySchnorr(byte[] publicKey, byte[] message, byte[] signature);
+    bool VerifySchnorrBatch(byte[][] publicKeys, byte[][] messages, byte[][] signatures);
     bool VerifySignature(byte[] publicKey, byte[] message, byte[] signature);
     byte[] GetCalculateVrfSignature(ECPrivateKey ecPrivateKey, byte[] msg);
     byte[] GetVerifyVrfSignature(ECPublicKey ecPublicKey, byte[] msg, byte[] sig);
@@ -143,6 +146,64 @@ public class Crypto : ICrypto
         Guard.Argument(privateKey, nameof(privateKey)).NotNull().MaxCount(32);
         Guard.Argument(message, nameof(message)).NotNull().MaxCount(32);
         return Curve.calculateSignature(Curve.decodePrivatePoint(privateKey), message);
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="privateKey"></param>
+    /// <param name="message"></param>
+    /// <returns></returns>
+    public byte[] SignSchnorr(byte[] privateKey, byte[] message)
+    {
+        Guard.Argument(privateKey, nameof(privateKey)).NotNull().MaxCount(32);
+        Guard.Argument(message, nameof(message)).NotNull().MaxCount(32);
+        using var schnorrSig = new Schnorr();
+        var msgHash = SHA256.Create().ComputeHash(message);
+        var sig = schnorrSig.Sign(msgHash, privateKey);
+        return sig;
+    }
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="publicKey"></param>
+    /// <param name="message"></param>
+    /// <param name="signature"></param>
+    /// <returns></returns>
+    public bool VerifySchnorr(byte[] publicKey, byte[] message, byte[] signature)
+    {
+        Guard.Argument(publicKey, nameof(publicKey)).NotNull().MaxCount(32);
+        Guard.Argument(message, nameof(message)).NotNull().MaxCount(32);
+        Guard.Argument(signature, nameof(signature)).NotNull().MaxCount(64);
+        using var schnorrSig = new Schnorr();
+        var msgHash = SHA256.Create().ComputeHash(message);
+        var verified = schnorrSig.Verify(signature, msgHash, publicKey);
+        return verified;
+    }
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="publicKeys"></param>
+    /// <param name="messages"></param>
+    /// <param name="signatures"></param>
+    /// <returns></returns>
+    public bool VerifySchnorrBatch (byte[][] publicKeys, byte[][] messages, byte[][] signatures)
+    {
+        Guard.Argument(publicKeys, nameof(publicKeys)).NotNull().NotEmpty();
+        Guard.Argument(messages, nameof(messages)).NotNull().NotEmpty();
+        Guard.Argument(signatures, nameof(signatures)).NotNull().NotEmpty();
+        Guard.Argument(publicKeys.Length, nameof(publicKeys.Length)).Equals(messages.Length);
+        Guard.Argument(publicKeys.Length, nameof(publicKeys.Length)).Equals(signatures.Length);
+        using var schnorrSig = new Schnorr();
+        var msgHashes = new byte[messages.Length][];
+        for (var i = 0; i < messages.Length; i++)
+        {
+            msgHashes[i] = SHA256.Create().ComputeHash(messages[i]);
+        }
+        var verified = schnorrSig.VerifyBatch(signatures, msgHashes, publicKeys);
+        return verified;
     }
 
     /// <summary>
