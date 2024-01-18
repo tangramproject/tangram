@@ -23,13 +23,16 @@ using Block = TangramXtgm.Models.Block;
 namespace TangramXtgm.Ledger;
 
 /// <summary>
+/// Represents an interface for syncing operations.
 /// </summary>
 public interface ISync
 {
-    bool Running { get; }
+    bool SyncRunning { get; }
+    Task SetSyncRunningAsync(bool isRunning);
 }
 
 /// <summary>
+/// Represents a class for synchronizing the system with other peers.
 /// </summary>
 public class Sync : ISync, IDisposable
 {
@@ -39,8 +42,8 @@ public class Sync : ISync, IDisposable
     private IDisposable _disposableInit;
 
     private bool _disposed;
-    private int _running;
-
+    private int _syncRunning;
+    
     /// <summary>
     /// </summary>
     /// <param name="systemCore"></param>
@@ -52,104 +55,174 @@ public class Sync : ISync, IDisposable
         Init();
     }
 
-    public bool Running => _running != 0;
+    /// <summary>
+    /// Gets a value indicating whether the object is currently running.
+    /// </summary>
+    /// <value>
+    /// <c>true</c> if the object is running; otherwise, <c>false</c>.
+    /// </value>
+    public bool SyncRunning => _syncRunning != 0;
 
     /// <summary>
+    /// Initializes the object.
     /// </summary>
     private void Init()
     {
         _disposableInit = Observable
             .Timer(TimeSpan.Zero, TimeSpan.FromMinutes(_systemCore.Node.Network.AutoSyncEveryMinutes))
-            .SubscribeOn(Scheduler.Default).Subscribe(o =>
-            {
-                if (_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
-                try
-                {
-                    if (Running) return;
-                    AsyncHelper.RunSync(async () =>
-                    {
-                        var currentRetry = 0;
-
-                        await AnsiConsole.Progress().AutoClear(false).Columns(new TaskDescriptionColumn(), new ProgressBarColumn(),
-                            new PercentageColumn(), new SpinnerColumn()).StartAsync(async ctx =>
-                        {
-                            var warpTask = ctx.AddTask($"[bold green]WAITING FOR PEERS[/]", false).IsIndeterminate();
-                            warpTask.MaxValue(63);
-                            warpTask.StartTask();
-                            warpTask.IsIndeterminate(false);
-                            while (!ctx.IsFinished)
-                            {
-                                if (_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested)
-                                    return;
-
-                                var jitter = new Random();
-                                var discovery = _systemCore.PeerDiscovery();
-                                if (currentRetry >= RetryCount || discovery.Count() != 0)
-                                {
-                                    warpTask.Description = "[bold green]PEERS FOUND[/]...";
-                                    await Task.Delay(1);
-                                    warpTask.Increment(63);
-                                    warpTask.StopTask();
-                                    return;
-                                }
-                                var retryDelay = TimeSpan.FromSeconds(Math.Pow(2, currentRetry)) +
-                                                 TimeSpan.FromMilliseconds(jitter.Next(0, 1000));
-
-                                warpTask.Description = $"[bold blue]WAITING FOR PEERS[/]... [bold yellow]RETRYING in {retryDelay.Seconds}s[/]";
-                                await Task.Delay(retryDelay);
-                                await Task.Delay(1);
-                                warpTask.Increment(retryDelay.Seconds);
-                                if (retryDelay.Seconds == 32)
-                                {
-                                    warpTask.Description = "[bold red]NO PEERS FOUND[/]...";
-                                    await Task.Delay(1);
-                                    warpTask.StopTask();
-                                    return;
-                                }
-
-                                currentRetry++;
-                            }
-                        });
-
-                    });
-                    Interlocked.Exchange(ref _running, 1);
-                    Synchronize();
-                }
-                catch (TaskCanceledException)
-                {
-                    // Ignore
-                }
-            });
+            .SubscribeOn(Scheduler.Default).Subscribe(OnNext);
     }
 
     /// <summary>
+    /// Sets the sync running state asynchronously.
     /// </summary>
-    /// <returns></returns>
-    private void Synchronize()
+    /// <param name="isRunning">The boolean value indicating whether the sync is running or not.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task SetSyncRunningAsync(bool isRunning)
+    {
+        // If trying to set SyncRunning to 'true' and it's already 'true'
+        if (isRunning && SyncRunning)
+        {
+            while (SyncRunning)
+            {
+                await Task.Delay(1000);
+            }
+        }
+        if (isRunning || !SyncRunning)
+        {
+            // Thread-safe way to set _syncRunning.
+            Interlocked.Exchange(ref _syncRunning, isRunning ? 1 : 0);
+        }
+    }
+    
+    /// <summary>
+    /// This method is called when a new value is received.
+    /// </summary>
+    /// <param name="o">The value received.</param>
+    private async void OnNext(long o)
+    {
+        if (_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
+        try
+        {
+            if (SyncRunning) return;
+            var currentRetry = 0;
+
+            await AnsiConsole.Progress()
+                .AutoClear(false)
+                .Columns(new TaskDescriptionColumn(), new ProgressBarColumn(), new PercentageColumn(), new SpinnerColumn())
+                .StartAsync(async ctx =>
+                {
+                    var warpTask = ctx.AddTask($"[bold green]WAITING FOR PEERS[/]", false).IsIndeterminate();
+                    warpTask.MaxValue(63);
+                    warpTask.StartTask();
+                    warpTask.IsIndeterminate(false);
+                    while (!ctx.IsFinished)
+                    {
+                        if (_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
+
+                        var jitter = new Random();
+                        var discovery = _systemCore.PeerDiscovery();
+                        if (currentRetry >= RetryCount || discovery.Count() != 0)
+                        {
+                            warpTask.Description = "[bold green]PEERS FOUND[/]...";
+                            await Task.Delay(1);
+                            warpTask.Increment(63);
+                            warpTask.StopTask();
+                            return;
+                        }
+
+                        var retryDelay = TimeSpan.FromSeconds(Math.Pow(2, currentRetry)) + TimeSpan.FromMilliseconds(jitter.Next(0, 1000));
+                        warpTask.Description = $"[bold blue]WAITING FOR PEERS[/]... [bold yellow]RETRYING in {retryDelay.Seconds}s[/]";
+                        await Task.Delay(retryDelay);
+                        await Task.Delay(1);
+                        warpTask.Increment(retryDelay.Seconds);
+                        if (retryDelay.Seconds == 32)
+                        {
+                            warpTask.Description = "[bold red]NO PEERS FOUND[/]...";
+                            await Task.Delay(1);
+                            warpTask.StopTask();
+                            return;
+                        }
+
+                        currentRetry++;
+                    }
+                });
+            await SetSyncRunningAsync(true);
+            await SynchronizeAsync();
+        }
+        catch (TaskCanceledException)
+        {
+            // Ignore
+        }
+    }
+    
+    /// <summary>
+    /// Synchronizes the local node with the network by checking and updating the blocks.
+    /// </summary>
+    private async Task SynchronizeAsync()
     {
         _logger.Information("Begin... [SYNCHRONIZATION]");
         try
         {
             var blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
-            _logger.Information("OPENING block height [{@Height}]", _systemCore.UnitOfWork().HashChainRepository.Height);
+            _logger.Information("OPENING block height [{@Height}]",
+                _systemCore.UnitOfWork().HashChainRepository.Height);
             var peers = _systemCore.PeerDiscovery().GetGossipMemberStore();
-            if (peers.Any() != true) return;
-            var maxBlockCount = AsyncHelper.RunSync(async () => await _systemCore.PeerDiscovery().NetworkBlockCountAsync());
-            var chunk = maxBlockCount / (ulong)peers.Length;
             _logger.Information("Peer count [{@PeerCount}]", peers.Length);
-            _logger.Information("Network block height [{@MaxBlockHeight}]", maxBlockCount - 1);
+            if (peers.Any() != true) return;
+            var maxBlockCount =
+                AsyncHelper.RunSync(async () => await _systemCore.PeerDiscovery().NetworkBlockCountAsync());
+
+            if (maxBlockCount <= blockCount)
+            {
+                if (maxBlockCount >= blockCount)
+                {
+                    _logger.Information("Network block height [{@MaxBlockHeight}]", maxBlockCount - 1);
+                    return;
+                }
+                else
+                {
+                    _logger.Information("Network block height [{@MaxBlockHeight}]", blockCount - 1);
+                }
+            }
+            else
+            {
+                _logger.Information("Network block height [{@MaxBlockHeight}]", maxBlockCount -1);
+            }
+
+            var chunk = maxBlockCount / (ulong)peers.Length;
+            var tasks = new List<Task>();
+
+            var throttle = new SemaphoreSlim(Environment.ProcessorCount); // Restrict to max number of processors.
+
             foreach (var peer in peers)
             {
-                var skip = blockCount <= 6 ? blockCount : blockCount - 6; // +- Depth of blocks to compare.
-                var take = (int)blockCount + (int)chunk;
-                if (take > (int)maxBlockCount)
+                await throttle.WaitAsync(); // blocks if count >= maximum concurrent tasks.
+
+                tasks.Add(Task.Run(async () =>
                 {
-                    take = (int)(maxBlockCount - blockCount) + (int)blockCount;
-                }
-                AsyncHelper.RunSync(async () => await SynchronizeAsync(peer, skip, take));
-                blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
-                if (blockCount == maxBlockCount) break;
+                    try
+                    {
+                        var peerBlockCount = await _systemCore.PeerDiscovery().PeerBlockCountAsync(peer);
+                        if (blockCount >= peerBlockCount) return;
+                        var skip = blockCount <= 6 ? blockCount : blockCount - 6; // +- Depth of blocks to compare.
+                        var take = (int) blockCount + (int) chunk;
+                        if (take > (int) maxBlockCount)
+                        {
+                            take = (int) (maxBlockCount - blockCount) + (int) blockCount;
+                        }
+
+                        await SynchronizeAsync(peer, skip, take);
+                        blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
+                    }
+                    finally
+                    {
+                        throttle.Release();
+                    }
+                }));
             }
+
+            await Task.WhenAll(tasks);
         }
         catch (Exception ex)
         {
@@ -157,7 +230,7 @@ public class Sync : ISync, IDisposable
         }
         finally
         {
-            Interlocked.Exchange(ref _running, 0);
+            AsyncHelper.RunSync(async () => await SetSyncRunningAsync(false));
             var blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
             _logger.Information("LOCAL NODE block height: [{@LocalHeight}]", blockCount - 1);
             _logger.Information("End... [SYNCHRONIZATION]");
@@ -165,13 +238,14 @@ public class Sync : ISync, IDisposable
                 _systemCore.Node.Network.AutoSyncEveryMinutes);
         }
     }
-
+    
     /// <summary>
+    /// Synchronizes the blockchain with a peer asynchronously.
     /// </summary>
-    /// <param name="peer"></param>
-    /// <param name="skip"></param>
-    /// <param name="take"></param>
-    /// <returns></returns>
+    /// <param name="peer">The peer to synchronize with.</param>
+    /// <param name="skip">The number of blocks to skip before synchronizing.</param>
+    /// <param name="take">The maximum number of blocks to synchronize.</param>
+    /// <returns>A task representing the asynchronous synchronization process.</returns>
     private async Task SynchronizeAsync(Peer peer, ulong skip, int take)
     {
         Guard.Argument(peer, nameof(peer)).HasValue();
@@ -213,16 +287,7 @@ public class Sync : ISync, IDisposable
                 }
                 else
                 {
-                    _logger.Information("CHECKING [FORK RULE]");
-                    var forkRuleBlocks = await validator.ForkRuleAsync(blocks.OrderBy(x => x.Height).ToArray());
-                    if (forkRuleBlocks.Length == 0)
-                    {
-                        _logger.Fatal("FORK RULE [UNABLE TO VERIFY]");
-                        return;
-                    }
-
-                    blocks = forkRuleBlocks.ToList();
-                    _logger.Information("FORK RULE CHECK [OK]");
+                    _logger.Information("BLOCK HEIGHTS MATCH");
                 }
             }
             else
@@ -245,7 +310,6 @@ public class Sync : ISync, IDisposable
                                 await _systemCore.Graph().SaveBlockAsync(new SaveBlockRequest(block));
                             if (saveBlockResponse.Ok)
                             {
-                                warpTask.Description = $"[bold green]SYNCHRONIZED BLOCK HEIGHT[/] [bold yellow]{block.Height}[/]";
                                 await Task.Delay(1);
                                 warpTask.Increment(1);
                                 continue;
@@ -269,11 +333,12 @@ public class Sync : ISync, IDisposable
     }
 
     /// <summary>
+    /// Fetches blocks asynchronously from a peer.
     /// </summary>
-    /// <param name="peer"></param>
-    /// <param name="skip"></param>
-    /// <param name="take"></param>
-    /// <returns></returns>
+    /// <param name="peer">The peer from which to fetch the blocks.</param>
+    /// <param name="skip">The number of blocks to skip.</param>
+    /// <param name="take">The number of blocks to fetch.</param>
+    /// <returns>A task representing the asynchronous operation. The task result contains the fetched blocks as a read-only list.</returns>
     private async Task<IReadOnlyList<Block>> FetchBlocksAsync(Peer peer, ulong skip, int take)
     {
         Guard.Argument(peer, nameof(peer)).HasValue();
@@ -331,11 +396,13 @@ public class Sync : ISync, IDisposable
 
         return null;
     }
-
+    
     /// <summary>
-    /// 
+    /// Performs application-defined tasks associated with freeing, releasing, or resetting
+    /// unmanaged resources and optionally releases managed resources.
     /// </summary>
-    /// <param name="disposing"></param>
+    /// <param name="disposing">True to release both managed and unmanaged resources;
+    /// false to release only unmanaged resources.</param>
     private void Dispose(bool disposing)
     {
         if (_disposed)
@@ -352,7 +419,7 @@ public class Sync : ISync, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
     /// </summary>
     public void Dispose()
     {
