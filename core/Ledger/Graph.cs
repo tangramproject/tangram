@@ -2,8 +2,10 @@
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Numerics;
 using System.Reactive;
 using System.Reactive.Concurrency;
@@ -24,13 +26,13 @@ using TangramXtgm.Consensus.Models;
 using TangramXtgm.Helper;
 using TangramXtgm.Models;
 using TangramXtgm.Models.Messages;
-using TangramXtgm.Network;
 using TangramXtgm.Persistence;
 using Block = TangramXtgm.Models.Block;
 
 namespace TangramXtgm.Ledger;
 
 /// <summary>
+/// Interface for interacting with a graph of blockchain blocks.
 /// </summary>
 public interface IGraph
 {
@@ -48,12 +50,16 @@ public interface IGraph
     Task<VerifyResult> BlockExistsAsync(BlockExistsRequest blockExistsRequest);
     byte[] HashTransactions(HashTransactionsRequest hashTransactionsRequest);
     Task<bool> BlockCountSynchronizedAsync();
+    BlockGraph SignBlockGraph(BlockGraph blockGraph);
+    
 }
 
 /// <summary>
+/// Represents a graph of seen blocks.
 /// </summary>
 internal record SeenBlockGraph
 {
+    /// <summary
     public long Timestamp { get; } = Helper.Util.GetAdjustedTimeAsUnixTimestamp();
     public ulong Round { get; init; }
     public byte[] Hash { get; init; }
@@ -61,6 +67,7 @@ internal record SeenBlockGraph
 }
 
 /// <summary>
+/// Represents a graph of blocks.
 /// </summary>
 public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
 {
@@ -84,9 +91,8 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     private IDisposable _disposableHandelSeenBlockGraphs;
     private bool _disposed;
     private readonly SemaphoreSlim _slimDecideWinner = new(1, 1);
-    private int _roundCompleted = 1;
-
     /// <summary>
+    /// Event handler for the completion of a round in a block graph.
     /// </summary>
     private EventHandler<BlockGraphEventArgs> _onRoundCompletedEventHandler;
 
@@ -106,13 +112,14 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// This method is called when a BlockGraph is received.
     /// </summary>
-    /// <param name="blockGraph"></param>
+    /// <param name="blockGraph">The BlockGraph that was received.</param>
+    /// <returns>A Task representing the asynchronous operation.</returns>
     protected override async Task OnReceiveAsync(BlockGraph blockGraph)
     {
         Guard.Argument(blockGraph, nameof(blockGraph)).NotNull();
-        if (_systemCore.Sync().Running) return;
+        if (_systemCore.Sync().SyncRunning) return;
         if (blockGraph.Block.Round != NextRound()) return;
         var identifier = blockGraph.ToIdentifier();
         if (await BlockHeightExistsAsync(new BlockHeightExistsRequest(blockGraph.Block.Round)) != VerifyResult.Succeed) return;
@@ -126,19 +133,21 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
+    /// Posts the specified block graph asynchronously.
     /// </summary>
-    /// <param name="blockGraph"></param>
-    public new async Task PostAsync(BlockGraph blockGraph)
+    /// <param name="blockGraph">The block graph to post.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public new Task PostAsync(BlockGraph blockGraph)
     {
         Guard.Argument(blockGraph, nameof(blockGraph)).NotNull();
-        await base.PostAsync(blockGraph);
+        return base.PostAsync(blockGraph);
     }
 
     /// <summary>
-    /// 
+    /// Retrieves the block index of a transaction asynchronously.
     /// </summary>
-    /// <param name="transactionIndexRequest"></param>
-    /// <returns></returns>
+    /// <param name="transactionIndexRequest">The request object containing the transaction ID.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result contains the response object that contains the block index of the transaction.</returns>
     public async Task<TransactionBlockIndexResponse> GetTransactionBlockIndexAsync(
         TransactionBlockIndexRequest transactionIndexRequest)
     {
@@ -146,7 +155,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
         try
         {
             var transactionBlock = await GetTransactionBlockAsync(new TransactionIdRequest(transactionIndexRequest.TransactionId));
-            if (transactionBlock is { })
+            if (transactionBlock is not null)
             {
                 return new TransactionBlockIndexResponse(transactionBlock.Block.Height);
             }
@@ -160,10 +169,10 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Retrieves the block containing the specified transaction asynchronously.
     /// </summary>
-    /// <param name="transactionIdRequest"></param>
-    /// <returns></returns>
+    /// <param name="transactionIdRequest">The request object containing the transaction ID.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result contains a BlockResponse object.</returns>
     public async Task<BlockResponse> GetTransactionBlockAsync(TransactionIdRequest transactionIdRequest)
     {
         Guard.Argument(transactionIdRequest, nameof(transactionIdRequest)).NotNull();
@@ -172,7 +181,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
             var unitOfWork = _systemCore.UnitOfWork();
             var block = await unitOfWork.HashChainRepository.GetAsync(x =>
                 new ValueTask<bool>(x.Txs.Any(t => t.TxnId.Xor(transactionIdRequest.TransactionId))));
-            if (block is { })
+            if (block is not null)
             {
                 return new BlockResponse(block);
             }
@@ -186,10 +195,10 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Retrieves a transaction asynchronously.
     /// </summary>
-    /// <param name="transactionRequest"></param>
-    /// <returns></returns>
+    /// <param name="transactionRequest">The transaction request object.</param>
+    /// <returns>The transaction response object.</returns>
     public async Task<TransactionResponse> GetTransactionAsync(TransactionRequest transactionRequest)
     {
         Guard.Argument(transactionRequest, nameof(transactionRequest)).NotNull();
@@ -200,7 +209,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
                 new ValueTask<bool>(x.Txs.Any(t => t.TxnId.Xor(transactionRequest.TransactionId))));
             var block = blocks.FirstOrDefault();
             var transaction = block?.Txs.FirstOrDefault(x => x.TxnId.Xor(transactionRequest.TransactionId));
-            if (transaction is { })
+            if (transaction is not null)
             {
                 return new TransactionResponse(transaction);
             }
@@ -214,21 +223,24 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
+    /// Gets the previous block asynchronously.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>
+    /// The previous <see cref="Block"/>.
+    /// </returns>
     public async Task<Block> GetPreviousBlockAsync()
     {
-        var hashChainRepository = _systemCore.UnitOfWork().HashChainRepository;
         var prevBlock =
-            await hashChainRepository.GetAsync(x =>
-                new ValueTask<bool>(x.Height == hashChainRepository.Height));
+            await _systemCore.UnitOfWork().HashChainRepository.GetAsync(x =>
+                new ValueTask<bool>(x.Height == _systemCore.UnitOfWork().HashChainRepository.Height));
         return prevBlock;
     }
 
     /// <summary>
+    /// Retrieves a specified number of safeguard blocks from the hash chain repository.
     /// </summary>
-    /// <param name="safeguardBlocksRequest"></param>
-    /// <returns></returns>
+    /// <param name="safeguardBlocksRequest">The request object containing the number of blocks to retrieve.</param>
+    /// <returns>A task representing the asynchronous operation. The task result contains a <see cref="SafeguardBlocksResponse"/> object.</returns>
     public async Task<SafeguardBlocksResponse> GetSafeguardBlocksAsync(SafeguardBlocksRequest safeguardBlocksRequest)
     {
         Guard.Argument(safeguardBlocksRequest, nameof(safeguardBlocksRequest)).NotNull();
@@ -249,16 +261,17 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
+    /// Retrieves a block asynchronously using the provided block request.
     /// </summary>
-    /// <param name="blockRequest"></param>
-    /// <returns></returns>
+    /// <param name="blockRequest">The block request containing the necessary information to retrieve the block.</param>
+    /// <returns>Returns a task that represents the asynchronous operation. The task result contains the block response.</returns>
     public async Task<BlockResponse> GetBlockAsync(BlockRequest blockRequest)
     {
         Guard.Argument(blockRequest, nameof(blockRequest)).NotNull();
         try
         {
             var block = await _systemCore.UnitOfWork().HashChainRepository.GetAsync(blockRequest.Hash);
-            if (block is { }) return new BlockResponse(block);
+            if (block is not null) return new BlockResponse(block);
         }
         catch (Exception ex)
         {
@@ -269,10 +282,10 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Retrieves a block with the specified height asynchronously.
     /// </summary>
-    /// <param name="blockByHeightRequest"></param>
-    /// <returns></returns>
+    /// <param name="blockByHeightRequest">The request object specifying the block height.</param>
+    /// <returns>A Task that represents the asynchronous operation. The task result contains the response object representing the retrieved block.</returns>
     public async Task<BlockResponse> GetBlockByHeightAsync(BlockByHeightRequest blockByHeightRequest)
     {
         Guard.Argument(blockByHeightRequest, nameof(blockByHeightRequest)).NotNull();
@@ -280,7 +293,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
         {
             var block = await _systemCore.UnitOfWork().HashChainRepository.GetAsync(x =>
                 new ValueTask<bool>(x.Height == blockByHeightRequest.Height));
-            if (block is { }) return new BlockResponse(block);
+            if (block is not null) return new BlockResponse(block);
         }
         catch (Exception ex)
         {
@@ -291,8 +304,10 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
+    /// Retrieves the requested blocks asynchronously.
     /// </summary>
-    /// <param name="blocksRequest"></param>
+    /// <param name="blocksRequest">The request containing the necessary parameters for retrieving the blocks.</param>
+    /// <returns>The response containing the retrieved blocks. If no blocks are found, a response with a null value is returned.</returns>
     public async Task<BlocksResponse> GetBlocksAsync(BlocksRequest blocksRequest)
     {
         Guard.Argument(blocksRequest, nameof(blocksRequest)).NotNull();
@@ -312,8 +327,10 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
+    /// Saves a block asynchronously.
     /// </summary>
-    /// <param name="saveBlockRequest"></param>
+    /// <param name="saveBlockRequest">The request object containing the block to be saved.</param>
+    /// <returns>A response object indicating whether the block was saved successfully.</returns>
     public async Task<SaveBlockResponse> SaveBlockAsync(SaveBlockRequest saveBlockRequest)
     {
         Guard.Argument(saveBlockRequest, nameof(saveBlockRequest)).NotNull();
@@ -336,10 +353,10 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Checks if a block height already exists.
     /// </summary>
-    /// <param name="blockHeightExistsRequest"></param>
-    /// <returns></returns>
+    /// <param name="blockHeightExistsRequest">The request object containing the block height to check.</param>
+    /// <returns>A VerifyResult indicating the result of the verification.</returns>
     public async Task<VerifyResult> BlockHeightExistsAsync(BlockHeightExistsRequest blockHeightExistsRequest)
     {
         Guard.Argument(blockHeightExistsRequest, nameof(blockHeightExistsRequest)).NotNull();
@@ -349,9 +366,10 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
+    /// Checks if a block exists in the hash chain.
     /// </summary>
-    /// <param name="blockExistsRequest"></param>
-    /// <returns></returns>
+    /// <param name="blockExistsRequest">The request containing the block hash to check.</param>
+    /// <returns>A VerifyResult indicating the status of the block existence.</returns>
     public async Task<VerifyResult> BlockExistsAsync(BlockExistsRequest blockExistsRequest)
     {
         Guard.Argument(blockExistsRequest, nameof(blockExistsRequest)).NotNull();
@@ -362,10 +380,10 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Hashes the transactions provided in the <paramref name="hashTransactionsRequest"/> and returns the result as a byte array.
     /// </summary>
-    /// <param name="hashTransactionsRequest"></param>
-    /// <returns></returns>
+    /// <param name="hashTransactionsRequest">The request object containing the transactions to be hashed.</param>
+    /// <returns>The hashed transactions as a byte array.</returns>
     public byte[] HashTransactions(HashTransactionsRequest hashTransactionsRequest)
     {
         Guard.Argument(hashTransactionsRequest, nameof(hashTransactionsRequest)).NotNull();
@@ -376,9 +394,14 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Checks if the number of blocks in the HashChainRepository is synchronized with the network block count.
     /// </summary>
-    /// <returns></returns>
+    /// <remarks>
+    /// This method asynchronously retrieves the network block count from the PeerDiscovery class and compares it with the number of blocks stored in the HashChainRepository.
+    /// </remarks>
+    /// <returns>
+    /// A boolean value indicating if the number of blocks stored in the HashChainRepository is equal to or greater than the network block count.
+    /// </returns>
     public async Task<bool> BlockCountSynchronizedAsync()
     {
         var maxBlockCount = await _systemCore.PeerDiscovery().NetworkBlockCountAsync();
@@ -386,6 +409,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
+    /// Initializes the object and handles seen block graphs.
     /// </summary>
     private void Init()
     {
@@ -393,8 +417,9 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
+    /// Called when a round is ready.
     /// </summary>
-    /// <param name="e"></param>
+    /// <param name="e">The event arguments containing the block graph data.</param>
     private void OnRoundReady(BlockGraphEventArgs e)
     {
         if (e.BlockGraph.Block.Round != NextRound()) return;
@@ -402,6 +427,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
+    /// Handles the removal of seen block graphs.
     /// </summary>
     private void HandelSeenBlockGraphs()
     {
@@ -434,8 +460,98 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
+    /// Replays the blocks asynchronously.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    private async Task CheckReplayAsync()
+    {
+        var blockGraphs = _syncCacheBlockGraph.GetItems().Where(x => x.Block.Round == NextRound()).ToArray();
+        if (!blockGraphs.Any()) return;
+
+        if (await ValidateAndReplayBlocksAsync())
+        {
+            var blocks = new ConcurrentBag<Block>();
+            var lastInterpreted = GetRound();
+            var blockByHeight = await GetBlockByHeightAsync(new BlockByHeightRequest(lastInterpreted));
+            try
+            {
+                blocks.Add(blockByHeight.Block);
+                var peers = blockGraphs.Select(blockGraph => _systemCore.PeerDiscovery().GetGossipMemberStore()
+                    .FirstOrDefault(x => x.NodeId == blockGraph.Block.Node)).ToArray();
+                var random = new Random();
+                var n = peers.Length;
+                while (n > 1)
+                {
+                    n--;
+                    var k = random.Next(n + 1);
+                    (peers[k], peers[n]) = (peers[n], peers[k]);
+                }
+
+                peers = peers.Take(QuorumF(peers.Length)).ToArray();
+                await Parallel.ForEachAsync(peers, async (peer, token) =>
+                {
+                    try
+                    {
+                        var blockResponse = await _systemCore.GossipMemberStore().SendAsync<BlockResponse>(
+                            new IPEndPoint(IPAddress.Parse(peer.IpAddress.FromBytes()), peer.TcpPort.ToInt32()),
+                            peer.PublicKey,
+                            MessagePackSerializer.Serialize(new Parameter[]
+                            {
+                                new() { Value = lastInterpreted.ToBytes(), ProtocolCommand = ProtocolCommand.GetBlock },
+                                new() { Value = lastInterpreted.ToBytes(), ProtocolCommand = ProtocolCommand.GetBlock }
+                            }, cancellationToken: token));
+                        if (blockResponse?.Block is null) return;
+                        if (await _systemCore.Validator().VerifyBlockHashAsync(blockResponse.Block) ==
+                            VerifyResult.Succeed)
+                            blocks.Add(blockResponse.Block);
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.Here().Error("{@Message}", e.Message);
+                    }
+                });
+                if (!blocks.Any()) return;
+                var block = BlockSelector(blocks.ToArray());
+                if (!block.Hash.Xor(blockByHeight.Block.Hash))
+                {
+                    _systemCore.UnitOfWork().HashChainRepository
+                        .Delete(blockByHeight.Block.Hash, blockByHeight.Block.BlockHeader.PrevBlockHash);
+                    await SaveBlockAsync(new SaveBlockRequest(block));
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.Here().Error("{@Message}", e.Message);
+            }
+            finally
+            {
+                await _systemCore.Sync().SetSyncRunningAsync(false);
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Validates the blocks in the sync cache that have the same height as the next round.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation. The task result is a boolean value indicating whether any blocks were validated.</returns>
+    private async Task<bool> ValidateAndReplayBlocksAsync()
+    {
+        foreach (var block in _syncCacheDelivered.GetItems().Where(x => x.Height == NextRound()))
+        {
+            if (await _systemCore.Validator().VerifyBlockHashAsync(block) == VerifyResult.Succeed)
+                continue;
+
+            await _systemCore.Sync().SetSyncRunningAsync(true);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Subscribes to the OnRoundCompleted event and performs specific actions when a round is completed.
+    /// </summary>
+    /// <returns>An IDisposable object that allows for unsubscribing from the event.</returns>
     private IDisposable OnRoundListener()
     {
         var onRoundCompletedSubscription = _onRoundCompleted
@@ -447,10 +563,15 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
                 try
                 {
                     var blockGraphs = _syncCacheBlockGraph.GetItems().Where(x => x.Block.Round == NextRound()).ToList();
-                    var nodeCount = blockGraphs.Select(n => n.Block.Node).Distinct().Count();
-                    var f = (nodeCount - 1) / 3;
-                    var quorum2F1 = 2 * f + 1;
-                    if (nodeCount < quorum2F1) return;
+                    var noDupKeys = new List<byte[]>();
+                    foreach (var blockGraphSignature in blockGraphs.SelectMany(blockGraph => blockGraph.Signatures))
+                    {
+                        if (noDupKeys.FirstOrDefault(x => x.Xor(blockGraphSignature.Signature)) is not null)
+                            throw new Exception("Duplicate signature found");
+                        noDupKeys.Add(blockGraphSignature.Signature);
+                    }
+
+                    var nodeCount = _systemCore.PeerDiscovery().Count();
                     var lastInterpreted = GetRound();
                     var config = new Consensus.Models.Config(lastInterpreted, Array.Empty<ulong>(),
                         _systemCore.NodeId(), (ulong)nodeCount);
@@ -477,9 +598,10 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
+    /// Saves the given BlockGraph object.
     /// </summary>
-    /// <param name="blockGraph"></param>
-    /// <returns></returns>
+    /// <param name="blockGraph">The BlockGraph object to be saved.</param>
+    /// <returns>Returns true if the BlockGraph object was saved successfully; otherwise, false.</returns>
     private bool Save(BlockGraph blockGraph)
     {
         Guard.Argument(blockGraph, nameof(blockGraph)).NotNull();
@@ -506,8 +628,10 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
+    /// Asynchronously finalizes a block graph after processing.
     /// </summary>
-    /// <returns></returns>
+    /// <param name="blockGraph">The block graph to finalize.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     private async Task FinalizeAsync(BlockGraph blockGraph)
     {
         Guard.Argument(blockGraph, nameof(blockGraph)).NotNull();
@@ -532,10 +656,10 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Copies the given BlockGraph object.
     /// </summary>
-    /// <param name="blockGraph"></param>
-    /// <returns></returns>
+    /// <param name="blockGraph">The BlockGraph object to be copied.</param>
+    /// <returns>A new BlockGraph object that is a copy of the input BlockGraph object.</returns>
     private BlockGraph Copy(BlockGraph blockGraph)
     {
         Guard.Argument(blockGraph, nameof(blockGraph)).NotNull();
@@ -563,7 +687,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
                     Round = blockGraph.Prev.Round
                 }
             };
-            return copy;
+            return SignBlockGraph(copy);;
         }
         catch (Exception ex)
         {
@@ -574,15 +698,44 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
+    /// Signs a block graph with a Schnorr signature using the system's private key.
     /// </summary>
-    /// <param name="deliver"></param>
-    /// <returns></returns>
+    /// <param name="blockGraph">The block graph to sign.</param>
+    /// <returns>The signed block graph.</returns>
+    public BlockGraph SignBlockGraph(BlockGraph blockGraph)
+    {
+        Guard.Argument(blockGraph, nameof(blockGraph)).NotNull();
+        try
+        {
+            var message = Helper.Util.Combine(blockGraph.Serialize(), blockGraph.Serialize());
+            var blockGraphSignature = _systemCore.Crypto().SignSchnorr(_systemCore.KeyPair.PrivateKey.FromSecureString().HexToByte(), message);
+            blockGraph.Signatures.Add(new BlockGraphSignature
+            {
+                PublicKey = _systemCore.KeyPair.PublicKey,
+                Signature = blockGraphSignature,
+                Message = message
+            });
+            return blockGraph;
+        }
+        catch (Exception ex)
+        {
+            _logger.Here().Error("{@Message}", ex.Message);
+        }
+    
+        return null;
+    }
+
+    /// <summary>
+    /// Handles the delivery of a ready consensus message asynchronously.
+    /// </summary>
+    /// <param name="deliver">The ready consensus message to be delivered.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     private async Task OnDeliveredReadyAsync(Consensus.Models.Interpreted deliver)
     {
         Guard.Argument(deliver, nameof(deliver)).NotNull();
         _logger.Information("Delivered: {@Count} Consumed: {@Consumed} Round: {@Round}", deliver.Blocks.Count,
             deliver.Consumed, deliver.Round);
-        var blocks = deliver.Blocks.Where(x => x.Data is { });
+        var blocks = deliver.Blocks.Where(x => x.Data is not null);
         foreach (var deliveredBlock in blocks)
             try
             {
@@ -590,25 +743,6 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
                 await using var stream =
                     Helper.Util.Manager.GetStream(deliveredBlock.Data.AsSpan()) as RecyclableMemoryStream;
                 var block = await MessagePackSerializer.DeserializeAsync<Block>(stream);
-                if (await _systemCore.Validator().VerifyBlockHashAsync(block) != VerifyResult.Succeed)
-                {
-                    var nodeId = block.BlockPos.PublicKey.ToHashIdentifier();
-                    var ipAddress = _systemCore.PeerDiscovery().GetGossipMemberStore()
-                        .FirstOrDefault(x => x.NodeId == nodeId).IpAddress;
-                    _systemCore.PeerDiscovery().SetPeerCooldown(new PeerCooldown
-                    {
-                        IpAddress = ipAddress ?? Array.Empty<byte>(),
-                        PublicKey = block.BlockPos.PublicKey,
-                        NodeId = nodeId,
-                        PeerState = PeerState.OrphanBlock
-                    });
-                    await _systemCore.UnitOfWork().OrphanBlockRepository.PutAsync(block.Hash, block);
-                    _logger.Warning(
-                        "Orphan block [UNABLE TO VERIFY] Hash: {@Hash} Round: {@Round} Node: {@Node} Sol: {@Sol}",
-                        block.Hash.ByteToHex(), deliveredBlock.Round, deliveredBlock.Node, block.BlockPos.Solution);
-                    continue;
-                }
-
                 _syncCacheDelivered.AddOrUpdate(block.Hash, block);
             }
             catch (Exception ex)
@@ -620,31 +754,21 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
+    /// Method to decide the winner of a block.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     private async Task DecideWinnerAsync()
     {
         await _slimDecideWinner.WaitAsync();
         Block[] deliveredBlocks = null;
         try
         {
-            deliveredBlocks = _syncCacheDelivered.Where(x => x.Value.Height == NextRound())
-                .Select(n => n.Value)
+            await CheckReplayAsync();
+            deliveredBlocks = _syncCacheDelivered.Where(x => x.Value.Height == NextRound()).Select(n => n.Value)
                 .ToArray();
             if (deliveredBlocks.Any() != true) return;
-            Block block = null;
-            foreach (var x in deliveredBlocks)
-            {
-                if (BinomialCdfWalk(
-                        Hasher.Hash(x.BlockPos.VrfSig).HexToByte().ToBigInteger() % LedgerConstant.MagicNumber,
-                        deliveredBlocks.Length) != deliveredBlocks.Select(n =>
-                        BinomialCdfWalk(
-                            Hasher.Hash(n.BlockPos.VrfSig).HexToByte().ToBigInteger() % LedgerConstant.MagicNumber,
-                            deliveredBlocks.Length)).Min()) continue;
-                block = x;
-                break;
-            }
-
-            if (block.Height != NextRound()) return;
+            var block = BlockSelector(deliveredBlocks);
+            if (block != null && block.Height != NextRound()) return;
             if (await BlockHeightExistsAsync(new BlockHeightExistsRequest(block.Height)) == VerifyResult.AlreadyExists)
             {
                 _logger.Error("Block winner already exists");
@@ -673,40 +797,68 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
         }
         finally
         {
-            if (deliveredBlocks is { })
+            if (deliveredBlocks is not null)
                 foreach (var block in deliveredBlocks)
                 {
                     _syncCacheDelivered.Remove(block.Hash);
                     if (block.BlockPos.PublicKey.ToHashIdentifier() == _systemCore.NodeId())
                         _systemCore.WalletSession().Notify(block.Txs.ToArray());
                 }
-
+            
             _slimDecideWinner.Release();
         }
     }
 
     /// <summary>
-    /// 
+    /// Selects a block from the given array of delivered blocks based on the minimum value of the Cumulative Distribution Function (CDF) walk.
     /// </summary>
-    /// <returns></returns>
+    /// <param name="deliveredBlocks">The array of delivered blocks.</param>
+    /// <returns>The selected block.</returns>
+    private static Block BlockSelector(Block[] deliveredBlocks)
+    {
+        Guard.Argument(deliveredBlocks, nameof(deliveredBlocks)).NotNull().NotEmpty();
+        Block block = null;
+        
+        var minCdfWalk = deliveredBlocks.Select(n =>
+            BinomialCdfWalk(
+                Hasher.Hash(n.BlockPos.VrfSig).HexToByte().ToBigInteger() % LedgerConstant.MagicNumber,
+                deliveredBlocks.Length)).Min();
+
+        foreach (var x in deliveredBlocks)
+        {
+            if (BinomialCdfWalk(
+                    Hasher.Hash(x.BlockPos.VrfSig).HexToByte().ToBigInteger() % LedgerConstant.MagicNumber,
+                    deliveredBlocks.Length) != minCdfWalk) continue;
+            block = x;
+            break;
+        }
+
+        return block;
+    }
+
+    /// <summary>
+    /// Gets the current round of the hash chain.
+    /// </summary>
+    /// <returns>The current round as an unsigned long.</returns>
     private ulong GetRound()
     {
         return _systemCore.UnitOfWork().HashChainRepository.Height;
     }
 
     /// <summary>
-    /// 
+    /// Retrieves the total count of hash chains in the HashChainRepository and returns it as an unsigned long.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>The total count of hash chains</returns>
     private ulong NextRound()
     {
         return _systemCore.UnitOfWork().HashChainRepository.Count;
     }
 
     /// <summary>
+    /// Broadcasts a BlockGraph asynchronously.
     /// </summary>
-    /// <param name="blockGraph"></param>
-    /// <returns></returns>
+    /// <param name="blockGraph">The BlockGraph to be broadcasted.</param>
+    /// <returns>A Task representing the asynchronous broadcast operation.</returns>
     private async Task BroadcastAsync(BlockGraph blockGraph)
     {
         Guard.Argument(blockGraph, nameof(blockGraph)).NotNull();
@@ -723,11 +875,11 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Calculates the cumulative probability of a binomial distribution by performing a walk through the coefficients.
     /// </summary>
-    /// <param name="n"></param>
-    /// <param name="k"></param>
-    /// <returns></returns>
+    /// <param name="n">The total number of trials in the binomial distribution.</param>
+    /// <param name="k">The number of successful trials in the binomial distribution.</param>
+    /// <returns>The cumulative probability of the binomial distribution represented by the given parameters.</returns>
     private static BigInteger BinomialCdfWalk(BigInteger n, int k)
     {
         BigInteger result = 0;
@@ -739,11 +891,11 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Calculates the binomial coefficient of two given numbers.
     /// </summary>
-    /// <param name="n"></param>
-    /// <param name="k"></param>
-    /// <returns></returns>
+    /// <param name="n">The total number of items.</param>
+    /// <param name="k">The number of items to be selected.</param>
+    /// <returns>The binomial coefficient calculated as n! / (k! * (n - k)!).</returns>
     private static BigInteger BinomialCoefficient(BigInteger n, int k)
     {
         BigInteger result = 1;
@@ -755,9 +907,19 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Calculates the maximum number of failures that a distributed system can tolerate for a given number of nodes.
     /// </summary>
-    /// <param name="disposing"></param>
+    /// <param name="nodeCount">The total number of nodes in the distributed system.</param>
+    /// <returns>The maximum number of failures that the distributed system can tolerate.</returns>
+    private static int QuorumF(int nodeCount)
+    {
+        return (nodeCount - 1) / 3;
+    }
+
+    /// <summary>
+    /// Disposes the resources used by the object.
+    /// </summary>
+    /// <param name="disposing">A bool value indicating whether the method is being called from Dispose method or from finalize method.</param>
     private void Dispose(bool disposing)
     {
         if (_disposed)
@@ -775,8 +937,11 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
     /// </summary>
+    /// <remarks>
+    /// This method is called when the object is no longer needed and is ready to be disposed.
+    /// </remarks>
     public void Dispose()
     {
         Dispose(true);
