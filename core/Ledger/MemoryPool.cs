@@ -19,6 +19,7 @@ using Transaction = TangramXtgm.Models.Transaction;
 namespace TangramXtgm.Ledger;
 
 /// <summary>
+/// Represents a memory pool that stores and manages transactions.
 /// </summary>
 public interface IMemoryPool
 {
@@ -30,6 +31,7 @@ public interface IMemoryPool
 }
 
 /// <summary>
+/// Represents a memory pool for storing and managing transactions.
 /// </summary>
 public class MemoryPool : IMemoryPool, IDisposable
 {
@@ -52,9 +54,10 @@ public class MemoryPool : IMemoryPool, IDisposable
     }
 
     /// <summary>
+    /// Creates a new transaction asynchronously and broadcasts it.
     /// </summary>
-    /// <param name="transaction"></param>
-    /// <returns></returns>
+    /// <param name="transaction">The transaction to be created.</param>
+    /// <returns>A task representing the asynchronous operation. The task result is a VerifyResult indicating the success or failure of the transaction creation.</returns>
     public async Task<VerifyResult> NewTransactionAsync(Transaction transaction)
     {
         Guard.Argument(transaction, nameof(transaction)).NotNull();
@@ -84,9 +87,10 @@ public class MemoryPool : IMemoryPool, IDisposable
     }
 
     /// <summary>
+    /// Retrieves a transaction by its ID.
     /// </summary>
-    /// <param name="transactionId"></param>
-    /// <returns></returns>
+    /// <param name="transactionId">The ID of the transaction to retrieve.</param>
+    /// <returns>The retrieved Transaction object, or null if the transaction is not found.</returns>
     public Transaction Get(in byte[] transactionId)
     {
         Guard.Argument(transactionId, nameof(transactionId)).NotNull().NotEmpty().MaxCount(32);
@@ -104,17 +108,19 @@ public class MemoryPool : IMemoryPool, IDisposable
     }
 
     /// <summary>
+    /// Retrieves multiple transactions from the sync cache.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>An array of Transaction objects.</returns>
     public Transaction[] GetMany()
     {
         return _syncCacheTransactions.GetItems();
     }
 
     /// <summary>
+    /// Retrieves verified transactions asynchronously.
     /// </summary>
-    /// <param name="take"></param>
-    /// <returns></returns>
+    /// <param name="take">The number of transactions to retrieve.</param>
+    /// <returns>An array of verified transactions.</returns>
     public async Task<Transaction[]> GetVerifiedTransactionsAsync(int take)
     {
         Guard.Argument(take, nameof(take)).NotNegative();
@@ -141,6 +147,7 @@ public class MemoryPool : IMemoryPool, IDisposable
     }
 
     /// <summary>
+    /// Initializes the object.
     /// </summary>
     private void Init()
     {
@@ -148,6 +155,7 @@ public class MemoryPool : IMemoryPool, IDisposable
     }
 
     /// <summary>
+    /// Handles seen transactions in the system by removing transactions from sync cache and seen transactions cache that are older than one hour.
     /// </summary>
     private void HandelSeenTransactions()
     {
@@ -178,9 +186,9 @@ public class MemoryPool : IMemoryPool, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Releases all resources used by the current instance.
     /// </summary>
-    /// <param name="disposing"></param>
+    /// <param name="disposing">A boolean value indicating if the method is being called from the Dispose method.</param>
     private void Dispose(bool disposing)
     {
         if (_disposed)
@@ -197,7 +205,7 @@ public class MemoryPool : IMemoryPool, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
     /// </summary>
     public void Dispose()
     {

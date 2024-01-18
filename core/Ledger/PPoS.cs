@@ -31,6 +31,7 @@ using Util = TangramXtgm.Helper.Util;
 namespace TangramXtgm.Ledger;
 
 /// <summary>
+/// Represents a point of sale system.
 /// </summary>
 public interface IPPoS
 {
@@ -40,7 +41,7 @@ public interface IPPoS
 }
 
 /// <summary>
-/// 
+/// Represents the type of stake.
 /// </summary>
 public enum StakeType
 {
@@ -49,6 +50,7 @@ public enum StakeType
 }
 
 /// <summary>
+/// Represents a coin stake.
 /// </summary>
 internal record CoinStake
 {
@@ -58,6 +60,8 @@ internal record CoinStake
 }
 
 /// <summary>
+/// Represents a kernel, which contains the calculated VRF signature, the hash, the verified VRF signature,
+/// and the stake type.
 /// </summary>
 internal record Kernel
 {
@@ -68,7 +72,7 @@ internal record Kernel
 }
 
 /// <summary>
-/// 
+/// The ReadyTransaction class represents a ready transaction object.
 /// </summary>
 internal record ReadyTransaction
 {
@@ -80,6 +84,7 @@ internal record ReadyTransaction
 }
 
 /// <summary>
+/// PPoS class implements the IPPoS interface and represents a Proof-of-Stake consensus algorithm.
 /// </summary>
 public class PPoS : IPPoS, IDisposable
 {
@@ -90,6 +95,8 @@ public class PPoS : IPPoS, IDisposable
     private bool _disposed;
     private int _running;
 
+    private static object _lockRunning = new();
+    
     /// <summary>
     /// </summary>
     /// <param name="systemCore"></param>
@@ -104,13 +111,18 @@ public class PPoS : IPPoS, IDisposable
     }
 
     /// <summary>
+    /// Gets a value indicating whether the object is running.
     /// </summary>
+    /// <remarks>
+    /// This property returns true if the object is running; otherwise, it returns false.
+    /// </remarks>
     public bool Running => _running != 0;
 
     /// <summary>
+    /// Retrieves a transaction from the cache based on the provided transaction ID.
     /// </summary>
-    /// <param name="transactionId"></param>
-    /// <returns></returns>
+    /// <param name="transactionId">The transaction ID to search for.</param>
+    /// <returns>The transaction with the specified ID. Returns null if the transaction is not found.</returns>
     public Transaction Get(in byte[] transactionId)
     {
         Guard.Argument(transactionId, nameof(transactionId)).NotNull().NotEmpty().MaxCount(32);
@@ -128,41 +140,32 @@ public class PPoS : IPPoS, IDisposable
     }
 
     /// <summary>
+    /// Gets the count of items in the syncCacheTransactions list.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>The count of items in the syncCacheTransactions list.</returns>
     public int Count()
     {
         return _syncCacheTransactions.Count;
     }
 
     /// <summary>
+    /// Initializes the asynchronous method.
     /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
     private async Task InitAsync()
     {
-        if (_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested) return;
-        var sync = _systemCore.Sync();
-        if (sync.Running)
-        {
-            Thread.Sleep(TimeSpan.FromSeconds(LedgerConstant.WaitSyncTimeFromSeconds));
-            return;
-        }
-
-        if (!_systemCore.Node.Staking.Enabled)
-        {
-            Thread.Sleep(TimeSpan.FromSeconds(LedgerConstant.WaitPPoSEnabledTimeFromSeconds));
-            return;
-        }
-
-        if (sync.Running) return;
-        //if (!_systemCore.Graph().RoundCompleted) return;
+        if (!_systemCore.Node.Staking.Enabled) return;
+        if (_systemCore.Sync().SyncRunning) return;
         if (Running) return;
-        Interlocked.Exchange(ref _running, 1);
+        Interlocked.Exchange(ref _running, 1); 
         await RunStakingAsync();
     }
 
     /// <summary>
+    /// Runs the staking process asynchronously.
     /// </summary>
-    /// <exception cref="Exception"></exception>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    /// <exception cref="Exception">Thrown if an error occurs during the staking process.</exception>
     private async Task RunStakingAsync()
     {
         try
@@ -226,13 +229,17 @@ public class PPoS : IPPoS, IDisposable
         {
             // Call again in case of an exception.
             RemoveAnyCoinstake();
-            Interlocked.Exchange(ref _running, 0);
+            lock (_lockRunning)
+            {
+                Interlocked.Exchange(ref _running, 0);   
+            }
         }
     }
 
     /// <summary>
+    /// Sorts the transactions in descending order based on the Vtime property.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>An immutable array of transactions sorted in descending order by Vtime. Returns an empty array if there are no transactions available.</returns>
     private ImmutableArray<Transaction> SortTransactions()
     {
         var transactions = _syncCacheTransactions.GetItems();
@@ -265,8 +272,9 @@ public class PPoS : IPPoS, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Pulls mempool transactions and adds verified transactions to the sync cache.
     /// </summary>
+    /// <returns>Void.</returns>
     private async Task PullMempoolTransactionsAsync()
     {
         var memPool = _systemCore.MemPool();
@@ -293,11 +301,12 @@ public class PPoS : IPPoS, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Creates a network kernel based on provided transaction and stake type.
     /// </summary>
-    /// <param name="readyTransaction"></param>
-    /// <param name="stakeType"></param>
-    /// <returns></returns>
+    /// <param name="readyTransaction">The ready transaction containing necessary data.</param>
+    /// <param name="stakeType">The type of stake used for the kernel.</param>
+    /// <returns>A new Kernel instance with calculated VRF signature, kernel hash,
+    /// verified VRF signature, and stake type.</returns>
     private Kernel CreateNetworkKernel(ReadyTransaction readyTransaction, StakeType stakeType)
     {
         var kernel = _systemCore.Validator().NetworkKernel(readyTransaction.PrevBlockHash,
@@ -317,7 +326,7 @@ public class PPoS : IPPoS, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Removes any duplicate image keys from the SyncCacheTransactions.
     /// </summary>
     private void RemoveAnyDuplicateImageKeys()
     {
@@ -332,11 +341,11 @@ public class PPoS : IPPoS, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// IncrementHasher method takes two byte arrays, previous and next, and combines them using a hashing algorithm.
     /// </summary>
-    /// <param name="previous"></param>
-    /// <param name="next"></param>
-    /// <returns></returns>
+    /// <param name="previous">The previous byte array to be hashed. Must not be null and must have a maximum length of 32 bytes.</param>
+    /// <param name="next">The next byte array to be hashed. Must not be null and must have a maximum length of 32 bytes.</param>
+    /// <returns>A byte array representing the hash result of combining the previous and next byte arrays.</returns>
     private static byte[] IncrementHasher(byte[] previous, byte[] next)
     {
         Guard.Argument(previous, nameof(previous)).NotNull().MaxCount(32);
@@ -345,14 +354,19 @@ public class PPoS : IPPoS, IDisposable
         hasher.Update(previous);
         hasher.Update(next);
         var hash = hasher.Finalize();
-        return hash.AsSpanUnsafe().ToArray();
+        return hash.AsSpan().ToArray();
     }
 
     /// <summary>
+    /// Generates a coin stake using the provided kernel.
     /// </summary>
-    /// <param name="kernel"></param>
-    /// <returns></returns>
-    /// <exception cref="Exception"></exception>
+    /// <param name="kernel">The kernel to use in coin stake generation.</param>
+    /// <returns>
+    /// A task representing the asynchronous operation.
+    /// The task result is a CoinStake object if the coin stake transaction was created successfully,
+    /// or null if the transaction could not be created.
+    /// </returns>
+    /// <exception cref="Exception">Thrown if the kernel parameter is null.</exception>
     private async Task<CoinStake> CoinstakeAsync(Kernel kernel)
     {
         Guard.Argument(kernel, nameof(kernel)).NotNull();
@@ -373,11 +387,11 @@ public class PPoS : IPPoS, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Creates a new instance of BlockGraph based on the given Block and previous Block.
     /// </summary>
-    /// <param name="block"></param>
-    /// <param name="prevBlock"></param>
-    /// <returns></returns>
+    /// <param name="block">The current block.</param>
+    /// <param name="prevBlock">The previous block.</param>
+    /// <returns>A new BlockGraph object.</returns>
     private BlockGraph NewBlockGraph(in Block block, in Block prevBlock)
     {
         Guard.Argument(block, nameof(block)).NotNull();
@@ -421,13 +435,15 @@ public class PPoS : IPPoS, IDisposable
     }
 
     /// <summary>
+    /// Creates a new block asynchronously.
     /// </summary>
-    /// <param name="transactions"></param>
-    /// <param name="kernel"></param>
-    /// <param name="coinStake"></param>
-    /// <param name="previousBlock"></param>
-    /// <returns></returns>
-    private async Task<Block> NewBlockAsync(ImmutableArray<Transaction> transactions, Kernel kernel, CoinStake coinStake,
+    /// <param name="transactions">The transactions to include in the block.</param>
+    /// <param name="kernel">The kernel used for proof-of-stake.</param>
+    /// <param name="coinStake">The coin stake information.</param>
+    /// <param name="previousBlock">The previous block.</param>
+    /// <returns>The newly created block. Returns null if the block could not be created.</returns>
+    private async Task<Block> NewBlockAsync(ImmutableArray<Transaction> transactions, Kernel kernel,
+        CoinStake coinStake,
         Block previousBlock)
     {
         Guard.Argument(transactions, nameof(transactions)).NotEmpty();
@@ -488,13 +504,13 @@ public class PPoS : IPPoS, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Gets the nonce asynchronously.
     /// </summary>
-    /// <param name="solution"></param>
-    /// <param name="vrfOutput"></param>
-    /// <param name="round"></param>
-    /// <param name="lockTime"></param>
-    /// <returns></returns>
+    /// <param name="vrfOutput">The VRF output.</param>
+    /// <param name="solution">The solution.</param>
+    /// <param name="round">The round.</param>
+    /// <param name="lockTime">The lock time.</param>
+    /// <returns>The nonce.</returns>
     private async Task<byte[]> GetNonceAsync(byte[] vrfOutput, ulong solution, ulong round, long lockTime)
     {
         Guard.Argument(vrfOutput, nameof(vrfOutput)).NotNull().NotEmpty().MaxCount(32);
@@ -539,10 +555,10 @@ public class PPoS : IPPoS, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Generates a CoinStake for the given round.
     /// </summary>
-    /// <param name="round"></param>
-    /// <returns></returns>
+    /// <param name="round">The round for which to generate the CoinStake.</param>
+    /// <returns>A CoinStake object containing the solution time and the generated Transaction.</returns>
     private CoinStake CoinstakeSystem(ulong round)
     {
         var r = round.ToBytes().WrapLengthPrefix();

@@ -19,6 +19,9 @@ using TangramXtgm.Persistence;
 
 namespace TangramXtgm.Network;
 
+/// <summary>
+/// Represents a peer discovery interface.
+/// </summary>
 public interface IPeerDiscovery
 {
     /// <summary>
@@ -44,6 +47,7 @@ public interface IPeerDiscovery
 }
 
 /// <summary>
+/// The PeerDiscovery class is responsible for discovering and managing peer nodes in a network.
 /// </summary>
 public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
 {
@@ -59,10 +63,14 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     private readonly IMemberListener _memberListener;
 
     /// <summary>
+    /// Represents a class that handles peer discovery for the system.
     /// </summary>
-    /// <param name="systemCore"></param>
-    /// <param name="logger"></param>
-    /// <param name="memberListener"></param>
+    /// <param name="systemCore">The <see cref="ISystemCore"/> instance that provides core system functionality.</param>
+    /// <param name="memberListener">The <see cref="IMemberListener"/> instance that handles listening for new members.</param>
+    /// <param name="logger">The <see cref="ILogger"/> instance that handles logging.</param>
+    /// <remarks>
+    /// The <see cref="PeerDiscovery"/> class initializes a new instance with the provided system core, member listener, and logger.
+    /// </remarks>
     public PeerDiscovery(ISystemCore systemCore, IMemberListener memberListener, ILogger logger)
     {
         _systemCore = systemCore;
@@ -72,9 +80,9 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     }
 
     /// <summary>
-    /// 
+    /// Retrieves the block count from each known peer in parallel, and returns the maximum block count.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>The maximum block count from the known peers, or 0 if there are no responses.</returns>
     public async Task<ulong> NetworkBlockCountAsync()
     {
         var blockHeightResponses = new List<BlockHeightResponse>();
@@ -95,10 +103,10 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     }
 
     /// <summary>
-    /// 
+    /// Retrieves the block count from a peer asynchronously.
     /// </summary>
-    /// <param name="peer"></param>
-    /// <returns></returns>
+    /// <param name="peer">The Peer object representing the peer from which to retrieve the block count.</param>
+    /// <returns>The block count retrieved from the peer.</returns>
     public async Task<ulong> PeerBlockCountAsync(Peer peer)
     {
         var blockCountResponse = await _systemCore.GossipMemberStore()
@@ -113,16 +121,18 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     }
 
     /// <summary>
+    /// Returns the number of peers in the GossipMemberStore.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>The number of peers.</returns>
     public int Count()
     {
         return _systemCore.GossipMemberStore().GetPeers().Length;
     }
 
     /// <summary>
+    /// Retrieves the current list of gossip members from the GossipMemberStore, excluding any cooled-down peers.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>An array of Peer objects representing the active gossip members.</returns>
     public Peer[] GetGossipMemberStore()
     {
         var peers = _systemCore.GossipMemberStore().GetPeers();
@@ -131,25 +141,27 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     }
 
     /// <summary>
+    /// Retrieves the local node.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>A LocalNode object representing the local node.</returns>
     public LocalNode GetLocalNode()
     {
         return _localNode;
     }
 
     /// <summary>
-    /// 
+    /// Returns the encryption key for the given client ID and IP address.
     /// </summary>
-    /// <param name="clientId"></param>
-    /// <param name="ipAddress"></param>
-    /// <returns></returns>
+    /// <param name="clientId">The unique identifier of the client.</param>
+    /// <param name="ipAddress">The IP address of the client.</param>
+    /// <returns>The encryption key as a byte array.</returns>
     private static byte[] GetKey(ulong clientId, byte[] ipAddress)
     {
         return StoreDb.Key(clientId.ToString(), ipAddress);
     }
 
     /// <summary>
+    /// This method initializes the local node by setting its properties and starting the gossiper.
     /// </summary>
     private void Init()
     {
@@ -176,10 +188,10 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     }
 
     /// <summary>
-    /// 
+    /// Starts the gossiper asynchronously.
     /// </summary>
-    /// <param name="seeds"></param>
-    /// <returns></returns>
+    /// <param name="seeds">The seed IP endpoints.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     private async Task StartGossiperAsync(IPEndPoint[] seeds)
     {
         var logger = Util.CreateLogger<PeerDiscovery>();
@@ -196,9 +208,9 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     }
 
     /// <summary>
-    /// 
+    /// Sets the cooldown for a peer.
     /// </summary>
-    /// <param name="peer"></param>
+    /// <param name="peer">The PeerCooldown object representing the peer.</param>
     public void SetPeerCooldown(PeerCooldown peer)
     {
         if (!_peerCooldownCaching.TryGet(GetKey(peer.NodeId, peer.IpAddress), out _))
@@ -208,7 +220,7 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     }
 
     /// <summary>
-    /// 
+    /// Handles the cooldown for peers.
     /// </summary>
     private void HandlePeerCooldown()
     {
@@ -238,10 +250,10 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     }
 
     /// <summary>
-    /// 
+    /// Checks if the provided byte array represents an accepted address.
     /// </summary>
-    /// <param name="value"></param>
-    /// <returns></returns>
+    /// <param name="value">The byte array that represents an IP address.</param>
+    /// <returns>True if the address is accepted, False otherwise.</returns>
     private static bool IsAcceptedAddress(byte[] value)
     {
         try
@@ -260,9 +272,9 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     }
 
     /// <summary>
-    /// 
+    /// Disposes the resources used by the object.
     /// </summary>
-    /// <param name="disposing"></param>
+    /// <param name="disposing">True to dispose managed resources, false to only dispose unmanaged resources.</param>
     private void Dispose(bool disposing)
     {
         if (_disposed)
@@ -280,7 +292,7 @@ public sealed class PeerDiscovery : IDisposable, IPeerDiscovery
     }
 
     /// <summary>
-    /// 
+    /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
     /// </summary>
     public void Dispose()
     {

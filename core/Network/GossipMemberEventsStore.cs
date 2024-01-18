@@ -5,7 +5,7 @@ using TangramXtgm.Network.Mesh;
 namespace TangramXtgm.Network;
 
 /// <summary>
-/// 
+/// Represents a store for gossip member events.
 /// </summary>
 public interface IGossipMemberEventsStore
 {
@@ -14,7 +14,7 @@ public interface IGossipMemberEventsStore
 }
 
 /// <summary>
-/// 
+/// Represents a store for storing and retrieving member events in a gossip-based system.
 /// </summary>
 public class GossipMemberEventsStore : IGossipMemberEventsStore
 {
@@ -22,9 +22,9 @@ public class GossipMemberEventsStore : IGossipMemberEventsStore
     private readonly List<MemberEvent> _memberEvents = new();
 
     /// <summary>
-    /// 
+    /// Adds a MemberEvent to the collection.
     /// </summary>
-    /// <param name="memberEvent"></param>
+    /// <param name="memberEvent">The MemberEvent to add.</param>
     public void Add(MemberEvent memberEvent)
     {
         Guard.Argument(memberEvent, nameof(memberEvent)).NotNull();
@@ -35,9 +35,9 @@ public class GossipMemberEventsStore : IGossipMemberEventsStore
     }
 
     /// <summary>
-    /// 
+    /// Retrieves all MemberEvent objects.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>An array of MemberEvent objects.</returns>
     public MemberEvent[] GetAll()
     {
         lock (_memberEventsLocker)

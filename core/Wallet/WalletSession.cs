@@ -23,7 +23,7 @@ using Transaction = TangramXtgm.Models.Transaction;
 namespace TangramXtgm.Wallet;
 
 /// <summary>
-/// 
+/// Represents a consumed record.
 /// </summary>
 public record Consumed(byte[] Commit, DateTime Time)
 {
@@ -32,6 +32,7 @@ public record Consumed(byte[] Commit, DateTime Time)
 }
 
 /// <summary>
+/// Represents a session for interacting with a wallet.
 /// </summary>
 public class WalletSession : IWalletSession, IDisposable
 {
@@ -62,11 +63,11 @@ public class WalletSession : IWalletSession, IDisposable
     private static readonly object Locking = new();
 
     /// <summary>
-    /// 
+    /// Represents a wallet session.
     /// </summary>
-    /// <param name="systemCore"></param>
-    /// <param name="applicationLifetime"></param>
-    /// <param name="logger"></param>
+    /// <param name="systemCore">The system core object responsible for managing the wallet session.</param>
+    /// <param name="applicationLifetime">The application lifetime object for managing the lifetime of the wallet session.</param>
+    /// <param name="logger">The logger object for logging wallet session activities.</param>
     public WalletSession(ISystemCore systemCore, IHostApplicationLifetime applicationLifetime, ILogger logger)
     {
         _systemCore = systemCore;
@@ -79,7 +80,7 @@ public class WalletSession : IWalletSession, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Initializes the object.
     /// </summary>
     private void Init()
     {
@@ -88,9 +89,9 @@ public class WalletSession : IWalletSession, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Notifies the system about the given transactions.
     /// </summary>
-    /// <param name="transactions"></param>
+    /// <param name="transactions">The array of transactions to be notified.</param>
     public void Notify(Transaction[] transactions)
     {
         if (KeySet is null) return;
@@ -105,10 +106,10 @@ public class WalletSession : IWalletSession, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Logs in to the wallet asynchronously using the provided seed.
     /// </summary>
-    /// <param name="seed"></param>
-    /// <returns></returns>
+    /// <param name="seed">The seed used for authentication.</param>
+    /// <returns>A task that represents the asynchronous login operation. The task result contains a tuple with a boolean indicating whether the login was successful and a string message.</returns>
     public Task<Tuple<bool, string>> LoginAsync(byte[] seed)
     {
         Guard.Argument(seed, nameof(seed)).NotNull().NotEmpty();
@@ -134,11 +135,11 @@ public class WalletSession : IWalletSession, IDisposable
         return Task.FromResult(new Tuple<bool, string>(false, "Unable to login"));
     }
 
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="outputs"></param>
-    /// <returns></returns>
+    /// Initializes the wallet asynchronously.
+    /// @param outputs The array of outputs.
+    /// @return A task that represents the asynchronous operation. The task result contains a tuple with a boolean indicating if the wallet initialization was successful and a string message
+    /// .
+    /// /
     public Task<Tuple<bool, string>> InitializeWalletAsync(Output[] outputs)
     {
         Guard.Argument(outputs, nameof(outputs)).NotNull().NotEmpty();
@@ -161,9 +162,9 @@ public class WalletSession : IWalletSession, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Retrieves the safe guard blocks.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>A read-only list of Block objects representing the safe guard blocks.</returns>
     public IReadOnlyList<Block> GetSafeGuardBlocks()
     {
         lock (Locking)
@@ -173,12 +174,12 @@ public class WalletSession : IWalletSession, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Creates a key set based on a key path, secret key, and chain code.
     /// </summary>
-    /// <param name="keyPath"></param>
-    /// <param name="secretKey"></param>
-    /// <param name="chainCode"></param>
-    /// <returns></returns>
+    /// <param name="keyPath">The key path to derive the keys.</param>
+    /// <param name="secretKey">The secret key used for derivation.</param>
+    /// <param name="chainCode">The chain code used for derivation.</param>
+    /// <returns>A KeySet object containing the derived keys and necessary information.</returns>
     private KeySet CreateKeySet(KeyPath keyPath, byte[] secretKey, byte[] chainCode)
     {
         Guard.Argument(keyPath, nameof(keyPath)).NotNull();
@@ -197,10 +198,10 @@ public class WalletSession : IWalletSession, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Creates an HD root key.
     /// </summary>
-    /// <param name="seed"></param>
-    /// <param name="hdRoot"></param>
+    /// <param name="seed">The seed used to generate the HD root key.</param>
+    /// <param name="hdRoot">Output parameter to store the generated HD root key.</param>
     private static void CreateHdRootKey(SecureString seed, out ExtKey hdRoot)
     {
         Guard.Argument(seed, nameof(seed)).NotNull();
@@ -211,7 +212,7 @@ public class WalletSession : IWalletSession, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Handles the consumed cache items periodically to remove unused items.
     /// </summary>
     private void HandelConsumed()
     {
@@ -238,7 +239,7 @@ public class WalletSession : IWalletSession, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Handles the safeguard blocks by periodically fetching and updating the read-only safeguard blocks list.
     /// </summary>
     private void HandleSafeguardBlocks()
     {
@@ -264,9 +265,9 @@ public class WalletSession : IWalletSession, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
     /// </summary>
-    /// <param name="disposing"></param>
+    /// <param name="disposing">A flag indicating whether to dispose of managed resources.</param>
     private void Dispose(bool disposing)
     {
         if (_disposed)
@@ -284,8 +285,12 @@ public class WalletSession : IWalletSession, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
     /// </summary>
+    /// <remarks>
+    /// Call <see cref="Dispose"/> when you are finished using the object. This method frees any resources that the object
+    /// holds and marks the object as no longer needed.
+    /// </remarks>
     public void Dispose()
     {
         Dispose(true);

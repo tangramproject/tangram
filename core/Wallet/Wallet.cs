@@ -23,6 +23,7 @@ using Util = Libsecp256k1Zkp.Net.Util;
 namespace TangramXtgm.Wallet;
 
 /// <summary>
+/// Represents a node wallet used for creating transactions.
 /// </summary>
 public interface INodeWallet
 {
@@ -30,6 +31,7 @@ public interface INodeWallet
 }
 
 /// <summary>
+/// Represents a balance consisting of total amount and commitment output.
 /// </summary>
 public struct Balance
 {
@@ -38,6 +40,7 @@ public struct Balance
 }
 
 /// <summary>
+/// Represents a wallet transaction.
 /// </summary>
 public struct WalletTransaction
 {
@@ -52,6 +55,7 @@ public struct WalletTransaction
 }
 
 /// <summary>
+/// Represents a class that provides wallet functionality for a node.
 /// </summary>
 public class NodeWallet : INodeWallet
 {
@@ -61,9 +65,10 @@ public class NodeWallet : INodeWallet
     private readonly NBitcoin.Network _network;
 
     /// <summary>
+    /// Represents a node wallet.
     /// </summary>
-    /// <param name="systemCore"></param>
-    /// <param name="logger"></param>
+    /// <param name="systemCore">The system core instance used for interacting with the blockchain.</param>
+    /// <param name="logger">The logger instance used for logging.</param>
     public NodeWallet(ISystemCore systemCore, ILogger logger)
     {
         _systemCore = systemCore;
@@ -74,11 +79,12 @@ public class NodeWallet : INodeWallet
     }
 
     /// <summary>
+    /// Creates a wallet transaction asynchronously.
     /// </summary>
-    /// <param name="amount"></param>
-    /// <param name="reward"></param>
-    /// <param name="address"></param>
-    /// <returns></returns>
+    /// <param name="amount">The amount of the transaction.</param>
+    /// <param name="reward">The reward for the transaction.</param>
+    /// <param name="address">The recipient address of the transaction.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result contains the created wallet transaction.</returns>
     public async Task<WalletTransaction> CreateTransactionAsync(ulong amount, ulong reward, string address)
     {
         Guard.Argument(amount, nameof(amount)).NotNegative();
@@ -142,8 +148,10 @@ public class NodeWallet : INodeWallet
     }
 
     /// <summary>
-    /// </summary>
-    /// <returns></returns>
+    /// Unlocks the master key by retrieving the spend key and scan key. </summary> <returns>
+    /// A tuple of two Key objects - the spend key and scan key.
+    /// If unable to unlock the master key, both keys in the tuple will be null. </returns>
+    /// /
     private (Key, Key) Unlock()
     {
         try
@@ -164,9 +172,10 @@ public class NodeWallet : INodeWallet
     }
 
     /// <summary>
+    /// Generates a master key based on the provided key set.
     /// </summary>
-    /// <param name="keySet"></param>
-    /// <returns></returns>
+    /// <param name="keySet">The key set containing the root key and chain code.</param>
+    /// <returns>The generated master key as an ExtKey object.</returns>
     private static ExtKey MasterKey(KeySet keySet)
     {
         Guard.Argument(keySet, nameof(keySet)).IsDefault();
@@ -178,24 +187,38 @@ public class NodeWallet : INodeWallet
     }
 
     /// <summary>
+    /// Retrieves the spending balance and its commitment value based on the given amount.
     /// </summary>
-    /// <returns></returns>
+    /// <param name="amount">The amount to be spent.</param>
+    /// <returns>A tuple containing the spending balance's commitment value and the total commitment amount.</returns>
     private Tuple<Output, ulong> GetSpending(ulong amount)
     {
         try
         {
-            var freeBalances = new List<Balance>();
             var (_, scan) = Unlock();
             var balances = GetBalances();
-            freeBalances.AddRange(balances.Where(balance => amount <= balance.Total).OrderByDescending(x => x.Total));
+
+            var freeBalances = balances
+                .Where(balance => amount <= balance.Total)
+                .OrderByDescending(balance => balance.Total)
+                .ToList();
+
             if (!freeBalances.Any()) return new Tuple<Output, ulong>(default, 0);
-            var spendAmount = freeBalances.Where(a => a.Total >= amount && a.Total <= freeBalances.Max(m => m.Total))
-                .Select(x => x.Total).Aggregate((x, y) => x - amount < y - amount ? x : y);
+
+            var maxTotal = freeBalances.Max(m => m.Total);
+
+            var spendAmount = freeBalances.Where((Func<Balance, bool>)SuitablyTotalled)
+                .Select(x => x.Total)
+                .Aggregate((x, y) => x - amount < y - amount ? x : y);
+
             var spendingBalance = freeBalances.First(a => a.Total == spendAmount);
             var commitmentTotal = Amount(spendingBalance.Commitment, scan);
+
             return amount > commitmentTotal
                 ? new Tuple<Output, ulong>(default, 0)
                 : new Tuple<Output, ulong>(spendingBalance.Commitment, commitmentTotal);
+
+            bool SuitablyTotalled(Balance a) => a.Total >= amount && a.Total <= maxTotal;
         }
         catch (Exception ex)
         {
@@ -205,8 +228,9 @@ public class NodeWallet : INodeWallet
     }
 
     /// <summary>
+    /// Retrieves the balances from the node wallet.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>An array of Balances representing the wallet balances.</returns>
     private Balance[] GetBalances()
     {
         var balances = new List<Balance>();
@@ -235,11 +259,14 @@ public class NodeWallet : INodeWallet
     }
 
     /// <summary>
-    /// 
+    /// Checks if the given output has been spent.
     /// </summary>
-    /// <param name="output"></param>
-    /// <param name="session"></param>
-    /// <returns></returns>
+    /// <param name="output">The output to check for spent status.</param>
+    /// <param name="session">The wallet session associated with the output.</param>
+    /// <returns>
+    /// True if the output has been spent;
+    /// otherwise, false.
+    /// </returns>
     private bool IsSpent(Output output, IWalletSession session)
     {
         Guard.Argument(output, nameof(output)).NotNull();
@@ -255,8 +282,10 @@ public class NodeWallet : INodeWallet
     }
 
     /// <summary>
+    /// Generates a ring confidential transaction using the provided session.
     /// </summary>
-    /// <returns></returns>
+    /// <param name="session">The wallet session.</param>
+    /// <returns>A tuple containing the generated transaction and an error message, if any.</returns>
     private Tuple<Transaction, string> RingConfidentialTransaction(IWalletSession session)
     {
         using var secp256K1 = new Secp256k1();
@@ -313,18 +342,19 @@ public class NodeWallet : INodeWallet
     }
 
     /// <summary>
+    /// Generates ring members for a given wallet session.
     /// </summary>
-    /// <param name="session"></param>
-    /// <param name="blinds"></param>
-    /// <param name="sk"></param>
-    /// <param name="nRows"></param>
-    /// <param name="nCols"></param>
-    /// <param name="index"></param>
-    /// <param name="m"></param>
-    /// <param name="pcmIn"></param>
-    /// <param name="pkIn"></param>
-    /// <returns></returns>
-    /// <exception cref="Exception"></exception>
+    /// <param name="session">The wallet session</param>
+    /// <param name="blinds">The blinds span</param>
+    /// <param name="sk">The secret key span</param>
+    /// <param name="nRows">The number of rows</param>
+    /// <param name="nCols">The number of columns</param>
+    /// <param name="index">The index</param>
+    /// <param name="m">The message</param>
+    /// <param name="pcmIn">The commitment span</param>
+    /// <param name="pkIn">The public key span</param>
+    /// <returns>The generated ring members</returns>
+    /// <exception cref="Exception">Thrown when unable to create inner or outer ring members</exception>
     private unsafe byte[] RingMembers(ref IWalletSession session, Span<byte[]> blinds, Span<byte[]> sk, int nRows,
         int nCols, int index, byte[] m, Span<byte[]> pcmIn, Span<byte[]> pkIn)
     {
@@ -411,19 +441,20 @@ public class NodeWallet : INodeWallet
     }
 
     /// <summary>
+    /// Generates a transaction.
     /// </summary>
-    /// <param name="session"></param>
-    /// <param name="m"></param>
-    /// <param name="nCols"></param>
-    /// <param name="pcmOut"></param>
-    /// <param name="blinds"></param>
-    /// <param name="preimage"></param>
-    /// <param name="pc"></param>
-    /// <param name="ki"></param>
-    /// <param name="ss"></param>
-    /// <param name="bp"></param>
-    /// <param name="offsets"></param>
-    /// <returns></returns>
+    /// <param name="session">The wallet session.</param>
+    /// <param name="m">The preimage.</param>
+    /// <param name="nCols">The number of columns.</param>
+    /// <param name="pcmOut">The PCM out.</param>
+    /// <param name="blinds">The blinds.</param>
+    /// <param name="preimage">The preimage.</param>
+    /// <param name="pc">The PC.</param>
+    /// <param name="ki">The KI.</param>
+    /// <param name="ss">The SS.</param>
+    /// <param name="bp">The BP.</param>
+    /// <param name="offsets">The offsets.</param>
+    /// <returns>The generated transaction.</returns>
     private TaskResult<Transaction> GenerateTransaction(ref IWalletSession session, byte[] m, int nCols,
         Span<byte[]> pcmOut, Span<byte[]> blinds, byte[] preimage, byte[] pc, byte[] ki, byte[] ss, byte[] bp,
         byte[] offsets)
@@ -513,19 +544,20 @@ public class NodeWallet : INodeWallet
     }
 
     /// <summary>
-    /// 
+    /// Retrieves the first 6 bytes of the local node's public key.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>The first 6 bytes of the local node's public key.</returns>
     private byte[] ShortPublicKey()
     {
         return _systemCore.PeerDiscovery().GetLocalNode().PublicKey[..6];
     }
 
     /// <summary>
+    /// Calculates offsets based on the input commit and number of columns.
     /// </summary>
-    /// <param name="commitIn"></param>
-    /// <param name="nCols"></param>
-    /// <returns></returns>
+    /// <param name="commitIn">The commit input</param>
+    /// <param name="nCols">The number of columns</param>
+    /// <returns>The calculated offsets</returns>
     private static byte[] Offsets(Span<byte[]> commitIn, int nCols)
     {
         Guard.Argument(nCols, nameof(nCols)).NotNegative();
@@ -543,10 +575,11 @@ public class NodeWallet : INodeWallet
     }
 
     /// <summary>
+    /// Checks if the provided commitment is contained within the given list of commitments.
     /// </summary>
-    /// <param name="commitIn"></param>
-    /// <param name="commit"></param>
-    /// <returns></returns>
+    /// <param name="commitIn">The list of commitments to search.</param>
+    /// <param name="commit">The commitment to check for.</param>
+    /// <returns>True if the given commitment is found in the list; otherwise, false.</returns>
     private static bool ContainsCommitment(Span<byte[]> commitIn, byte[] commit)
     {
         Guard.Argument(commit, nameof(commit)).NotEmpty().NotEmpty().MaxCount(33);
@@ -561,11 +594,12 @@ public class NodeWallet : INodeWallet
     }
 
     /// <summary>
+    /// Generates and verifies BulletProof using the given parameters.
     /// </summary>
-    /// <param name="balance"></param>
-    /// <param name="blindSum"></param>
-    /// <param name="commitSum"></param>
-    /// <returns></returns>
+    /// <param name="balance">The balance value.</param>
+    /// <param name="blindSum">The blind sum value.</param>
+    /// <param name="commitSum">The commit sum value.</param>
+    /// <returns>A TaskResult object containing either the generated proof or an error message.</returns>
     private static TaskResult<ProofStruct> BulletProof(ulong balance, byte[] blindSum, byte[] commitSum)
     {
         Guard.Argument(balance, nameof(balance)).NotNegative();
@@ -596,9 +630,10 @@ public class NodeWallet : INodeWallet
     }
 
     /// <summary>
+    /// Generates a StealthPayment from the specified address.
     /// </summary>
-    /// <param name="address"></param>
-    /// <returns></returns>
+    /// <param name="address">The address to generate StealthPayment from.</param>
+    /// <returns>A tuple containing the public key and the generated StealthPayment.</returns>
     private (PubKey, StealthPayment) StealthPayment(string address)
     {
         Guard.Argument(address, nameof(address)).NotNull().NotEmpty().NotWhiteSpace();
@@ -610,10 +645,11 @@ public class NodeWallet : INodeWallet
     }
 
     /// <summary>
+    /// Deserializes the given encrypted message and returns the decrypted TransactionMessage.
     /// </summary>
-    /// <param name="output"></param>
-    /// <param name="scan"></param>
-    /// <returns></returns>
+    /// <param name="output">The output containing the encryption key (N) used for decryption.</param>
+    /// <param name="scan">The encrypted message to be decrypted.</param>
+    /// <returns>The decrypted TransactionMessage if the decryption is successful; otherwise, the default value of TransactionMessage.</returns>
     private static TransactionMessage Message(Output output, Key scan)
     {
         Guard.Argument(output, nameof(output)).NotNull();
@@ -632,12 +668,13 @@ public class NodeWallet : INodeWallet
     }
 
     /// <summary>
+    /// Creates a message using the given amount, paid amount, blind value, and memo.
     /// </summary>
-    /// <param name="amount"></param>
-    /// <param name="paid"></param>
-    /// <param name="blind"></param>
-    /// <param name="memo"></param>
-    /// <returns></returns>
+    /// <param name="amount">The amount of the transaction.</param>
+    /// <param name="paid">The amount paid.</param>
+    /// <param name="blind">The blind value of the transaction.</param>
+    /// <param name="memo">The memo for the transaction.</param>
+    /// <returns>A byte array representing the serialized transaction message.</returns>
     private static byte[] Message(ulong amount, ulong paid, byte[] blind, string memo)
     {
         Guard.Argument(amount, nameof(amount)).NotNegative();
@@ -655,10 +692,8 @@ public class NodeWallet : INodeWallet
     }
 
     /// <summary>
-    /// </summary>
-    /// <param name="output"></param>
-    /// <param name="scan"></param>
-    /// <returns></returns>
+    /// Calculates the amount from a scanned key and output. </summary> <param name="output">The output to process.</param> <param name="scan">The scanned key.</param> <returns>The amount extracted from the scanned key and output.</returns>
+    /// /
     private static ulong Amount(Output output, Key scan)
     {
         Guard.Argument(output, nameof(output)).NotNull();
@@ -677,9 +712,10 @@ public class NodeWallet : INodeWallet
     }
 
     /// <summary>
+    /// Scans the public key from the given Bitcoin Stealth Address.
     /// </summary>
-    /// <param name="address"></param>
-    /// <returns></returns>
+    /// <param name="address">The Bitcoin Stealth Address.</param>
+    /// <returns>The scanned public key.</returns>
     private PubKey ScanPublicKey(string address)
     {
         Guard.Argument(address, nameof(address)).NotNull().NotEmpty().NotWhiteSpace();

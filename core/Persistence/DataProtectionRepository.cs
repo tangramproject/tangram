@@ -13,6 +13,7 @@ using TangramXtgm.Models;
 namespace TangramXtgm.Persistence;
 
 /// <summary>
+/// Represents a repository for managing data protection information.
 /// </summary>
 public interface IDataProtectionRepository : IRepository<DataProtection>
 {
@@ -20,6 +21,7 @@ public interface IDataProtectionRepository : IRepository<DataProtection>
 }
 
 /// <summary>
+/// The DataProtectionRepository class is responsible for storing and retrieving DataProtection objects in a database.
 /// </summary>
 public class DataProtectionRepository : Repository<DataProtection>, IDataProtectionRepository
 {
@@ -28,9 +30,10 @@ public class DataProtectionRepository : Repository<DataProtection>, IDataProtect
     private readonly ReaderWriterLockSlim _sync = new();
 
     /// <summary>
+    /// Repository class for managing data protection.
     /// </summary>
-    /// <param name="storeDb"></param>
-    /// <param name="logger"></param>
+    /// <param name="storeDb">The StoreDb instance.</param>
+    /// <param name="logger">The ILogger instance.</param>
     public DataProtectionRepository(IStoreDb storeDb, ILogger logger)
         : base(storeDb, logger)
     {
@@ -40,10 +43,11 @@ public class DataProtectionRepository : Repository<DataProtection>, IDataProtect
     }
 
     /// <summary>
+    /// Stores data in the database with the specified key asynchronously.
     /// </summary>
-    /// <param name="key"></param>
-    /// <param name="data"></param>
-    /// <returns></returns>
+    /// <param name="key">The key used to store the data.</param>
+    /// <param name="data">The data to be stored.</param>
+    /// <returns>A task representing the asynchronous operation. The task result indicates whether the data was successfully stored.</returns>
     public new Task<bool> PutAsync(byte[] key, DataProtection data)
     {
         Guard.Argument(key, nameof(key)).NotNull().NotEmpty().MaxCount(32);

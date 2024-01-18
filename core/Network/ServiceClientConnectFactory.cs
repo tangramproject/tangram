@@ -8,7 +8,7 @@ namespace TangramXtgm.Network;
 using System.Net;
 
 /// <summary>
-/// 
+/// Represents a service client.
 /// </summary>
 public interface IServiceClient
 {
@@ -16,7 +16,7 @@ public interface IServiceClient
 }
 
 /// <summary>
-/// 
+/// Represents a factory for creating service client instances.
 /// </summary>
 public interface IServiceClientFactory
 {
@@ -24,7 +24,7 @@ public interface IServiceClientFactory
 }
 
 /// <summary>
-/// 
+/// Represents a client for accessing a service.
 /// </summary>
 public class ServiceClient : IServiceClient
 {
@@ -33,15 +33,15 @@ public class ServiceClient : IServiceClient
 }
 
 /// <summary>
-/// 
+/// Represents a factory for creating service client instances.
 /// </summary>
 public class ServiceClientConnectFactory : IServiceClientFactory
 {
     /// <summary>
-    /// 
+    /// Creates a service client with the specified service endpoint.
     /// </summary>
-    /// <param name="serviceEndPoint"></param>
-    /// <returns></returns>
+    /// <param name="serviceEndPoint">The service endpoint to connect to.</param>
+    /// <returns>A new instance of <see cref="IServiceClient"/> configured with the provided service endpoint.</returns>
     public IServiceClient CreateServiceClient(IPEndPoint serviceEndPoint)
     {
         var socket = NngFactorySingleton.Instance.Factory.RequesterOpen()

@@ -28,8 +28,8 @@ using Numerics = System.Numerics;
 
 namespace TangramXtgm.Ledger;
 
-/// <summary>
-/// </summary>
+/// Interface for validating various components of a blockchain system.
+/// /
 public interface IValidator
 {
     VerifyResult VerifyBlockGraphNodeRound(ref BlockGraph blockGraph);
@@ -59,7 +59,6 @@ public interface IValidator
     Task<VerifyResult> VerifyMerkleAsync(Block block);
     VerifyResult VerifyTransactionTime(Transaction transaction);
     byte[] NetworkKernel(byte[] prevHash, byte[] hash, ulong round);
-    Task<Block[]> ForkRuleAsync(Block[] xChain);
     VerifyResult VerifyMlsag(Transaction transaction);
     VerifyResult VerifyTransactionsWithNoDuplicateKeys(Transaction[] transactions);
     VerifyResult VerifyBlocksWithNoDuplicateHeights(IReadOnlyList<Block> blocks);
@@ -69,6 +68,7 @@ public interface IValidator
 }
 
 /// <summary>
+/// Validator class for verifying different aspects of a block.
 /// </summary>
 public class Validator : IValidator
 {
@@ -86,9 +86,10 @@ public class Validator : IValidator
     }
 
     /// <summary>
+    /// Verifies the hash of a block asynchronously.
     /// </summary>
-    /// <param name="block"></param>
-    /// <returns></returns>
+    /// <param name="block">The block to verify.</param>
+    /// <returns>The result of the verification. Returns VerifyResult.Succeed if the hash is verified, or VerifyResult.UnableToVerify if the verification is unsuccessful.</returns>
     public async Task<VerifyResult> VerifyBlockHashAsync(Block block)
     {
         Guard.Argument(block, nameof(block)).NotNull();
@@ -98,14 +99,15 @@ public class Validator : IValidator
         hasher.Update(prevBlock.Hash);
         hasher.Update(block.ToHash());
         var hash = hasher.Finalize();
-        var verifyHasher = hash.AsSpanUnsafe().ToArray().Xor(block.Hash);
+        var verifyHasher = hash.AsSpan().ToArray().Xor(block.Hash);
         return verifyHasher ? VerifyResult.Succeed : VerifyResult.UnableToVerify;
     }
 
     /// <summary>
+    /// Verifies the Merkle root of a given block asynchronously.
     /// </summary>
-    /// <param name="block"></param>
-    /// <returns></returns>
+    /// <param name="block">The block to verify.</param>
+    /// <returns>A Task of VerifyResult indicating the result of the verification.</returns>
     public async Task<VerifyResult> VerifyMerkleAsync(Block block)
     {
         Guard.Argument(block, nameof(block)).NotNull();
@@ -119,9 +121,10 @@ public class Validator : IValidator
     }
 
     /// <summary>
+    /// Verifies the round of a given block graph node.
     /// </summary>
-    /// <param name="blockGraph"></param>
-    /// <returns></returns>
+    /// <param name="blockGraph">The block graph to verify.</param>
+    /// <returns>The result of the verification.</returns>
     public VerifyResult VerifyBlockGraphNodeRound(ref BlockGraph blockGraph)
     {
         Guard.Argument(blockGraph, nameof(blockGraph)).NotNull();
@@ -164,11 +167,11 @@ public class Validator : IValidator
     }
 
     /// <summary>
-    /// 
+    /// Verifies the bulletproofs for the given vOutputs and bulletProofs.
     /// </summary>
-    /// <param name="vOutputs"></param>
-    /// <param name="bulletProofs"></param>
-    /// <returns></returns>
+    /// <param name="vOutputs">An array of vOutputs.</param>
+    /// <param name="bulletProofs">An array of bulletproofs.</param>
+    /// <returns>Returns a VerifyResult indicating the result of the verification.</returns>
     public VerifyResult VerifyBulletProof(Vout[] vOutputs, Bp[] bulletProofs)
     {
         Guard.Argument(vOutputs, nameof(vOutputs)).NotNull().NotEmpty();
@@ -195,10 +198,10 @@ public class Validator : IValidator
     }
 
     /// <summary>
-    /// 
+    /// Verifies the commitments of a given array of Vout objects.
     /// </summary>
-    /// <param name="vOutputs"></param>
-    /// <returns></returns>
+    /// <param name="vOutputs">The array of Vout objects to verify commitments.</param>
+    /// <returns>A VerifyResult indicating the result of the verification process.</returns>
     public VerifyResult VerifyCommit(Vout[] vOutputs)
     {
         Guard.Argument(vOutputs, nameof(vOutputs)).NotNull().NotEmpty();
@@ -283,10 +286,10 @@ public class Validator : IValidator
     }
 
     /// <summary>
-    /// 
+    /// Verifies the solution for a given BlockPoS object.
     /// </summary>
-    /// <param name="blockPoS"></param>
-    /// <returns></returns>
+    /// <param name="blockPoS">The BlockPoS object to verify the solution for.</param>
+    /// <returns>Returns VerifyResult.Succeed if the solution is verified, otherwise returns VerifyResult.UnableToVerify.</returns>
     public VerifyResult VerifySolution(BlockPoS blockPoS)
     {
         Guard.Argument(blockPoS, nameof(blockPoS)).NotNull();
@@ -313,9 +316,10 @@ public class Validator : IValidator
     }
 
     /// <summary>
+    /// Verifies an array of blocks asynchronously.
     /// </summary>
-    /// <param name="blocks"></param>
-    /// <returns></returns>
+    /// <param name="blocks">The array of blocks to verify.</param>
+    /// <returns>A task that represents the asynchronous verification operation. The task result contains the verification result.</returns>
     public async Task<VerifyResult> VerifyBlocksAsync(Block[] blocks)
     {
         Guard.Argument(blocks, nameof(blocks)).NotNull().NotEmpty();
@@ -330,9 +334,10 @@ public class Validator : IValidator
     }
 
     /// <summary>
+    /// Verifies the integrity of a block asynchronously.
     /// </summary>
-    /// <param name="block"></param>
-    /// <returns></returns>
+    /// <param name="block">The block to verify.</param>
+    /// <returns>The result of the verification.</returns>
     public async Task<VerifyResult> VerifyBlockAsync(Block block)
     {
         Guard.Argument(block, nameof(block)).NotNull();
@@ -404,10 +409,10 @@ public class Validator : IValidator
     }
 
     /// <summary>
-    /// 
+    /// Asynchronously calculates the kernel for a given block.
     /// </summary>
-    /// <param name="block"></param>
-    /// <returns></returns>
+    /// <param name="block">The block for which to calculate the kernel.</param>
+    /// <returns>The calculated kernel as a byte array, or null if the kernel calculation failed.</returns>
     private async Task<byte[]> KernelAsync(Block block)
     {
         Guard.Argument(block, nameof(block)).NotNull();
@@ -441,11 +446,11 @@ public class Validator : IValidator
     }
 
     /// <summary>
-    /// 
+    /// Verifies the node's coinbase transaction.
     /// </summary>
-    /// <param name="block"></param>
-    /// <param name="kernel"></param>
-    /// <returns></returns>
+    /// <param name="block">The block containing the coinbase transaction.</param>
+    /// <param name="kernel">The kernel to verify.</param>
+    /// <returns>The verification result.</returns>
     private async Task<VerifyResult> VerifyNodeCoinbaseAsync(Block block, byte[] kernel)
     {
         if (await VerifyCoinbaseTransactionAsync(block.Txs.First().Vout.First(), block.BlockPos.Solution,
@@ -486,9 +491,10 @@ public class Validator : IValidator
     }
 
     /// <summary>
+    /// Verifies a list of transactions asynchronously.
     /// </summary>
-    /// <param name="transactions"></param>
-    /// <returns></returns>
+    /// <param name="transactions">The list of transactions to be verified.</param>
+    /// <returns>A task that represents the asynchronous verification operation. The task result is a VerifyResult enum value.</returns>
     public async Task<VerifyResult> VerifyTransactionsAsync(IList<Transaction> transactions)
     {
         Guard.Argument(transactions, nameof(transactions)).NotNull().NotEmpty();
@@ -503,12 +509,12 @@ public class Validator : IValidator
     }
 
     /// <summary>
-    /// 
+    /// Verifies the Sloth function using the specified parameters.
     /// </summary>
-    /// <param name="t"></param>
-    /// <param name="message"></param>
-    /// <param name="nonce"></param>
-    /// <returns></returns>
+    /// <param name="t">The parameter t for the Sloth function.</param>
+    /// <param name="message">The message to be used in the Sloth function.</param>
+    /// <param name="nonce">The nonce to be used in the Sloth function.</param>
+    /// <returns>The result of the Sloth verification. Returns VerifyResult.Succeed if the Sloth function is successfully verified, or VerifyResult.UnableToVerify if the verification fails.</returns>
     public VerifyResult VerifySloth(uint t, byte[] message, byte[] nonce)
     {
         Guard.Argument(t, nameof(t)).NotNegative().NotZero();
@@ -533,10 +539,10 @@ public class Validator : IValidator
     }
 
     /// <summary>
-    /// 
+    /// Verifies the sloth function for a given block.
     /// </summary>
-    /// <param name="block"></param>
-    /// <returns></returns>
+    /// <param name="block">The block to verify.</param>
+    /// <returns>The verification result.</returns>
     public VerifyResult VerifySloth(Block block)
     {
         Guard.Argument(block, nameof(block)).NotNull();
@@ -561,9 +567,10 @@ public class Validator : IValidator
     }
 
     /// <summary>
+    /// Verifies a transaction asynchronously.
     /// </summary>
-    /// <param name="transaction"></param>
-    /// <returns></returns>
+    /// <param name="transaction">The transaction to verify.</param>
+    /// <returns>The result of the verification.</returns>
     public async Task<VerifyResult> VerifyTransactionAsync(Transaction transaction)
     {
         Guard.Argument(transaction, nameof(transaction)).NotNull();
@@ -590,9 +597,10 @@ public class Validator : IValidator
     }
 
     /// <summary>
-    /// 
+    /// Verifies transactions for duplicate keys.
     /// </summary>
-    /// <param name="transactions"></param>
+    /// <param name="transactions">The array of transactions to be verified.</param>
+    /// <returns>The result of the verification.</returns>
     public VerifyResult VerifyTransactionsWithNoDuplicateKeys(Transaction[] transactions)
     {
         Guard.Argument(transactions, nameof(transactions)).NotNull().NotEmpty();
@@ -686,10 +694,10 @@ public class Validator : IValidator
     }
 
     /// <summary>
-    /// 
+    /// Verifies the MLSAG (Multilayer Linkable Spontaneous Anonymous Group) transaction.
     /// </summary>
-    /// <param name="transaction"></param>
-    /// <returns></returns>
+    /// <param name="transaction">The transaction to be verified.</param>
+    /// <returns>Returns the result of the verification.</returns>
     public VerifyResult VerifyMlsag(Transaction transaction)
     {
         Guard.Argument(transaction, nameof(transaction)).NotNull();
@@ -716,9 +724,10 @@ public class Validator : IValidator
     }
 
     /// <summary>
+    /// Verifies the transaction time.
     /// </summary>
-    /// <param name="transaction"></param>
-    /// <returns></returns>
+    /// <param name="transaction">The transaction object to verify.</param>
+    /// <returns>Returns a VerifyResult indicating the result of the verification.</returns>
     public VerifyResult VerifyTransactionTime(Transaction transaction)
     {
         Guard.Argument(transaction, nameof(transaction)).NotNull();
@@ -768,13 +777,15 @@ public class Validator : IValidator
     }
 
     /// <summary>
+    /// Verifies a coinbase transaction asynchronously.
     /// </summary>
-    /// <param name="coinbase"></param>
-    /// <param name="solution"></param>
-    /// <param name="height"></param>
-    /// <param name="lockTime"></param>
-    /// <returns></returns>
-    public async Task<VerifyResult> VerifyCoinbaseTransactionAsync(Vout coinbase, ulong solution, ulong height, long lockTime)
+    /// <param name="coinbase">The coinbase transaction to verify.</param>
+    /// <param name="solution">The solution for the coinbase transaction.</param>
+    /// <param name="height">The height of the block that contains the coinbase transaction.</param>
+    /// <param name="lockTime">The lock time of the block that contains the coinbase transaction.</param>
+    /// <returns>A <see cref="VerifyResult"/> indicating the result of the verification.</returns>
+    public async Task<VerifyResult> VerifyCoinbaseTransactionAsync(Vout coinbase, ulong solution, ulong height,
+        long lockTime)
     {
         Guard.Argument(coinbase, nameof(coinbase)).NotNull();
         Guard.Argument(lockTime, nameof(lockTime)).NotNegative().NotZero();
@@ -793,12 +804,12 @@ public class Validator : IValidator
     }
 
     /// <summary>
-    /// 
+    /// Verifies a system coinbase transaction.
     /// </summary>
-    /// <param name="tx"></param>
-    /// <param name="publicKey"></param>
-    /// <param name="height"></param>
-    /// <returns></returns>
+    /// <param name="tx">The transaction to verify.</param>
+    /// <param name="publicKey">The public key.</param>
+    /// <param name="height">The block height.</param>
+    /// <returns>The result of the verification.</returns>
     public VerifyResult VerifySystemCoinbase(Transaction tx, byte[] publicKey, ulong height)
     {
         if (tx.Mix != 22) return VerifyResult.UnableToVerify;
@@ -847,10 +858,11 @@ public class Validator : IValidator
     }
 
     /// <summary>
+    /// Verifies the lock time of a transaction.
     /// </summary>
-    /// <param name="target"></param>
-    /// <param name="script"></param>
-    /// <returns></returns>
+    /// <param name="target">The lock time target value.</param>
+    /// <param name="script">The script of the transaction.</param>
+    /// <returns>The result of the lock time verification.</returns>
     public VerifyResult VerifyLockTime(LockTime target, byte[] script)
     {
         Guard.Argument(target, nameof(target)).NotDefault();
@@ -871,9 +883,12 @@ public class Validator : IValidator
     }
 
     /// <summary>
-    /// 
+    /// Retrieves the previous block with adjusted time.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>
+    /// A <see cref="Block"/> object representing the previous block if the adjusted time is greater than the locktime of the previous block;
+    /// otherwise, returns null.
+    /// </returns>
     public async Task<Block> PreviousBlockAdjustedTimeAsync()
     {
         if (await _systemCore.Graph().GetPreviousBlockAsync() is not { } prevBlock) return null;
@@ -884,9 +899,10 @@ public class Validator : IValidator
     }
 
     /// <summary>
+    /// Verifies that the key image in a transaction is not reused.
     /// </summary>
-    /// <param name="transaction"></param>
-    /// <returns></returns>
+    /// <param name="transaction">The transaction to verify.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result contains the verification result.</returns>
     public async Task<VerifyResult> VerifyKeyImageNotReusedAsync(Transaction transaction)
     {
         Guard.Argument(transaction, nameof(transaction)).NotNull();
@@ -901,10 +917,10 @@ public class Validator : IValidator
     }
 
     /// <summary>
-    /// 
+    /// Verifies that the given key image is not reused.
     /// </summary>
-    /// <param name="image"></param>
-    /// <returns></returns>
+    /// <param name="image">The image of the key to be verified.</param>
+    /// <returns>The result of the verification operation.</returns>
     public async Task<VerifyResult> VerifyKeyImageNotReusedAsync(byte[] image)
     {
         Guard.Argument(image, nameof(image)).NotNull().NotEmpty().MaxCount(33);
@@ -917,10 +933,10 @@ public class Validator : IValidator
     }
 
     /// <summary>
-    /// 
+    /// Verifies that the given transaction's one-time key is not reused.
     /// </summary>
-    /// <param name="transaction"></param>
-    /// <returns></returns>
+    /// <param name="transaction">The transaction to verify</param>
+    /// <returns>The result of the verification</returns>
     public async Task<VerifyResult> VerifyOnetimeKeyNotReusedAsync(Transaction transaction)
     {
         Guard.Argument(transaction, nameof(transaction)).NotNull();
@@ -935,10 +951,10 @@ public class Validator : IValidator
     }
 
     /// <summary>
-    /// 
+    /// Verify that the provided one-time key has not been reused.
     /// </summary>
-    /// <param name="onetimeKey"></param>
-    /// <returns></returns>
+    /// <param name="onetimeKey">The one-time key to be verified.</param>
+    /// <returns>Returns the verification result.</returns>
     private async Task<VerifyResult> VerifyOnetimeKeyNotReusedAsync(byte[] onetimeKey)
     {
         Guard.Argument(onetimeKey, nameof(onetimeKey)).NotNull().NotEmpty().MaxCount(33);
@@ -951,9 +967,10 @@ public class Validator : IValidator
     }
 
     /// <summary>
+    /// Verifies the commitment outputs of a transaction.
     /// </summary>
-    /// <param name="transaction"></param>
-    /// <returns></returns>
+    /// <param name="transaction">The transaction to verify.</param>
+    /// <returns>The result of the verification.</returns>
     public async Task<VerifyResult> VerifyCommitmentOutputsAsync(Transaction transaction)
     {
         Guard.Argument(transaction, nameof(transaction)).NotNull();
@@ -984,9 +1001,9 @@ public class Validator : IValidator
     }
 
     /// <summary>
-    /// 
+    /// Calculates the running distribution total.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>The running distribution total.</returns>
     public async Task<decimal> RunningDistributionAsync()
     {
         try
@@ -1016,10 +1033,11 @@ public class Validator : IValidator
     }
 
     /// <summary>
+    /// Calculates the network share based on the provided solution and height.
     /// </summary>
-    /// <param name="solution"></param>
-    /// <param name="height"></param>
-    /// <returns></returns>
+    /// <param name="solution">The number of solutions.</param>
+    /// <param name="height">The height of the network.</param>
+    /// <returns>The calculated network share.</returns>
     public decimal NetworkShare(ulong solution, ulong height)
     {
         Guard.Argument(solution, nameof(solution)).NotNegative().NotZero();
@@ -1028,12 +1046,13 @@ public class Validator : IValidator
     }
 
     /// <summary>
+    /// Verifies the network share for a given solution.
     /// </summary>
-    /// <param name="solution"></param>
-    /// <param name="previousNetworkShare"></param>
-    /// <param name="runningDistributionTotal"></param>
-    /// <param name="height"></param>
-    /// <returns></returns>
+    /// <param name="solution">The solution to verify.</param>
+    /// <param name="previousNetworkShare">The previous network share.</param>
+    /// <param name="runningDistributionTotal">The total running distribution.</param>
+    /// <param name="height">The height of the solution.</param>
+    /// <returns>The result of the verification.</returns>
     public VerifyResult VerifyNetworkShare(ulong solution, decimal previousNetworkShare,
         decimal runningDistributionTotal, ulong height)
     {
@@ -1048,10 +1067,11 @@ public class Validator : IValidator
     }
 
     /// <summary>
+    /// Calculates the number of bits required for a given solution and network share.
     /// </summary>
-    /// <param name="solution"></param>
-    /// <param name="networkShare"></param>
-    /// <returns></returns>
+    /// <param name="solution">The solution value.</param>
+    /// <param name="networkShare">The network share value.</param>
+    /// <returns>The number of bits.</returns>
     public uint Bits(ulong solution, decimal networkShare)
     {
         Guard.Argument(solution, nameof(solution)).NotZero();
@@ -1062,10 +1082,11 @@ public class Validator : IValidator
     }
 
     /// <summary>
+    /// Verifies a kernel using a signature and a kernel.
     /// </summary>
-    /// <param name="sig"></param>
-    /// <param name="kernel"></param>
-    /// <returns></returns>
+    /// <param name="sig">The signature to verify</param>
+    /// <param name="kernel">The kernel to verify</param>
+    /// <returns>The result of the verification</returns>
     public VerifyResult VerifyKernel(byte[] sig, byte[] kernel)
     {
         Guard.Argument(sig, nameof(sig)).NotNull().MaxCount(96);
@@ -1076,10 +1097,11 @@ public class Validator : IValidator
     }
 
     /// <summary>
+    /// Calculates the current running distribution of a given solution and height.
     /// </summary>
-    /// <param name="solution"></param>
-    /// <param name="height"></param>
-    /// <returns></returns>
+    /// <param name="solution">The solution value.</param>
+    /// <param name="height">The height value.</param>
+    /// <returns>The calculated current running distribution.</returns>
     public async Task<decimal> CurrentRunningDistributionAsync(ulong solution, ulong height)
     {
         Guard.Argument(solution, nameof(solution)).NotNegative().NotZero();
@@ -1093,11 +1115,12 @@ public class Validator : IValidator
     }
 
     /// <summary>
+    /// Calculates the network/kernel value based on the previous hash, current hash, and round number.
     /// </summary>
-    /// <param name="prevHash"></param>
-    /// <param name="hash"></param>
-    /// <param name="round"></param>
-    /// <returns></returns>
+    /// <param name="prevHash">The previous hash as a byte array. Must not be null and must have a maximum length of 32 bytes.</param>
+    /// <param name="hash">The current hash as a byte array. Must not be null and must have a maximum length of 32 bytes.</param>
+    /// <param name="round">The current round number as an unsigned long.</param>
+    /// <returns>The calculated network/kernel value as a byte array. Returns null in case of an error.</returns>
     public byte[] NetworkKernel(byte[] prevHash, byte[] hash, ulong round)
     {
         Guard.Argument(prevHash, nameof(prevHash)).NotNull().MaxCount(32);
@@ -1119,11 +1142,11 @@ public class Validator : IValidator
     }
 
     /// <summary>
-    /// 
+    /// Computes the node kernel for a given VRF output and round.
     /// </summary>
-    /// <param name="vrfOutput"></param>
-    /// <param name="round"></param>
-    /// <returns></returns>
+    /// <param name="vrfOutput">The VRF output as a byte array. Must not be null and its length should be 32 bytes or less.</param>
+    /// <param name="round">The round as an unsigned long.</param>
+    /// <returns>The computed node kernel as a byte array, or null if an error occurs.</returns>
     public async Task<byte[]> NodeKernelAsync(byte[] vrfOutput, ulong round)
     {
         Guard.Argument(vrfOutput, nameof(vrfOutput)).NotNull().MaxCount(32);
@@ -1145,41 +1168,10 @@ public class Validator : IValidator
     }
 
     /// <summary>
+    /// Verifies if the given list of blocks contains no duplicate heights.
     /// </summary>
-    /// <param name="otherChain"></param>
-    /// <returns></returns>
-    public async Task<Block[]> ForkRuleAsync(Block[] otherChain)
-    {
-        Guard.Argument(otherChain, nameof(otherChain)).NotNull().NotEmpty();
-        try
-        {
-            var unitOfWork = _systemCore.UnitOfWork();
-            var mainChain = (await unitOfWork.HashChainRepository.WhereAsync(x =>
-                new ValueTask<bool>(x.Height >= otherChain.Min(o => o.Height)))).OrderBy(x => x.Height).ToArray();
-            var newChain = otherChain.OrderBy(x => x.Height).Take(mainChain.Length).ToArray();
-            var mainChainTime = mainChain.Sum(main => Helper.Util.UnixTimeToDateTime(main.BlockHeader.Locktime).Ticks);
-            var newChainTime = newChain.Sum(other => Helper.Util.UnixTimeToDateTime(other.BlockHeader.Locktime).Ticks);
-            if (mainChainTime >= newChainTime)
-            {
-                if (mainChain.Length != newChain.Length) return Array.Empty<Block>();
-            }
-
-            foreach (var block in mainChain) unitOfWork.HashChainRepository.Delete(block.Hash, block.BlockHeader.PrevBlockHash);
-            return otherChain;
-        }
-        catch (Exception ex)
-        {
-            _logger.Here().Fatal(ex, "Error while processing fork rule");
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="blocks"></param>
-    /// <returns></returns>
+    /// <param name="blocks">The list of blocks to be verified.</param>
+    /// <returns>A VerifyResult indicating the result of the verification.</returns>
     public VerifyResult VerifyBlocksWithNoDuplicateHeights(IReadOnlyList<Block> blocks)
     {
         Guard.Argument(blocks, nameof(blocks)).NotNull().NotEmpty();
@@ -1195,13 +1187,14 @@ public class Validator : IValidator
     }
 
     /// <summary>
+    /// Generates an MLSAG (Multilayered Linkable Spontaneous Anonymous Group) signature.
     /// </summary>
-    /// <param name="m"></param>
-    /// <param name="outputs"></param>
-    /// <param name="keyOffset"></param>
-    /// <param name="cols"></param>
-    /// <param name="rows"></param>
-    /// <returns></returns>
+    /// <param name="m">The message to be signed.</param>
+    /// <param name="outputs">The list of Vout objects representing the transaction outputs.</param>
+    /// <param name="keyOffset">The key offset used in the signature generation process.</param>
+    /// <param name="cols">The number of columns in pcmOut and pcmIn matrices.</param>
+    /// <param name="rows">The number of rows in pcmOut and pcmIn matrices.</param>
+    /// <returns>The generated MLSAG signature as a byte array.</returns>
     private byte[] GenerateMlSag(byte[] m, Vout[] outputs, byte[] keyOffset, int cols, int rows)
     {
         Guard.Argument(m, nameof(m)).NotNull().NotEmpty();
@@ -1222,14 +1215,14 @@ public class Validator : IValidator
     }
 
     /// <summary>
-    /// 
+    /// Generates a membership proof given the previous Merkel root, transaction stream, index, and transactions.
     /// </summary>
-    /// <param name="prevMerkelRoot"></param>
-    /// <param name="txStream"></param>
-    /// <param name="index"></param>
-    /// <param name="transactions"></param>
-    /// <returns></returns>
-    /// <exception cref="ArithmeticException"></exception>
+    /// <param name="prevMerkelRoot">The previous Merkel root, as a byte array.</param>
+    /// <param name="txStream">The transaction stream, as a byte array.</param>
+    /// <param name="index">The index of the transaction being validated.</param>
+    /// <param name="transactions">The array of transactions to be validated.</param>
+    /// <returns>The membership proof, as a byte array.</returns>
+    /// <exception cref="ArithmeticException">Thrown if unable to validate the transaction.</exception>
     public byte[] MembershipProof(byte[] prevMerkelRoot, byte[] txStream, int index, Transaction[] transactions)
     {
         Guard.Argument(prevMerkelRoot, nameof(prevMerkelRoot)).NotNull().MaxCount(32);

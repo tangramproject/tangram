@@ -3,6 +3,9 @@
 
 namespace TangramXtgm.Network;
 
+/// <summary>
+/// Represents the possible states of a peer.
+/// </summary>
 public enum PeerState : byte
 {
     Alive = 0x00,

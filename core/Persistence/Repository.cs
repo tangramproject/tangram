@@ -17,8 +17,9 @@ using TangramXtgm.Helper;
 namespace TangramXtgm.Persistence;
 
 /// <summary>
+/// Represents a generic repository interface for data access.
 /// </summary>
-/// <typeparam name="T"></typeparam>
+/// <typeparam name="T">The type of data stored in the repository.</typeparam>
 public interface IRepository<T>
 {
     Task<long> CountAsync();
@@ -42,8 +43,9 @@ public interface IRepository<T>
 }
 
 /// <summary>
+/// Generic repository class for CRUD operations on a database table
 /// </summary>
-/// <typeparam name="T"></typeparam>
+/// <typeparam name="T">The type of objects stored in the repository</typeparam>
 public class Repository<T> : IRepository<T> where T : class, new()
 {
     private readonly ILogger _logger;
@@ -53,10 +55,11 @@ public class Repository<T> : IRepository<T> where T : class, new()
 
     private string _tableName;
     private byte[] _tableNameBytes;
+
     /// <summary>
+    /// Repository class for accessing data from the store database.
     /// </summary>
-    /// <param name="storeDb"></param>
-    /// <param name="logger"></param>
+    /// <typeparam name="T">The type of data stored in the database.</typeparam>
     protected Repository(IStoreDb storeDb, ILogger logger)
     {
         _storeDb = storeDb;
@@ -69,9 +72,12 @@ public class Repository<T> : IRepository<T> where T : class, new()
     }
 
     /// <summary>
-    /// 
+    /// Retrieves the current block height asynchronously.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>
+    /// A <see cref="Task{TResult}"/> representing the asynchronous operation.
+    /// The task result contains the current block height.
+    /// </returns>
     public async Task<long> GetBlockHeightAsync()
     {
         var height = await CountAsync() - 1;
@@ -80,8 +86,9 @@ public class Repository<T> : IRepository<T> where T : class, new()
     }
 
     /// <summary>
+    /// Retrieves the count of records in the database asynchronously.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation. The task result contains the count of records.</returns>
     public Task<long> CountAsync()
     {
         long count = 0;
@@ -112,9 +119,10 @@ public class Repository<T> : IRepository<T> where T : class, new()
     }
 
     /// <summary>
+    /// Retrieves an object of type T asynchronously from the database using the specified key.
     /// </summary>
-    /// <param name="key"></param>
-    /// <returns></returns>
+    /// <param name="key">The key used to retrieve the object from the database.</param>
+    /// <returns>An object of type T if found; otherwise, null.</returns>
     public async Task<T> GetAsync(byte[] key)
     {
         Guard.Argument(key, nameof(key)).NotNull().NotEmpty();
@@ -141,9 +149,10 @@ public class Repository<T> : IRepository<T> where T : class, new()
     }
 
     /// <summary>
+    /// Asynchronously retrieves the first element that satisfies the provided condition.
     /// </summary>
-    /// <param name="expression"></param>
-    /// <returns></returns>
+    /// <param name="expression">A function that determines whether an element meets the condition.</param>
+    /// <returns>The first element that satisfies the provided condition, or null if no such element is found or an error occurs while reading the database.</returns>
     public async Task<T> GetAsync(Func<T, ValueTask<bool>> expression)
     {
         Guard.Argument(expression, nameof(expression)).NotNull();
@@ -168,9 +177,10 @@ public class Repository<T> : IRepository<T> where T : class, new()
     }
 
     /// <summary>
+    /// Deletes a record from the database using the specified key.
     /// </summary>
-    /// <param name="key"></param>
-    /// <returns></returns>
+    /// <param name="key">The key of the record to delete.</param>
+    /// <returns>True if the record is successfully deleted; otherwise, false.</returns>
     public bool Delete(byte[] key)
     {
         Guard.Argument(key, nameof(key)).NotNull().NotEmpty();
@@ -192,8 +202,10 @@ public class Repository<T> : IRepository<T> where T : class, new()
     }
 
     /// <summary>
+    /// Retrieves and returns the first element from the database.
     /// </summary>
-    /// <returns></returns>
+    /// <typeparam name="T">The type of the element to retrieve.</typeparam>
+    /// <returns>The first element from the database, or null if no elements are found.</returns>
     public async Task<T> FirstAsync()
     {
         try
@@ -220,10 +232,13 @@ public class Repository<T> : IRepository<T> where T : class, new()
     }
 
     /// <summary>
+    /// Stores the specified data using the provided key asynchronously.
     /// </summary>
-    /// <param name="key"></param>
-    /// <param name="data"></param>
-    /// <returns></returns>
+    /// <typeparam name="T">The type of data to store.</typeparam>
+    /// <param name="key">The key to use for storing the data.</param>
+    /// <param name="data">The data to store.</param>
+    /// <returns>A task that represents the asynchronous operation.
+    /// The task result contains a boolean value indicating whether the data was stored successfully.</returns>
     public Task<bool> PutAsync(byte[] key, T data)
     {
         Guard.Argument(key, nameof(key)).NotNull().NotEmpty();
@@ -247,8 +262,9 @@ public class Repository<T> : IRepository<T> where T : class, new()
     }
 
     /// <summary>
+    /// Sets the name of the table.
     /// </summary>
-    /// <param name="tableName"></param>
+    /// <param name="tableName">The name of the table.</param>
     public void SetTableName(string tableName)
     {
         Guard.Argument(tableName, nameof(tableName)).NotNull().NotEmpty().NotWhiteSpace();
@@ -260,8 +276,9 @@ public class Repository<T> : IRepository<T> where T : class, new()
     }
 
     /// <summary>
+    /// Retrieves the name of the table as a string.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>The name of the table.</returns>
     public string GetTableNameAsString()
     {
         using (_sync.Read())
@@ -271,9 +288,9 @@ public class Repository<T> : IRepository<T> where T : class, new()
     }
 
     /// <summary>
-    /// 
+    /// Gets the table name as a byte array.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>The table name as a byte array.</returns>
     public byte[] GetTableNameAsBytes()
     {
         using (_sync.Read())
@@ -283,10 +300,11 @@ public class Repository<T> : IRepository<T> where T : class, new()
     }
 
     /// <summary>
+    /// Retrieves a range of items asynchronously from the database.
     /// </summary>
-    /// <param name="skip"></param>
-    /// <param name="take"></param>
-    /// <returns></returns>
+    /// <param name="skip">The number of items to skip before starting to retrieve items.</param>
+    /// <param name="take">The maximum number of items to retrieve.</param>
+    /// <returns>An asynchronous task that returns a list of items.</returns>
     public async Task<IList<T>> RangeAsync(long skip, int take)
     {
         Guard.Argument(skip, nameof(skip)).Negative();
@@ -322,8 +340,10 @@ public class Repository<T> : IRepository<T> where T : class, new()
     }
 
     /// <summary>
+    /// Retrieves the last entry in the database asynchronously.
     /// </summary>
-    /// <returns></returns>
+    /// <typeparam name="T">The type of the entry.</typeparam>
+    /// <returns>The last entry in the database as an instance of <typeparamref name="T"/> if it exists; otherwise, <see langword="null"/>.</returns>
     public async Task<T> LastAsync()
     {
         try
@@ -350,9 +370,10 @@ public class Repository<T> : IRepository<T> where T : class, new()
     }
 
     /// <summary>
+    /// Filters the elements of the collection asynchronously based on a specified condition.
     /// </summary>
-    /// <param name="expression"></param>
-    /// <returns></returns>
+    /// <param name="expression">The expression to test each element against.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result contains a list of elements from the collection that satisfy the specified condition.</returns>
     public ValueTask<List<T>> WhereAsync(Func<T, ValueTask<bool>> expression)
     {
         Guard.Argument(expression, nameof(expression)).NotNull();
@@ -373,9 +394,10 @@ public class Repository<T> : IRepository<T> where T : class, new()
     }
 
     /// <summary>
+    /// Selects items from the database asynchronously based on the specified selector function.
     /// </summary>
-    /// <param name="selector"></param>
-    /// <returns></returns>
+    /// <param name="selector">A function that specifies the transformation to be applied to each item.</param>
+    /// <returns>A <see cref="ValueTask{TResult}"/> representing the asynchronous operation that returns a list of selected items.</returns>
     public ValueTask<List<T>> SelectAsync(Func<T, ValueTask<T>> selector)
     {
         Guard.Argument(selector, nameof(selector)).NotNull();
@@ -396,9 +418,10 @@ public class Repository<T> : IRepository<T> where T : class, new()
     }
 
     /// <summary>
+    /// Skips a specified number of elements from the beginning of the collection asynchronously.
     /// </summary>
-    /// <param name="skip"></param>
-    /// <returns></returns>
+    /// <param name="skip">The number of elements to skip.</param>
+    /// <returns>A <see cref="ValueTask{TResult}"/> that represents the asynchronous operation. The task result contains a list of elements.</returns>
     public ValueTask<List<T>> SkipAsync(int skip)
     {
         Guard.Argument(skip, nameof(skip)).NotNegative();
@@ -419,9 +442,10 @@ public class Repository<T> : IRepository<T> where T : class, new()
     }
 
     /// <summary>
+    /// Takes a specified number of items asynchronously.
     /// </summary>
-    /// <param name="take"></param>
-    /// <returns></returns>
+    /// <param name="take">The number of items to take.</param>
+    /// <returns>A <see cref="ValueTask{List{T}}"/> representing the asynchronous operation of taking the items.</returns>
     public ValueTask<List<T>> TakeAsync(int take)
     {
         Guard.Argument(take, nameof(take)).NotNegative();
@@ -442,9 +466,11 @@ public class Repository<T> : IRepository<T> where T : class, new()
     }
 
     /// <summary>
+    /// Retrieves a specified number of items asynchronously from the database.
     /// </summary>
-    /// <param name="take"></param>
-    /// <returns></returns>
+    /// <typeparam name="T">The type of items to retrieve</typeparam>
+    /// <param name="take">The number of items to retrieve</param>
+    /// <returns>A task representing the asynchronous operation. The task result contains a list of retrieved items.</returns>
     public async Task<IList<T>> TakeLongAsync(ulong take)
     {
         Guard.Argument(take, nameof(take)).NotNegative();
@@ -475,8 +501,10 @@ public class Repository<T> : IRepository<T> where T : class, new()
     }
 
     /// <summary>
+    /// Asynchronously iterates through the database entries and returns them one by one.
     /// </summary>
-    /// <returns></returns>
+    /// <typeparam name="T">The type of the entries.</typeparam>
+    /// <returns>An asynchronous enumerable of entries of type T.</returns>
 #pragma warning disable 1998
     public async IAsyncEnumerable<T> IterateAsync()
 #pragma warning restore 1998

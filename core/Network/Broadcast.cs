@@ -15,7 +15,7 @@ using TangramXtgm.Models.Messages;
 namespace TangramXtgm.Network;
 
 /// <summary>
-/// 
+/// Represents a broadcast service for sending messages using topics.
 /// </summary>
 public interface IBroadcast
 {
@@ -26,6 +26,7 @@ public interface IBroadcast
 }
 
 /// <summary>
+/// Represents a class that broadcasts messages to all members of a system.
 /// </summary>
 public class Broadcast : ReceivedActor<(TopicType, byte[])>, IBroadcast
 {
@@ -33,9 +34,10 @@ public class Broadcast : ReceivedActor<(TopicType, byte[])>, IBroadcast
     private readonly ILogger _logger;
 
     /// <summary>
+    /// Represents a broadcast block that sends messages to multiple targets.
     /// </summary>
-    /// <param name="systemCore"></param>
-    /// <param name="logger"></param>
+    /// <param name="systemCore">The system core instance.</param>
+    /// <param name="logger">The logger instance.</param>
     public Broadcast(ISystemCore systemCore, ILogger logger) : base(
         new ExecutionDataflowBlockOptions { BoundedCapacity = 100, MaxDegreeOfParallelism = 2, EnsureOrdered = true })
     {
@@ -44,17 +46,20 @@ public class Broadcast : ReceivedActor<(TopicType, byte[])>, IBroadcast
     }
 
     /// <summary>
+    /// Makes a POST request to the specified endpoint.
     /// </summary>
-    /// <param name="values"></param>
+    /// <param name="values">The tuple consisting of the topic type and byte array values to be sent in the body of the request.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     public new async Task PostAsync((TopicType, byte[]) values)
     {
         await base.PostAsync(values);
     }
 
     /// <summary>
-    /// 
+    /// Method for processing received messages asynchronously.
     /// </summary>
-    /// <param name="message"></param>
+    /// <param name="message">The received message, which is a tuple containing the topic type and the message data.</param>
+    /// <returns>A Task representing the asynchronous operation.</returns>
     protected override async Task OnReceiveAsync((TopicType, byte[]) message)
     {
         try

@@ -16,6 +16,7 @@ using TangramXtgm.Models;
 namespace TangramXtgm.Persistence;
 
 /// <summary>
+/// Represents a repository for managing a hash chain of blocks.
 /// </summary>
 public interface IHashChainRepository : IRepository<Block>
 {
@@ -27,6 +28,9 @@ public interface IHashChainRepository : IRepository<Block>
 }
 
 /// <summary>
+/// Represents a repository for storing and retrieving blocks in a hash chain.
+/// Implements the IRepository interface for general repository functionality.
+/// Implements the IHashChainRepository interface for specific hash chain repository functionality.
 /// </summary>
 public class HashChainRepository : Repository<Block>, IHashChainRepository
 {
@@ -35,9 +39,10 @@ public class HashChainRepository : Repository<Block>, IHashChainRepository
     private readonly ReaderWriterLockSlim _sync = new();
 
     /// <summary>
+    /// Represents a repository for managing hash chain data using a database.
     /// </summary>
-    /// <param name="storeDb"></param>
-    /// <param name="logger"></param>
+    /// <param name="storeDb">The database reference.</param>
+    /// <param name="logger">The logger for logging events.</param>
     public HashChainRepository(IStoreDb storeDb, ILogger logger)
         : base(storeDb, logger)
     {
@@ -54,20 +59,30 @@ public class HashChainRepository : Repository<Block>, IHashChainRepository
     }
 
     /// <summary>
-    /// 
+    /// The height property represents the height of an object.
     /// </summary>
+    /// <value>
+    /// An unsigned long integer representing the height of the object.
+    /// </value>
+    /// <remarks>
+    /// This property has a private set that allows setting the height value only within the class it is defined.
+    /// </remarks>
     public ulong Height { get; private set; }
 
     /// <summary>
-    /// 
+    /// Gets the current count value.
     /// </summary>
+    /// <value>
+    /// The current count value.
+    /// </value>
     public ulong Count { get; private set; }
 
     /// <summary>
+    /// Stores a Block with the specified key in the database asynchronously.
     /// </summary>
-    /// <param name="key"></param>
-    /// <param name="data"></param>
-    /// <returns></returns>
+    /// <param name="key">The key to associate with the Block.</param>
+    /// <param name="data">The Block to store in the database.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result contains a value indicating whether the Block was successfully stored in the database (true) or not (false).</returns>
     public new Task<bool> PutAsync(byte[] key, Block data)
     {
         Guard.Argument(key, nameof(key)).NotNull().NotEmpty().MaxCount(64);
@@ -94,11 +109,11 @@ public class HashChainRepository : Repository<Block>, IHashChainRepository
     }
 
     /// <summary>
-    /// 
+    /// Deletes a key-value pair from the database.
     /// </summary>
-    /// <param name="key"></param>
-    /// <param name="hash"></param>
-    /// <returns></returns>
+    /// <param name="key">The key of the data to delete.</param>
+    /// <param name="hash">The hash of the data to delete.</param>
+    /// <returns>True if the deletion is successful, false otherwise.</returns>
     public new bool Delete(byte[] key, byte[] hash)
     {
         Guard.Argument(key, nameof(key)).NotNull().NotEmpty().MaxCount(64);
@@ -123,11 +138,12 @@ public class HashChainRepository : Repository<Block>, IHashChainRepository
     }
 
     /// <summary>
+    /// Orders the blocks in the database by a specified range.
     /// </summary>
-    /// <param name="selector"></param>
-    /// <param name="skip"></param>
-    /// <param name="take"></param>
-    /// <returns></returns>
+    /// <param name="selector">A function to extract a key from each block.</param>
+    /// <param name="skip">The number of blocks to skip from the beginning of the ordered sequence.</param>
+    /// <param name="take">The number of blocks to return in the ordered sequence.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result contains the ordered list of blocks.</returns>
     public ValueTask<List<Block>> OrderByRangeAsync(Func<Block, ulong> selector, int skip, int take)
     {
         Guard.Argument(selector, nameof(selector)).NotNull();

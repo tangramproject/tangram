@@ -18,7 +18,7 @@ using TangramXtgm.Network.Mesh;
 namespace TangramXtgm.Network;
 
 /// <summary>
-/// 
+/// Represents a gossip member store.
 /// </summary>
 public interface IGossipMemberStore
 {
@@ -27,13 +27,25 @@ public interface IGossipMemberStore
     T GetServiceClient<T>(IPEndPoint serviceEndPoint) where T : IServiceClient;
     Task<T> SendAsync<T>(IPEndPoint serviceEndPoint, ReadOnlyMemory<byte> publicKey, ReadOnlyMemory<byte> value, int timeMs = 0, bool deserialize = true);
     Task SendAllAsync(ReadOnlyMemory<byte> msg);
+    Task SendSelectedAsync(ReadOnlyMemory<byte> msg, Peer[] peers);
 }
 
-public class EmptyMessage { }
-public class Ping { }
+/// <summary>
+/// Represents an empty message.
+/// </summary>
+public class EmptyMessage
+{
+}
 
 /// <summary>
-/// 
+/// Represents a class for sending Internet Control Message Protocol (ICMP) echo requests to a remote host and receiving corresponding echo replies.
+/// </summary>
+public class Ping
+{
+}
+
+/// <summary>
+/// Represents a store for managing gossip members.
 /// </summary>
 public class GossipMemberStore : IGossipMemberStore
 {
@@ -46,9 +58,8 @@ public class GossipMemberStore : IGossipMemberStore
     private Dictionary<IPEndPoint, List<IServiceClient>> _serviceToServiceClients = new();
 
     /// <summary>
-    /// 
+    /// Represents a store for gossip members.
     /// </summary>
-    /// <param name="systemCore"></param>
     public GossipMemberStore(ISystemCore systemCore)
     {
         _systemCore = systemCore;
@@ -57,10 +68,10 @@ public class GossipMemberStore : IGossipMemberStore
     }
 
     /// <summary>
-    /// 
+    /// Adds or updates a node in the peer graph based on a MemberEvent.
     /// </summary>
-    /// <param name="memberEvent"></param>
-    /// <returns></returns>
+    /// <param name="memberEvent">The MemberEvent containing information about the node.</param>
+    /// <returns>The added or updated Peer object.</returns>
     public Peer AddOrUpdateNode(MemberEvent memberEvent)
     {
         Guard.Argument(memberEvent, nameof(memberEvent)).NotNull();
@@ -96,10 +107,10 @@ public class GossipMemberStore : IGossipMemberStore
     }
 
     /// <summary>
-    /// 
+    /// Returns a new instance of the Peer class based on the provided MemberEvent object.
     /// </summary>
-    /// <param name="memberEvent"></param>
-    /// <returns></returns>
+    /// <param name="memberEvent">The MemberEvent object used to create the Peer instance.</param>
+    /// <returns>A new instance of the Peer class.</returns>
     private static Peer PeerFactory(MemberEvent memberEvent)
     {
         var peer = new Peer
@@ -114,9 +125,9 @@ public class GossipMemberStore : IGossipMemberStore
     }
 
     /// <summary>
-    /// 
+    /// Retrieve an array of peers.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>An array of Peer objects.</returns>
     public Peer[] GetPeers()
     {
         lock (_memberGraphLocker)
@@ -126,11 +137,11 @@ public class GossipMemberStore : IGossipMemberStore
     }
 
     /// <summary>
-    /// 
+    /// Retrieves the service client for the specified service end point.
     /// </summary>
-    /// <param name="serviceEndPoint"></param>
-    /// <typeparam name="T"></typeparam>
-    /// <returns></returns>
+    /// <typeparam name="T">The type of the service client.</typeparam>
+    /// <param name="serviceEndPoint">The IPEndPoint of the service.</param>
+    /// <returns>The service client instance of type T.</returns>
     public T GetServiceClient<T>(IPEndPoint serviceEndPoint) where T : IServiceClient
     {
         if (!_serviceToServiceClients.TryGetValue(serviceEndPoint, out var serviceClients) || !serviceClients.Any())
@@ -143,15 +154,15 @@ public class GossipMemberStore : IGossipMemberStore
     }
 
     /// <summary>
-    /// 
+    /// Sends an asynchronous request to a service endpoint.
     /// </summary>
-    /// <param name="serviceEndPoint"></param>
-    /// <param name="publicKey"></param>
-    /// <param name="value"></param>
-    /// <param name="timeMs"></param>
-    /// <param name="deserialize"></param>
-    /// <typeparam name="T"></typeparam>
-    /// <returns></returns>
+    /// <typeparam name="T">The type of the response object.</typeparam>
+    /// <param name="serviceEndPoint">The IP endpoint of the service.</param>
+    /// <param name="publicKey">The public key used for encryption.</param>
+    /// <param name="value">The value to send.</param>
+    /// <param name="timeMs">The timeout value in milliseconds (optional).</param>
+    /// <param name="deserialize">Flag indicating whether to deserialize the response (default is true).</param>
+    /// <returns>The response object of type T.</returns>
     public async Task<T> SendAsync<T>(IPEndPoint serviceEndPoint, ReadOnlyMemory<byte> publicKey,
         ReadOnlyMemory<byte> value, int timeMs = 0, bool deserialize = true)
     {
@@ -220,9 +231,10 @@ public class GossipMemberStore : IGossipMemberStore
     }
 
     /// <summary>
-    /// 
+    /// Sends a message to all known peers asynchronously.
     /// </summary>
-    /// <param name="msg"></param>
+    /// <param name="msg">The message to be sent.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
     public async Task SendAllAsync(ReadOnlyMemory<byte> msg)
     {
         await Parallel.ForEachAsync(_peers.Values, (knownPeer, cancellationToken) =>
@@ -244,9 +256,35 @@ public class GossipMemberStore : IGossipMemberStore
     }
 
     /// <summary>
-    /// 
+    /// Sends the selected message asynchronously to the specified peers.
     /// </summary>
-    /// <param name="memberEvent"></param>
+    /// <param name="msg">The message to send.</param>
+    /// <param name="peers">The array of peers to send the message to.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task SendSelectedAsync(ReadOnlyMemory<byte> msg, Peer[] peers)
+    {
+        await Parallel.ForEachAsync(peers, (knownPeer, cancellationToken) =>
+        {
+            try
+            {
+                if (cancellationToken.IsCancellationRequested) return ValueTask.CompletedTask;
+                var _ = SendAsync<EmptyMessage>(
+                    new IPEndPoint(IPAddress.Parse(knownPeer.IpAddress.FromBytes()), knownPeer.TcpPort.ToInt32()),
+                    knownPeer.PublicKey, msg);
+            }
+            catch (Exception)
+            {
+                // Ignore
+            }
+
+            return ValueTask.CompletedTask;
+        });
+    }
+
+    /// <summary>
+    /// Updates the service client based on the provided member event.
+    /// </summary>
+    /// <param name="memberEvent">The member event containing the information about the service client.</param>
     private void UpdateServiceClient(MemberEvent memberEvent)
     {
         IServiceClientFactory serviceClientFactory = new ServiceClientConnectFactory();

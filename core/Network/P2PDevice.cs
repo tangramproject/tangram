@@ -19,7 +19,7 @@ using TangramXtgm.Models.Messages;
 namespace TangramXtgm.Network;
 
 /// <summary>
-/// 
+/// Represents a message object.
 /// </summary>
 public struct Message
 {
@@ -34,7 +34,7 @@ public struct Message
 }
 
 /// <summary>
-/// 
+/// Represents an unwrap message containing parameters and a protocol command.
 /// </summary>
 public struct UnwrapMessage
 {
@@ -49,7 +49,7 @@ public struct UnwrapMessage
 }
 
 /// <summary>
-/// 
+/// Enum representing different types of transports.
 /// </summary>
 public enum Transport
 {
@@ -58,6 +58,7 @@ public enum Transport
 }
 
 /// <summary>
+/// Represents a P2P device that can decrypt messages asynchronously.
 /// </summary>
 public interface IP2PDevice
 {
@@ -65,6 +66,7 @@ public interface IP2PDevice
 }
 
 /// <summary>
+/// Represents a peer-to-peer device.
 /// </summary>
 public sealed class P2PDevice : IP2PDevice, IDisposable
 {
@@ -75,8 +77,9 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
     private bool _disposed;
 
     /// <summary>
+    /// Represents a P2P (peer-to-peer) device.
     /// </summary>
-    /// <param name="systemCore"></param>
+    /// <param name="systemCore">The system core instance.</param>
     public P2PDevice(ISystemCore systemCore)
     {
         _systemCore = systemCore;
@@ -86,9 +89,10 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
     }
 
     /// <summary>
+    /// Decrypts an INngMsg asynchronously.
     /// </summary>
-    /// <param name="nngMsg"></param>
-    /// <returns></returns>
+    /// <param name="nngMsg">The INngMsg to decrypt.</param>
+    /// <returns>A Task representing the asynchronous decryption operation. The decrypted Message is returned.</returns>
     public unsafe Task<Message> DecryptAsync(INngMsg nngMsg)
     {
         try
@@ -118,6 +122,7 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
     }
 
     /// <summary>
+    /// Initialize the system by setting up network ports and starting listening
     /// </summary>
     private void Init()
     {
@@ -130,9 +135,12 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Starts listening on the specified IP endpoint for incoming requests using the given transport and worker count.
     /// </summary>
-    /// <returns></returns>
+    /// <param name="ipEndPoint">The IP endpoint to listen on.</param>
+    /// <param name="transport">The transport to use for communication.</param>
+    /// <param name="workerCount">The number of worker threads to use for handling requests.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     private async Task ListeningAsync(IPEndPoint ipEndPoint, Transport transport, int workerCount)
     {
         try
@@ -164,9 +172,10 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Worker method that performs an asynchronous operation.
     /// </summary>
-    /// <param name="ctx"></param>
+    /// <param name="ctx">The IRepReqAsyncContext&lt;INngMsg&gt; context used for receiving and replying to messages.</param>
+    /// <returns>A Task representing the asynchronous operation.</returns>
     private async Task WorkerAsync(IRepReqAsyncContext<INngMsg> ctx)
     {
         while (!_systemCore.ApplicationLifetime.ApplicationStopping.IsCancellationRequested)
@@ -229,9 +238,10 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Sends an empty reply to the request context.
     /// </summary>
-    /// <param name="ctx"></param>
+    /// <param name="ctx">The request context to reply to.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     private static async Task EmptyReplyAsync(IRepReqAsyncContext<INngMsg> ctx)
     {
         try
@@ -246,10 +256,10 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Unwraps a message and returns the unwrapped message as an asynchronous operation.
     /// </summary>
-    /// <param name="msg"></param>
-    /// <returns></returns>
+    /// <param name="msg">The message to unwrap.</param>
+    /// <returns>The unwrapped message as an <see cref="UnwrapMessage"/> object.</returns>
     private static async Task<UnwrapMessage> UnWrapAsync(ReadOnlyMemory<byte> msg)
     {
         try
@@ -274,10 +284,10 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Returns the transport type based on the provided Transport enum value.
     /// </summary>
-    /// <param name="transport"></param>
-    /// <returns></returns>
+    /// <param name="transport">The Transport enum value to determine the transport type.</param>
+    /// <returns>A string representing the transport type. Possible values are "tcp", "ws", or "tcp" if the provided transport is not recognized.</returns>
     private static string GetTransportType(Transport transport)
     {
         return transport switch
@@ -289,9 +299,9 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Disposes of resources used by the object.
     /// </summary>
-    /// <param name="disposing"></param>
+    /// <param name="disposing">True if called from Dispose(), false if called from a finalizer.</param>
     private void Dispose(bool disposing)
     {
         if (_disposed)
@@ -308,7 +318,7 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
     }
 
     /// <summary>
-    /// 
+    /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
     /// </summary>
     public void Dispose()
     {

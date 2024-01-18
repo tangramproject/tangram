@@ -20,7 +20,7 @@ using TangramXtgm.Models.Messages;
 namespace TangramXtgm.Network;
 
 /// <summary>
-/// 
+/// Represents an interface for a peer-to-peer device API.
 /// </summary>
 public interface IP2PDeviceApi
 {
@@ -28,7 +28,7 @@ public interface IP2PDeviceApi
 }
 
 /// <summary>
-/// 
+/// Class representing a P2P device API.
 /// </summary>
 public class P2PDeviceApi : IP2PDeviceApi
 {
@@ -50,6 +50,7 @@ public class P2PDeviceApi : IP2PDeviceApi
         new Dictionary<int, Func<Parameter[], Task<ReadOnlySequence<byte>>>>();
 
     /// <summary>
+    /// Initializes the object by serializing UpdatePeersResponse and registering a command.
     /// </summary>
     private void Init()
     {
@@ -58,12 +59,14 @@ public class P2PDeviceApi : IP2PDeviceApi
     }
 
     /// <summary>
+    /// Registers various commands and their corresponding callback methods.
     /// </summary>
     private void RegisterCommand()
     {
         Commands.Add((int)ProtocolCommand.GetLocalNode, OnGetLocalNodeAsync);
         Commands.Add((int)ProtocolCommand.GetPeers, OnGetPeersAsync);
         Commands.Add((int)ProtocolCommand.GetBlocks, OnGetBlocksAsync);
+        Commands.Add((int)ProtocolCommand.GetBlock, OnGetBlockAsync);
         Commands.Add((int)ProtocolCommand.GetBlockHeight, OnGetBlockHeightAsync);
         Commands.Add((int)ProtocolCommand.GetBlockCount, OnGetBlockCountAsync);
         Commands.Add((int)ProtocolCommand.GetMemTransaction, OnGetMemoryPoolTransactionAsync);
@@ -78,8 +81,10 @@ public class P2PDeviceApi : IP2PDeviceApi
     }
 
     /// <summary>
+    /// Gets the local node asynchronously.
     /// </summary>
-    /// <returns></returns>
+    /// <param name="none">No parameters needed for this method. Defaults to default value.</param>
+    /// <returns>A task representing the asynchronous operation that returns a ReadOnlySequence<byte> containing the serialized local peer response.</returns>
     private async Task<ReadOnlySequence<byte>> OnGetLocalNodeAsync(Parameter[] none = default)
     {
         var localPeerResponse = _systemCore.PeerDiscovery().GetLocalNode();
@@ -87,19 +92,38 @@ public class P2PDeviceApi : IP2PDeviceApi
     }
 
     /// <summary>
-    /// 
+    /// Retrieves the peers asynchronously.
     /// </summary>
-    /// <param name="none"></param>
-    /// <returns></returns>
+    /// <param name="none">Optional parameter that is not used.</param>
+    /// <returns>The serialized byte sequence containing the peers.</returns>
     private async Task<ReadOnlySequence<byte>> OnGetPeersAsync(Parameter[] none = default)
     {
         return await SerializeAsync(_systemCore.PeerDiscovery().GetGossipMemberStore());
     }
 
     /// <summary>
+    /// Retrieves a block asynchronously based on the given parameters.
     /// </summary>
-    /// <param name="parameters"></param>
-    /// <returns></returns>
+    /// <param name="parameters">An array of parameters for retrieving the block.</param>
+    /// <returns>The serialized version of the retrieved block as a read-only sequence of bytes.</returns>
+    private async Task<ReadOnlySequence<byte>> OnGetBlockAsync(Parameter[] parameters)
+    {
+        Guard.Argument(parameters, nameof(parameters)).NotNull().NotEmpty();
+        if (ulong.TryParse(parameters[0].Value.FromBytes(), out var blockHeight))
+        {
+            var blockByHeightAsync = await _systemCore.Graph().GetBlockByHeightAsync(new BlockByHeightRequest(blockHeight));
+            return await SerializeAsync(blockByHeightAsync);
+        }
+
+        var block = await _systemCore.Graph().GetBlockAsync(new BlockRequest(parameters[0].Value));
+        return await SerializeAsync(block);
+    }
+
+    /// <summary>
+    /// Retrieves blocks asynchronously based on the given parameters.
+    /// </summary>
+    /// <param name="parameters">An array of parameters containing skip and take values.</param>
+    /// <returns>A sequence of bytes representing the serialized blocks response.</returns>
     private async Task<ReadOnlySequence<byte>> OnGetBlocksAsync(Parameter[] parameters)
     {
         Guard.Argument(parameters, nameof(parameters)).NotNull().NotEmpty();
@@ -110,23 +134,30 @@ public class P2PDeviceApi : IP2PDeviceApi
     }
 
     /// <summary>
+    /// Retrieves the block height asynchronously.
     /// </summary>
+    /// <param name="none">Optional parameter that is not used in this method.</param>
+    /// <returns>A <see cref="ReadOnlySequence{T}"/> containing the serialized block height response.</returns>
     private async Task<ReadOnlySequence<byte>> OnGetBlockHeightAsync(Parameter[] none = default)
     {
         return await SerializeAsync(new BlockHeightResponse(_systemCore.UnitOfWork().HashChainRepository.Height));
     }
 
     /// <summary>
+    /// Gets the block count asynchronously.
     /// </summary>
+    /// <param name="none">Optional parameters. Default value is <c>default</c>.</param>
+    /// <returns>A <see cref="Task{ReadOnlySequence{byte}}"/> representing the asynchronous operation.</returns>
     private async Task<ReadOnlySequence<byte>> OnGetBlockCountAsync(Parameter[] none = default)
     {
         return await SerializeAsync(new BlockCountResponse(_systemCore.UnitOfWork().HashChainRepository.Count));
     }
 
     /// <summary>
+    /// Retrieves a memory pool transaction asynchronously.
     /// </summary>
-    /// <param name="parameters"></param>
-    /// <returns></returns>
+    /// <param name="parameters">An array of parameters.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation. The task result is a <see cref="ReadOnlySequence{T}"/> of bytes.</returns>
     private async Task<ReadOnlySequence<byte>> OnGetMemoryPoolTransactionAsync(Parameter[] parameters)
     {
         Guard.Argument(parameters, nameof(parameters)).NotNull().NotEmpty();
@@ -135,9 +166,10 @@ public class P2PDeviceApi : IP2PDeviceApi
     }
 
     /// <summary>
+    /// Retrieves a transaction asynchronously.
     /// </summary>
-    /// <param name="parameters"></param>
-    /// <returns></returns>
+    /// <param name="parameters">The parameters used to retrieve the transaction.</param>
+    /// <returns>The retrieved transaction as a read-only sequence of bytes.</returns>
     private async Task<ReadOnlySequence<byte>> OnGetTransactionAsync(Parameter[] parameters)
     {
         Guard.Argument(parameters, nameof(parameters)).NotNull().NotEmpty();
@@ -147,9 +179,10 @@ public class P2PDeviceApi : IP2PDeviceApi
     }
 
     /// <summary>
+    /// Handles a new transaction asynchronously.
     /// </summary>
-    /// <param name="parameters"></param>
-    /// <returns></returns>
+    /// <param name="parameters">The parameters required for the new transaction.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation, returning a <see cref="ReadOnlySequence{T}"/> of bytes.</returns>
     private async Task<ReadOnlySequence<byte>> OnNewTransactionAsync(Parameter[] parameters)
     {
         Guard.Argument(parameters, nameof(parameters)).NotNull().NotEmpty();
@@ -159,9 +192,10 @@ public class P2PDeviceApi : IP2PDeviceApi
     }
 
     /// <summary>
+    /// Handles the event when a new block graph is received.
     /// </summary>
-    /// <param name="parameters"></param>
-    /// <returns></returns>
+    /// <param name="parameters">An array of parameters.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation, returning a <see cref="ReadOnlySequence{T}"/> of bytes.</returns>
     private async Task<ReadOnlySequence<byte>> OnNewBlockGraphAsync(Parameter[] parameters)
     {
         Guard.Argument(parameters, nameof(parameters)).NotNull().NotEmpty();
@@ -171,9 +205,10 @@ public class P2PDeviceApi : IP2PDeviceApi
     }
 
     /// <summary>
+    /// Retrieves the safeguard blocks asynchronously.
     /// </summary>
-    /// <param name="none"></param>
-    /// <returns></returns>
+    /// <param name="none">Optional parameter. Defaults to null.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation. The task result contains a <see cref="ReadOnlySequence{T}"/> of bytes.</returns>
     private async Task<ReadOnlySequence<byte>> OnGetSafeguardBlocksAsync(Parameter[] none = default)
     {
         const int numberOfBlocks = 147; // +- block proposal time * number of blocks
@@ -185,9 +220,10 @@ public class P2PDeviceApi : IP2PDeviceApi
     }
 
     /// <summary>
+    /// Processes a POS transaction asynchronously.
     /// </summary>
-    /// <param name="parameters"></param>
-    /// <returns></returns>
+    /// <param name="parameters">An array of parameters for the transaction.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation. The task result represents the serialized transaction response.</returns>
     private async Task<ReadOnlySequence<byte>> OnPosTransactionAsync(Parameter[] parameters)
     {
         Guard.Argument(parameters, nameof(parameters)).NotNull().NotEmpty();
@@ -195,9 +231,10 @@ public class P2PDeviceApi : IP2PDeviceApi
     }
 
     /// <summary>
+    /// Retrieves the transaction block index asynchronously.
     /// </summary>
-    /// <param name="parameters"></param>
-    /// <returns></returns>
+    /// <param name="parameters">An array of <see cref="Parameter"/> objects.</param>
+    /// <returns>The transaction block index as a <see cref="ReadOnlySequence{T}"/> of bytes.</returns>
     private async Task<ReadOnlySequence<byte>> OnGetTransactionBlockIndexAsync(Parameter[] parameters)
     {
         Guard.Argument(parameters, nameof(parameters)).NotNull().NotEmpty();
@@ -207,9 +244,10 @@ public class P2PDeviceApi : IP2PDeviceApi
     }
 
     /// <summary>
+    /// Handles stake operation asynchronously.
     /// </summary>
-    /// <param name="parameters"></param>
-    /// <returns></returns>
+    /// <param name="parameters">The parameters for stake operation.</param>
+    /// <returns>The result of the stake operation.</returns>
     private async Task<ReadOnlySequence<byte>> OnStakeAsync(Parameter[] parameters)
     {
         Guard.Argument(parameters, nameof(parameters)).NotNull().NotEmpty();
@@ -246,10 +284,10 @@ public class P2PDeviceApi : IP2PDeviceApi
     }
 
     /// <summary>
-    /// 
+    /// Handles stake enabled async operation.
     /// </summary>
-    /// <param name="parameters"></param>
-    /// <returns></returns>
+    /// <param name="parameters">The parameters for the operation.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation that returns a <see cref="ReadOnlySequence{T}"/> of bytes.</returns>
     private async Task<ReadOnlySequence<byte>> OnStakeEnabledAsync(Parameter[] parameters)
     {
         Guard.Argument(parameters, nameof(parameters)).NotNull().NotEmpty();
@@ -275,11 +313,11 @@ public class P2PDeviceApi : IP2PDeviceApi
     }
 
     /// <summary>
-    /// 
+    /// Serializes a value of type T asynchronously.
     /// </summary>
-    /// <param name="value"></param>
-    /// <typeparam name="T"></typeparam>
-    /// <returns></returns>
+    /// <typeparam name="T">The type of the value to be serialized.</typeparam>
+    /// <param name="value">The value to be serialized.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result contains the serialized value as a read-only sequence of bytes.</returns>
     public static async Task<ReadOnlySequence<byte>> SerializeAsync<T>(T value)
     {
         await using var stream =
