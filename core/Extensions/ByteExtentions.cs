@@ -101,7 +101,7 @@ public static class ByteExtensions
     public static ulong ToHashIdentifier(this Span<byte> hash)
     {
         var byteHex = Hasher.Hash(hash);
-        ReadOnlySpan<byte> h = byteHex.AsSpanUnsafe();
+        ReadOnlySpan<byte> h = byteHex.AsSpan();
         var id = (ulong)BitConverter.ToInt64(h);
         id = (ulong)Convert.ToInt64(id.ToString()[..5]);
         return id;
@@ -110,7 +110,7 @@ public static class ByteExtensions
     public static ulong ToHashIdentifier(this ReadOnlySpan<byte> hash)
     {
         var byteHex = Hasher.Hash(hash);
-        ReadOnlySpan<byte> h = byteHex.AsSpanUnsafe();
+        ReadOnlySpan<byte> h = byteHex.AsSpan();
         var id = (ulong)BitConverter.ToInt64(h);
         id = (ulong)Convert.ToInt64(id.ToString()[..5]);
         return id;
@@ -119,7 +119,7 @@ public static class ByteExtensions
     public static uint ToHashIdentifier(this byte[] hash)
     {
         var byteHex = Hasher.Hash(hash);
-        ReadOnlySpan<byte> h = byteHex.AsSpanUnsafe();
+        ReadOnlySpan<byte> h = byteHex.AsSpan();
         var id = (uint)BitConverter.ToInt64(h);
         id = (uint)Convert.ToInt64(id.ToString()[..5]);
         return id;
