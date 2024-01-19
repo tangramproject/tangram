@@ -85,14 +85,11 @@ public class Sync : ISync, IDisposable
         {
             while (SyncRunning)
             {
-                await Task.Delay(1000);
+                await Task.Delay(500);
             }
         }
-        if (isRunning || !SyncRunning)
-        {
-            // Thread-safe way to set _syncRunning.
-            Interlocked.Exchange(ref _syncRunning, isRunning ? 1 : 0);
-        }
+        // Thread-safe way to set _syncRunning.
+        Interlocked.Exchange(ref _syncRunning, isRunning ? 1 : 0);
     }
     
     /// <summary>
@@ -109,7 +106,8 @@ public class Sync : ISync, IDisposable
 
             await AnsiConsole.Progress()
                 .AutoClear(false)
-                .Columns(new TaskDescriptionColumn(), new ProgressBarColumn(), new PercentageColumn(), new SpinnerColumn())
+                .Columns(new TaskDescriptionColumn(), new ProgressBarColumn(), new PercentageColumn(),
+                    new SpinnerColumn())
                 .StartAsync(async ctx =>
                 {
                     var warpTask = ctx.AddTask($"[bold green]WAITING FOR PEERS[/]", false).IsIndeterminate();
@@ -131,8 +129,10 @@ public class Sync : ISync, IDisposable
                             return;
                         }
 
-                        var retryDelay = TimeSpan.FromSeconds(Math.Pow(2, currentRetry)) + TimeSpan.FromMilliseconds(jitter.Next(0, 1000));
-                        warpTask.Description = $"[bold blue]WAITING FOR PEERS[/]... [bold yellow]RETRYING in {retryDelay.Seconds}s[/]";
+                        var retryDelay = TimeSpan.FromSeconds(Math.Pow(2, currentRetry)) +
+                                         TimeSpan.FromMilliseconds(jitter.Next(0, 1000));
+                        warpTask.Description =
+                            $"[bold blue]WAITING FOR PEERS[/]... [bold yellow]RETRYING in {retryDelay.Seconds}s[/]";
                         await Task.Delay(retryDelay);
                         await Task.Delay(1);
                         warpTask.Increment(retryDelay.Seconds);
@@ -153,6 +153,15 @@ public class Sync : ISync, IDisposable
         catch (TaskCanceledException)
         {
             // Ignore
+        }
+        finally
+        {
+            await SetSyncRunningAsync(false);
+            var blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
+            _logger.Information("LOCAL NODE block height: [{@LocalHeight}]", blockCount - 1);
+            _logger.Information("End... [SYNCHRONIZATION]");
+            _logger.Information("Next...[SYNCHRONIZATION] in {@Message} minute(s)",
+                _systemCore.Node.Network.AutoSyncEveryMinutes);
         }
     }
     
@@ -180,10 +189,8 @@ public class Sync : ISync, IDisposable
                     _logger.Information("Network block height [{@MaxBlockHeight}]", maxBlockCount - 1);
                     return;
                 }
-                else
-                {
-                    _logger.Information("Network block height [{@MaxBlockHeight}]", blockCount - 1);
-                }
+
+                _logger.Information("Network block height [{@MaxBlockHeight}]", blockCount - 1);
             }
             else
             {
@@ -227,15 +234,6 @@ public class Sync : ISync, IDisposable
         catch (Exception ex)
         {
             _logger.Here().Error(ex, "Error while checking");
-        }
-        finally
-        {
-            AsyncHelper.RunSync(async () => await SetSyncRunningAsync(false));
-            var blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
-            _logger.Information("LOCAL NODE block height: [{@LocalHeight}]", blockCount - 1);
-            _logger.Information("End... [SYNCHRONIZATION]");
-            _logger.Information("Next...[SYNCHRONIZATION] in {@Message} minute(s)",
-                _systemCore.Node.Network.AutoSyncEveryMinutes);
         }
     }
     
