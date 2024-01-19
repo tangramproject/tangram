@@ -14,6 +14,9 @@ using TangramXtgm.Models;
 
 namespace TangramXtgm.Controllers;
 
+/// <summary>
+/// Controller class for managing the memory pool.
+/// </summary>
 [Route("mempool")]
 [ApiController]
 public class MemoryPoolController : Controller
@@ -22,9 +25,10 @@ public class MemoryPoolController : Controller
     private readonly ILogger _logger;
 
     /// <summary>
+    /// Represents a controller for managing a memory pool.
     /// </summary>
-    /// <param name="systemCore"></param>
-    /// <param name="logger"></param>
+    /// <param name="systemCore">The system core instance.</param>
+    /// <param name="logger">The logger instance.</param>
     public MemoryPoolController(ISystemCore systemCore, ILogger logger)
     {
         _systemCore = systemCore;
@@ -32,9 +36,10 @@ public class MemoryPoolController : Controller
     }
 
     /// <summary>
+    /// Creates a new transaction and adds it to the memory pool.
     /// </summary>
-    /// <param name="data"></param>
-    /// <returns></returns>
+    /// <param name="data">The byte array representing the transaction data.</param>
+    /// <returns>Returns an IActionResult representing the result of the operation.</returns>
     [HttpPost("transaction", Name = "NewTransaction")]
     [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -61,8 +66,14 @@ public class MemoryPoolController : Controller
     }
 
     /// <summary>
+    /// Retrieves a transaction from the memory pool or the Proof of Stake (PoS) transaction pool.
     /// </summary>
-    /// <returns></returns>
+    /// <param name="id">The identifier of the transaction.</param>
+    /// <returns>
+    /// An IActionResult representing the result of the operation.
+    /// If the transaction is found, the result contains the transaction data in binary format.
+    /// If the transaction is not found, a status code 404 (Not Found) is returned.
+    /// </returns>
     [HttpGet("transaction/{id}", Name = "GetMemoryPoolTransaction")]
     [ProducesResponseType(typeof(byte[]), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -88,8 +99,17 @@ public class MemoryPoolController : Controller
     }
 
     /// <summary>
+    /// Retrieves the total count of memory pool transactions and PPoS transactions.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>
+    /// An integer representing the total count of memory pool transactions and PPoS transactions.
+    /// </returns>
+    /// <remarks>
+    /// This method sends an HTTP GET request to the "count" endpoint to retrieve the count.
+    /// If the count is successfully retrieved, the method returns an <see cref="ObjectResult"/>
+    /// containing the count as a property of an anonymous object.
+    /// If an error occurs while retrieving the count, a 500 Internal Server Error response
+    /// is returned.</remarks>
     [HttpGet("count", Name = "GetCount")]
     [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]

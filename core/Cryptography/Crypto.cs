@@ -17,6 +17,9 @@ using TangramXtgm.Persistence;
 
 namespace TangramXtgm.Cryptography;
 
+/// <summary>
+/// Represents an interface for performing cryptographic operations.
+/// </summary>
 public interface ICrypto
 {
     Task<Models.KeyPair> GetOrUpsertKeyNameAsync(string keyName);
@@ -38,6 +41,7 @@ public interface ICrypto
 }
 
 /// <summary>
+/// Provides cryptographic operations including key generation, signing, and verification.
 /// </summary>
 public class Crypto : ICrypto
 {
@@ -49,10 +53,11 @@ public class Crypto : ICrypto
     private DataProtection _protectionProto;
 
     /// <summary>
+    /// Represents a class for cryptographic operations.
     /// </summary>
-    /// <param name="dataProtectionProvider"></param>
-    /// <param name="unitOfWork"></param>
-    /// <param name="logger"></param>
+    /// <param name="dataProtectionProvider">An instance of the IDataProtectionProvider interface used for data protection.</param>
+    /// <param name="unitOfWork">An instance of the IUnitOfWork interface used for managing database transactions.</param>
+    /// <param name="logger">An instance of the ILogger interface used for logging.</param>
     public Crypto(IDataProtectionProvider dataProtectionProvider, IUnitOfWork unitOfWork, ILogger logger)
     {
         _dataProtectionProvider = dataProtectionProvider;
@@ -61,9 +66,10 @@ public class Crypto : ICrypto
     }
 
     /// <summary>
+    /// Retrieves the existing KeyPair associated with the specified key name, or creates and saves a new KeyPair if one does not exist.
     /// </summary>
-    /// <param name="keyName"></param>
-    /// <returns></returns>
+    /// <param name="keyName">The name of the key for which to retrieve or create a KeyPair.</param>
+    /// <returns>The KeyPair associated with the specified key name, or null if an error occurred.</returns>
     public async Task<Models.KeyPair> GetOrUpsertKeyNameAsync(string keyName)
     {
         Guard.Argument(keyName, nameof(keyName)).NotNull().NotWhiteSpace();
@@ -102,9 +108,10 @@ public class Crypto : ICrypto
     }
 
     /// <summary>
+    /// Retrieves the public key asynchronously for the specified key name.
     /// </summary>
-    /// <param name="keyName"></param>
-    /// <returns></returns>
+    /// <param name="keyName">The name of the key to retrieve the public key for.</param>
+    /// <returns>The public key byte array of the specified key name. If the key name does not exist, returns null.</returns>
     public async Task<byte[]> GetPublicKeyAsync(string keyName)
     {
         var kp = await GetOrUpsertKeyNameAsync(keyName);
@@ -112,10 +119,11 @@ public class Crypto : ICrypto
     }
 
     /// <summary>
+    /// SignAsync method is used to sign the given message using the provided keyName.
     /// </summary>
-    /// <param name="keyName"></param>
-    /// <param name="message"></param>
-    /// <returns></returns>
+    /// <param name="keyName">The name of the key to be used for signing.</param>
+    /// <param name="message">The byte array of the message to be signed.</param>
+    /// <returns>Returns a Task object of type SignatureResponse.</returns>
     public async Task<SignatureResponse> SignAsync(string keyName, byte[] message)
     {
         Guard.Argument(keyName, nameof(keyName)).NotNull().NotWhiteSpace();
@@ -136,11 +144,11 @@ public class Crypto : ICrypto
     }
 
     /// <summary>
-    /// 
+    /// Signs a message using the XEdDSA algorithm.
     /// </summary>
-    /// <param name="privateKey"></param>
-    /// <param name="message"></param>
-    /// <returns></returns>
+    /// <param name="privateKey">The private key used for signing.</param>
+    /// <param name="message">The message to be signed.</param>
+    /// <returns>The signature of the message.</returns>
     public byte[] SignXEdDSA(byte[] privateKey, byte[] message)
     {
         Guard.Argument(privateKey, nameof(privateKey)).NotNull().MaxCount(32);
@@ -149,11 +157,11 @@ public class Crypto : ICrypto
     }
 
     /// <summary>
-    /// 
+    /// Signs a message using the Schnorr algorithm.
     /// </summary>
-    /// <param name="privateKey"></param>
-    /// <param name="message"></param>
-    /// <returns></returns>
+    /// <param name="privateKey">The private key used to sign the message. Must not be null and have a maximum length of 32 bytes.</param>
+    /// <param name="message">The message to be signed. Must not be null and have a maximum length of 32 bytes.</param>
+    /// <returns>The signature generated for the message as a byte array.</returns>
     public byte[] SignSchnorr(byte[] privateKey, byte[] message)
     {
         Guard.Argument(privateKey, nameof(privateKey)).NotNull().MaxCount(32);
@@ -163,14 +171,14 @@ public class Crypto : ICrypto
         var sig = schnorrSig.Sign(msgHash, privateKey);
         return sig;
     }
-    
+
     /// <summary>
-    /// 
+    /// Verifies a Schnorr signature.
     /// </summary>
-    /// <param name="publicKey"></param>
-    /// <param name="message"></param>
-    /// <param name="signature"></param>
-    /// <returns></returns>
+    /// <param name="publicKey">The public key.</param>
+    /// <param name="message">The message.</param>
+    /// <param name="signature">The signature.</param>
+    /// <returns>True if the signature is valid; otherwise, false.</returns>
     public bool VerifySchnorr(byte[] publicKey, byte[] message, byte[] signature)
     {
         Guard.Argument(publicKey, nameof(publicKey)).NotNull().MaxCount(32);
@@ -181,15 +189,15 @@ public class Crypto : ICrypto
         var verified = schnorrSig.Verify(signature, msgHash, publicKey);
         return verified;
     }
-    
+
     /// <summary>
-    /// 
+    /// Verifies a batch of Schnorr signatures.
     /// </summary>
-    /// <param name="publicKeys"></param>
-    /// <param name="messages"></param>
-    /// <param name="signatures"></param>
-    /// <returns></returns>
-    public bool VerifySchnorrBatch (byte[][] publicKeys, byte[][] messages, byte[][] signatures)
+    /// <param name="publicKeys">An array of byte arrays representing the public keys used for verification.</param>
+    /// <param name="messages">An array of byte arrays representing the messages to be verified.</param>
+    /// <param name="signatures">An array of byte arrays representing the signatures to be verified.</param>
+    /// <returns>True if all signatures are valid, False otherwise.</returns>
+    public bool VerifySchnorrBatch(byte[][] publicKeys, byte[][] messages, byte[][] signatures)
     {
         Guard.Argument(publicKeys, nameof(publicKeys)).NotNull().NotEmpty();
         Guard.Argument(messages, nameof(messages)).NotNull().NotEmpty();
@@ -207,11 +215,12 @@ public class Crypto : ICrypto
     }
 
     /// <summary>
+    /// Verifies the XEdDSA signature.
     /// </summary>
-    /// <param name="signature"></param>
-    /// <param name="message"></param>
-    /// <param name="publicKey"></param>
-    /// <returns></returns>
+    /// <param name="signature">The signature to verify.</param>
+    /// <param name="message">The message that was signed.</param>
+    /// <param name="publicKey">The public key used for verification.</param>
+    /// <returns>Returns true if the signature is valid, otherwise false.</returns>
     public bool VerifyXEdDSASignature(byte[] signature, byte[] message, byte[] publicKey)
     {
         Guard.Argument(signature, nameof(signature)).NotNull().MaxCount(64);
@@ -232,12 +241,12 @@ public class Crypto : ICrypto
     }
 
     /// <summary>
-    /// 
+    /// Verifies the signature using the provided public key, message, and signature.
     /// </summary>
-    /// <param name="publicKey"></param>
-    /// <param name="message"></param>
-    /// <param name="signature"></param>
-    /// <returns></returns>
+    /// <param name="publicKey">The public key used for signature verification.</param>
+    /// <param name="message">The message to be verified.</param>
+    /// <param name="signature">The signature to be verified.</param>
+    /// <returns>True if the signature is valid, otherwise false.</returns>
     public bool VerifySignature(byte[] publicKey, byte[] message, byte[] signature)
     {
         Guard.Argument(publicKey, nameof(publicKey)).NotNull();
@@ -257,11 +266,11 @@ public class Crypto : ICrypto
     }
 
     /// <summary>
-    /// 
+    /// Calculates the VRF signature using the provided EC private key and message.
     /// </summary>
-    /// <param name="ecPrivateKey"></param>
-    /// <param name="msg"></param>
-    /// <returns></returns>
+    /// <param name="ecPrivateKey">The EC private key used for the VRF calculation.</param>
+    /// <param name="msg">The message to be signed.</param>
+    /// <returns>The calculated VRF signature as a byte array.</returns>
     public byte[] GetCalculateVrfSignature(ECPrivateKey ecPrivateKey, byte[] msg)
     {
         Guard.Argument(ecPrivateKey, nameof(ecPrivateKey)).NotNull();
@@ -271,12 +280,12 @@ public class Crypto : ICrypto
     }
 
     /// <summary>
-    /// 
+    /// Verifies the VRF signature using the provided public key, message, and signature.
     /// </summary>
-    /// <param name="ecPublicKey"></param>
-    /// <param name="msg"></param>
-    /// <param name="sig"></param>
-    /// <returns></returns>
+    /// <param name="ecPublicKey">The EC public key used to verify the signature.</param>
+    /// <param name="msg">The message that was signed.</param>
+    /// <param name="sig">The signature to verify.</param>
+    /// <returns>The verified VRF signature as a byte array.</returns>
     public byte[] GetVerifyVrfSignature(ECPublicKey ecPublicKey, byte[] msg, byte[] sig)
     {
         Guard.Argument(ecPublicKey, nameof(ecPublicKey)).NotNull();
@@ -300,13 +309,14 @@ public class Crypto : ICrypto
     // }
 
     /// <summary>
+    /// Decrypts data using the ChaCha20-Poly1305 encryption algorithm.
     /// </summary>
-    /// <param name="data"></param>
-    /// <param name="key"></param>
-    /// <param name="associatedData"></param>
-    /// <param name="tag"></param>
-    /// <param name="nonce"></param>
-    /// <returns></returns>
+    /// <param name="data">The data to be decrypted.</param>
+    /// <param name="key">The encryption key.</param>
+    /// <param name="associatedData">The additional associated data.</param>
+    /// <param name="tag">The authentication tag.</param>
+    /// <param name="nonce">The initialization nonce.</param>
+    /// <returns>The decrypted data.</returns>
     public unsafe byte[] DecryptChaCha20Poly1305(ReadOnlyMemory<byte> data, ReadOnlyMemory<byte> key,
         ReadOnlyMemory<byte> associatedData, ReadOnlyMemory<byte> tag, ReadOnlyMemory<byte> nonce)
     {
@@ -324,13 +334,14 @@ public class Crypto : ICrypto
     }
 
     /// <summary>
-    /// 
+    /// Decrypts a ciphertext using a secret key and a public key.
     /// </summary>
-    /// <param name="cipher"></param>
-    /// <param name="secretKey"></param>
-    /// <param name="publicKey"></param>
-    /// <returns></returns>
-    public unsafe byte[] BoxSealOpen(ReadOnlySpan<byte> cipher, ReadOnlySpan<byte> secretKey, ReadOnlySpan<byte> publicKey)
+    /// <param name="cipher">The ciphertext to be decrypted.</param>
+    /// <param name="secretKey">The secret key used for decryption.</param>
+    /// <param name="publicKey">The public key used for decryption.</param>
+    /// <returns>The decrypted message as a byte array.</returns>
+    public unsafe byte[] BoxSealOpen(ReadOnlySpan<byte> cipher, ReadOnlySpan<byte> secretKey,
+        ReadOnlySpan<byte> publicKey)
     {
         var len = cipher.Length - (int)LibSodiumBox.Sealbytes();
         //var msg = stackalloc byte[len];
@@ -348,11 +359,11 @@ public class Crypto : ICrypto
     }
 
     /// <summary>
-    /// 
+    /// Encrypts a message using the provided public key.
     /// </summary>
-    /// <param name="msg"></param>
-    /// <param name="publicKey"></param>
-    /// <returns></returns>
+    /// <param name="msg">The message to be encrypted.</param>
+    /// <param name="publicKey">The public key used for encryption.</param>
+    /// <returns>The encrypted message as a byte array. If encryption fails, an empty byte array is returned.</returns>
     public unsafe byte[] BoxSeal(ReadOnlySpan<byte> msg, ReadOnlySpan<byte> publicKey)
     {
         var cipher = new byte[msg.Length + (int)LibSodiumBox.Sealbytes()];
@@ -366,8 +377,9 @@ public class Crypto : ICrypto
     }
 
     /// <summary>
+    /// Generates a key pair using Curve.generateKeyPair and returns it.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>Returns a KeyPair object containing the generated private and public keys.</returns>
     public static Models.KeyPair GenerateKeyPair()
     {
         var keys = Curve.generateKeyPair();
@@ -375,8 +387,9 @@ public class Crypto : ICrypto
     }
 
     /// <summary>
+    /// Generates a random byte array using the Secp256k1 algorithm.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>A random byte array.</returns>
     public static byte[] GetRandomData()
     {
         using var secp256K1 = new Secp256k1();
@@ -384,8 +397,9 @@ public class Crypto : ICrypto
     }
 
     /// <summary>
+    /// Retrieves a KeyPair object containing a private key and a public key.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>The KeyPair object.</returns>
     private Models.KeyPair GetKeyPair()
     {
         Guard.Argument(_protectionProto, nameof(_protectionProto)).NotNull();

@@ -18,6 +18,7 @@ using TangramXtgm.Wallet;
 namespace TangramXtgm;
 
 /// <summary>
+/// Represents the core system interface.
 /// </summary>
 public interface ISystemCore
 {
@@ -45,6 +46,7 @@ public interface ISystemCore
 }
 
 /// <summary>
+/// Represents a key pair consisting of a private key and a public key.
 /// </summary>
 public record KeyPair
 {
@@ -55,9 +57,16 @@ public record KeyPair
     public byte[] PublicKey { get; init; }
 }
 
-public class Cache<T> : Caching<T> where T : class { }
+/// <summary>
+/// Represents a cache implementation that can store objects of type T.
+/// </summary>
+/// <typeparam name="T">The type of objects to be stored in the cache.</typeparam>
+public class Cache<T> : Caching<T> where T : class
+{
+}
 
 /// <summary>
+/// System core class that provides access to various system components and services.
 /// </summary>
 public class SystemCore : ISystemCore
 {
@@ -80,11 +89,12 @@ public class SystemCore : ISystemCore
 
 
     /// <summary>
+    /// Represents a system core.
     /// </summary>
-    /// <param name="applicationLifetime"></param>
-    /// <param name="serviceScopeFactory"></param>
-    /// <param name="node"></param>
-    /// <param name="logger"></param>
+    /// <param name="applicationLifetime">The host application lifetime object.</param>
+    /// <param name="serviceScopeFactory">The service scope factory.</param>
+    /// <param name="node">The node object.</param>
+    /// <param name="logger">The logger object.</param>
     public SystemCore(IHostApplicationLifetime applicationLifetime,
         IServiceScopeFactory serviceScopeFactory, Node node, ILogger logger)
     {
@@ -95,31 +105,40 @@ public class SystemCore : ISystemCore
         Init();
     }
 
+    /// <summary>
+    /// Returns the ID of the node.
+    /// </summary>
+    /// <returns>The ID of the node.</returns>
     public uint NodeId()
     {
         return _nodeId;
     }
 
     /// <summary>
+    /// Represents a KeyPair object.
     /// </summary>
     public KeyPair KeyPair { get; private set; }
 
     /// <summary>
+    /// Gets the application lifetime which provides access to the application's lifetime events and allows registering for callbacks that are triggered during the application's lifetime
+    /// .
     /// </summary>
     public IHostApplicationLifetime ApplicationLifetime { get; }
 
     /// <summary>
+    /// Gets the service scope factory used to create service scopes for resolving dependencies.
     /// </summary>
     public IServiceScopeFactory ServiceScopeFactory { get; }
 
     /// <summary>
+    /// Represents a node in a data structure.
     /// </summary>
     public Node Node { get; }
 
     /// <summary>
-    /// 
+    /// Retrieves the GossipMemberStore instance. If it is null, it calls the GetGossipMemberStore method to get a new instance and assigns it to the _gossipMemberStore field.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>The GossipMemberStore instance.</returns>
     public IGossipMemberStore GossipMemberStore()
     {
         _gossipMemberStore ??= GetGossipMemberStore();
@@ -127,8 +146,11 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
+    /// Creates or retrieves the existing unit of work.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>
+    /// An instance of the <see cref="IUnitOfWork"/> interface representing the unit of work.
+    /// </returns>
     public IUnitOfWork UnitOfWork()
     {
         _unitOfWork ??= GetUnitOfWork();
@@ -136,8 +158,9 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
+    /// Retrieves the instance of IPeerDiscovery and if not found, initializes and returns it.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>The instance of IPeerDiscovery.</returns>
     public IPeerDiscovery PeerDiscovery()
     {
         _peerDiscovery ??= GetPeerDiscovery();
@@ -145,8 +168,9 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
+    /// Returns an instance of the graph.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>The graph.</returns>
     public IGraph Graph()
     {
         _graph ??= GetGraph();
@@ -154,15 +178,24 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
-    /// 
+    /// Retrieves the PPoS object.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>
+    /// The PPoS object if it has been previously initialized,
+    /// otherwise a newly created PPoS object.
+    /// </returns>
     public IPPoS PPoS()
     {
         _poS ??= GetPPoS();
         return _poS;
     }
 
+    /// <summary>
+    /// The Crypto method returns an instance of the ICrypto interface.
+    /// </summary>
+    /// <returns>
+    /// Returns an instance of the ICrypto interface.
+    /// </returns>
     public ICrypto Crypto()
     {
         _crypto ??= GetCrypto();
@@ -170,8 +203,9 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
+    /// Returns an instance of the IValidator interface.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>An instance of the IValidator interface, or null if an exception occurs.</returns>
     public IValidator Validator()
     {
         try
@@ -189,8 +223,11 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
+    /// Retrieves the sync object and initializes it if necessary.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>
+    /// A reference to the ISync object.
+    /// </returns>
     public ISync Sync()
     {
         _sync ??= GetSync();
@@ -198,8 +235,9 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
+    /// Retrieves the memory pool instance.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>The memory pool instance of type IMemoryPool.</returns>
     public IMemoryPool MemPool()
     {
         _memoryPool ??= GetMemPool();
@@ -207,9 +245,9 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
-    /// 
+    /// Returns the P2P device for communication.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>The P2P device.<returns>
     public IP2PDevice P2PDevice()
     {
         _p2PDevice ??= GetP2PDevice();
@@ -217,9 +255,11 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
-    /// 
+    /// Retrieves the P2PDeviceApi.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>
+    /// The P2PDeviceApi interface.
+    /// </returns>
     public IP2PDeviceApi P2PDeviceApi()
     {
         _p2PDeviceApi ??= GetP2PDeviceApi();
@@ -227,8 +267,9 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
+    /// Retrieves the instance of the INodeWallet interface.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>The instance of the INodeWallet interface.</returns>
     public INodeWallet Wallet()
     {
         try
@@ -246,9 +287,10 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
-    /// 
+    /// Gets the wallet session. If a session is already created, returns the existing session.
+    /// Otherwise, creates a new session and returns it.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>The wallet session.</returns>
     public IWalletSession WalletSession()
     {
         _walletSession ??= GetWalletSession();
@@ -256,8 +298,14 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
+    /// Retrieves an instance of the IBroadcast service from the service provider within a scope.
     /// </summary>
-    /// <returns></returns>
+    /// <remarks>
+    /// This method creates a new service scope using the ServiceScopeFactory. Within this scope, it resolves an instance of the IBroadcast service from the service provider using the Get
+    /// RequiredService method.
+    /// </remarks>
+    /// <exception cref="Exception">Thrown when there is an error while resolving the IBroadcast service.</exception>
+    /// <returns>An instance of the IBroadcast service if resolved successfully; otherwise, null.</returns>
     public IBroadcast Broadcast()
     {
         try
@@ -275,8 +323,10 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
-    /// </summary>
-    /// <returns></returns>
+    /// Returns an instance of ICrypto obtained from the DI container. </summary> <returns>
+    /// An instance of ICrypto if it is registered in the DI container.
+    /// If an exception occurs during the retrieval process, null will be returned and an error will be logged. </returns>
+    /// /
     private ICrypto GetCrypto()
     {
         try
@@ -294,8 +344,11 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
+    /// Retrieves the instance of the IP2PDevice service for Peer-to-Peer communication.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>
+    /// An instance of the IP2PDevice service, or null if an error occurred while retrieving the service.
+    /// </returns>
     private IP2PDevice GetP2PDevice()
     {
         try
@@ -313,9 +366,9 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
-    /// 
+    /// Gets an instance of the IP2PDeviceApi.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>An instance of IP2PDeviceApi if it is successfully retrieved, otherwise null.</returns>
     private IP2PDeviceApi GetP2PDeviceApi()
     {
         try
@@ -333,15 +386,16 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
-    /// 
+    /// Retrieves the cache object.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>A Cache object.</returns>
     public Cache<object> Cache()
     {
         return _cache;
     }
 
     /// <summary>
+    /// Initializes the object by generating cryptographic keys and setting the node identifier.
     /// </summary>
     private void Init()
     {
@@ -357,9 +411,9 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
-    /// 
+    /// Retrieves an instance of the unit of work for accessing the data layer.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>An instance of the <see cref="IUnitOfWork"/> interface.</returns>
     private IUnitOfWork GetUnitOfWork()
     {
         try
@@ -377,9 +431,10 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
-    /// 
+    /// Retrieves the instance of IGossipMemberStore by creating a new service scope
+    /// and resolving the service from the service provider.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>The instance of IGossipMemberStore if found, otherwise null.</returns>
     private IGossipMemberStore GetGossipMemberStore()
     {
         try
@@ -397,9 +452,9 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
-    /// 
+    /// GetPeerDiscovery is a private method that returns an instance of IPeerDiscovery.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>An instance of IPeerDiscovery if successful, otherwise null.</returns>
     private IPeerDiscovery GetPeerDiscovery()
     {
         try
@@ -417,8 +472,11 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
+    /// Retrieves the instance of the IPPoS service using the current service scope.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>
+    /// The instance of the IPPoS service, or null if an exception occurred.
+    /// </returns>
     private IPPoS GetPPoS()
     {
         try
@@ -436,9 +494,9 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
-    /// 
+    /// Retrieves an instance of the IGraph interface by creating a service scope and resolving the IGraph service provider.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>An instance of the IGraph interface if successful; otherwise null.</returns>
     private IGraph GetGraph()
     {
         try
@@ -456,9 +514,9 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
-    /// 
+    /// Retrieves a reference to the ISync service for performing synchronization tasks.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>An instance of ISync if it can be resolved from the service provider, otherwise null.</returns>
     private ISync GetSync()
     {
         try
@@ -476,9 +534,9 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
-    /// 
+    /// Returns the Memory Pool used for allocating and managing memory resources.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>The Memory Pool instance.</returns>
     private IMemoryPool GetMemPool()
     {
         try
@@ -496,9 +554,9 @@ public class SystemCore : ISystemCore
     }
 
     /// <summary>
-    /// 
+    /// Gets the currently active wallet session.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>The currently active wallet session, or null if an error occurred.</returns>
     private IWalletSession GetWalletSession()
     {
         try

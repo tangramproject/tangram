@@ -12,6 +12,9 @@ using TangramXtgm.Models;
 
 namespace TangramXtgm.Controllers;
 
+/// <summary>
+/// Controller that handles membership-related operations.
+/// </summary>
 [Route("member")]
 [ApiController]
 public class MembershipController : Controller
@@ -20,9 +23,10 @@ public class MembershipController : Controller
     private readonly ILogger _logger;
 
     /// <summary>
+    /// Initializes a new instance of the MembershipController class.
     /// </summary>
-    /// <param name="systemCore"></param>
-    /// <param name="logger"></param>
+    /// <param name="systemCore">An instance of ISystemCore that provides access to system core functionalities.</param>
+    /// <param name="logger">An instance of ILogger used for logging.</param>
     public MembershipController(ISystemCore systemCore, ILogger logger)
     {
         _systemCore = systemCore;
@@ -30,8 +34,9 @@ public class MembershipController : Controller
     }
 
     /// <summary>
+    /// Retrieves information about the local peer.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>An IActionResult with the information of the local peer if found, otherwise returns NotFound.</returns>
     [HttpGet("peer", Name = "GetPeer")]
     [ProducesResponseType(typeof(byte[]), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -62,8 +67,9 @@ public class MembershipController : Controller
     }
 
     /// <summary>
+    /// Retrieves the peers available in the system.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>A collection of peers containing their IP address, node ID, service port, name, and public key.</returns>
     [HttpGet("peers", Name = "GetPeers")]
     [ProducesResponseType(typeof(byte[]), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -90,8 +96,17 @@ public class MembershipController : Controller
     }
 
     /// <summary>
+    /// Retrieves the count of peers from the PeerDiscovery system.
     /// </summary>
-    /// <returns></returns>
+    /// <remarks>
+    /// This method sends an HTTP GET request to the "count" endpoint
+    /// in order to retrieve the current count of peers from the PeerDiscovery system.
+    /// </remarks>
+    /// <returns>
+    /// An IActionResult representing the result of the request.
+    /// </returns>
+    /// <response code="200">Returns the count of peers as a byte array.</response>
+    /// <response code="404">If the count of peers could not be found.</response>
     [HttpGet("count", Name = "GetPeersCount")]
     [ProducesResponseType(typeof(byte[]), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

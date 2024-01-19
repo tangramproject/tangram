@@ -19,6 +19,7 @@ public enum PrimeBit : sbyte
 }
 
 /// <summary>
+/// Represents a Sloth algorithm implementation.
 /// </summary>
 public class Sloth
 {
@@ -34,10 +35,11 @@ public class Sloth
     private readonly PrimeBit _primeBit;
 
     /// <summary>
+    /// Represents a class that performs a sloth operation.
     /// </summary>
-    /// <param name="primeBit"></param>
-    /// <param name="runForMs"></param>
-    /// <param name="stoppingToken"></param>
+    /// <param name="primeBit">A PrimeBit object that represents the specific prime bit used in the operation.</param>
+    /// <param name="runForMs">An integer that specifies the duration of the sloth operation in milliseconds.</param>
+    /// <param name="stoppingToken">A CancellationToken object that can be used to request cancellation of the sloth operation.</param>
     public Sloth(PrimeBit primeBit, int runForMs, CancellationToken stoppingToken)
     {
         Guard.Argument(runForMs, nameof(runForMs)).NotNegative().NotZero();
@@ -47,10 +49,11 @@ public class Sloth
     }
 
     /// <summary>
+    /// Evaluates the square root of a given integer 'x' modulo a prime number, 'p', and returns the result as a string.
     /// </summary>
-    /// <param name="t"></param>
-    /// <param name="x"></param>
-    /// <returns></returns>
+    /// <param name="t">The integer t.</param>
+    /// <param name="x">The BigInteger x.</param>
+    /// <returns>The square root of x modulo p as a string. An empty string is returned if the result is zero.</returns>
     public async Task<string> EvalAsync(int t, BigInteger x)
     {
         Guard.Argument(t, nameof(t)).NotNegative().NotZero();
@@ -60,11 +63,12 @@ public class Sloth
     }
 
     /// <summary>
+    /// Verifies if two BigIntegers x and y are equal after performing t iterations of a square operation.
     /// </summary>
-    /// <param name="t"></param>
-    /// <param name="x"></param>
-    /// <param name="y"></param>
-    /// <returns></returns>
+    /// <param name="t">The number of iterations</param>
+    /// <param name="x">The first BigInteger</param>
+    /// <param name="y">The second BigInteger</param>
+    /// <returns>True if x is equal to y after performing t iterations of the square operation, otherwise false.</returns>
     public bool Verify(uint t, BigInteger x, BigInteger y)
     {
         Guard.Argument(t, nameof(t)).NotZero();
@@ -76,21 +80,23 @@ public class Sloth
     }
 
     /// <summary>
+    /// Calculates the modular exponentiation of a value raised to a specified exponent modulo a given modulus.
     /// </summary>
-    /// <param name="value"></param>
-    /// <param name="exponent"></param>
-    /// <param name="modulus"></param>
-    /// <returns></returns>
+    /// <param name="value">The base value.</param>
+    /// <param name="exponent">The exponent to raise the value to.</param>
+    /// <param name="modulus">The modulus to perform the operation.</param>
+    /// <returns>The result of the modular exponentiation operation.</returns>
     private BigInteger ModExp(BigInteger value, BigInteger exponent, BigInteger modulus)
     {
         return BigInteger.ModPow(value, exponent, modulus);
     }
 
     /// <summary>
+    /// Checks if a given number is a quadratic residue modulo p.
     /// </summary>
-    /// <param name="x"></param>
-    /// <param name="p"></param>
-    /// <returns></returns>
+    /// <param name="x">The number to be checked.</param>
+    /// <param name="p">The modulo value.</param>
+    /// <returns>True if x is a quadratic residue modulo p, false otherwise.</returns>
     private bool IsQuadraticResidue(BigInteger x, BigInteger p)
     {
         var t = ModExp(x, Div(Sub(p, new BigInteger(1)), new BigInteger(2)), p);
@@ -99,40 +105,44 @@ public class Sloth
 
 
     /// <summary>
+    /// Adds two BigInteger numbers.
     /// </summary>
-    /// <param name="x"></param>
-    /// <param name="y"></param>
-    /// <returns></returns>
+    /// <param name="x">The first number to add.</param>
+    /// <param name="y">The second number to add.</param>
+    /// <returns>The sum of the two numbers <paramref name="x"/> and <paramref name="y"/>.</returns>
     private static BigInteger Add(BigInteger x, BigInteger y)
     {
         return BigInteger.Add(x, y);
     }
 
     /// <summary>
+    /// Subtracts two BigIntegers.
     /// </summary>
-    /// <param name="x"></param>
-    /// <param name="y"></param>
-    /// <returns></returns>
+    /// <param name="x">The first BigInteger.</param>
+    /// <param name="y">The second BigInteger.</param>
+    /// <returns>The result of subtracting y from x.</returns>
     private static BigInteger Sub(BigInteger x, BigInteger y)
     {
         return BigInteger.Subtract(x, y);
     }
 
     /// <summary>
+    /// Divides two BigIntegers.
     /// </summary>
-    /// <param name="x"></param>
-    /// <param name="y"></param>
-    /// <returns></returns>
+    /// <param name="x">The numerator.</param>
+    /// <param name="y">The denominator.</param>
+    /// <returns>The result of dividing x by y.</returns>
     private static BigInteger Div(BigInteger x, BigInteger y)
     {
         return BigInteger.Divide(x, y);
     }
 
     /// <summary>
+    /// Calculates the modular square root of a number.
     /// </summary>
-    /// <param name="x"></param>
-    /// <param name="p"></param>
-    /// <returns></returns>
+    /// <param name="x">The number for which to find the modular square root.</param>
+    /// <param name="p">The modulus.</param>
+    /// <returns>The modular square root of the number.</returns>
     private BigInteger ModSqrt(BigInteger x, BigInteger p)
     {
         BigInteger y;
@@ -150,21 +160,23 @@ public class Sloth
     }
 
     /// <summary>
+    /// Calculates the square of a given number modulus a given number.
     /// </summary>
-    /// <param name="y"></param>
-    /// <param name="p"></param>
-    /// <returns></returns>
+    /// <param name="y">The number to calculate the square of.</param>
+    /// <param name="p">The modulus value.</param>
+    /// <returns>The square of the given number modulo the given number.</returns>
     private BigInteger Square(BigInteger y, BigInteger p)
     {
         return ModExp(y, new BigInteger(2), p);
     }
 
     /// <summary>
+    /// Calculates the modular square root of a given number.
     /// </summary>
-    /// <param name="t"></param>
-    /// <param name="x"></param>
-    /// <param name="p"></param>
-    /// <returns></returns>
+    /// <param name="t">The number of iterations to perform.</param>
+    /// <param name="x">The number for which to calculate the modular square root.</param>
+    /// <param name="p">The modulus.</param>
+    /// <returns>The modular square root of the given number.</returns>
     private async Task<BigInteger> ModSqrtOpAsync(int t, BigInteger x, BigInteger p)
     {
         return await Task.Factory.StartNew(() =>
@@ -202,11 +214,11 @@ public class Sloth
     }
 
     /// <summary>
-    /// 
+    /// Gets the prime bit value for a given PrimeBit enumeration.
     /// </summary>
-    /// <param name="primeBit"></param>
-    /// <returns></returns>
-    /// <exception cref="ArgumentOutOfRangeException"></exception>
+    /// <param name="primeBit">The PrimeBit enumeration value.</param>
+    /// <returns>The prime bit value as a string.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when the prime bit value is not supported.</exception>
     private static string GetPrimeBit(PrimeBit primeBit)
     {
         return primeBit switch

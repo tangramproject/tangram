@@ -12,6 +12,9 @@ using TangramXtgm.Models.Messages;
 
 namespace TangramXtgm.Controllers;
 
+/// <summary>
+/// Controller class for managing blocks.
+/// </summary>
 [Route("chain")]
 [ApiController]
 public class BlockController : Controller
@@ -20,9 +23,8 @@ public class BlockController : Controller
     private readonly ILogger _logger;
 
     /// <summary>
+    /// This class represents a Block Controller.
     /// </summary>
-    /// <param name="systemCore"></param>
-    /// <param name="logger"></param>
     public BlockController(ISystemCore systemCore, ILogger logger)
     {
         _systemCore = systemCore;
@@ -30,9 +32,12 @@ public class BlockController : Controller
     }
 
     /// <summary>
-    /// 
+    /// Retrieves the supply information.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>
+    /// Returns an HTTP response with the supply information in the body if successful (HTTP 200 OK).
+    /// If unable to retrieve the supply information, returns an HTTP response with status code 404 (Not Found).
+    /// </returns>
     [HttpGet("supply", Name = "GetSupply")]
     [ProducesResponseType(typeof(byte[]), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -52,8 +57,10 @@ public class BlockController : Controller
     }
 
     /// <summary>
+    /// Retrieves a block asynchronously based on the provided hash.
     /// </summary>
-    /// <returns></returns>
+    /// <param name="hash">The hash of the block to retrieve.</param>
+    /// <returns>Returns an IActionResult representing the result of the operation. If the block is found, a 200 OK response will be returned along with the block data. If the block is not found, a 404 Not Found response will be returned.</returns>
     [HttpGet("block", Name = "GetBlock")]
     [ProducesResponseType(typeof(byte[]), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -74,10 +81,11 @@ public class BlockController : Controller
     }
 
     /// <summary>
+    /// Retrieves a collection of blocks asynchronously.
     /// </summary>
-    /// <param name="skip"></param>
-    /// <param name="take"></param>
-    /// <returns></returns>
+    /// <param name="skip">The number of blocks to skip.</param>
+    /// <param name="take">The number of blocks to take.</param>
+    /// <returns>An asynchronous operation that represents the HTTP response of the blocks collection.</returns>
     [HttpGet("blocks/{skip}/{take}", Name = "GetBlocks")]
     [ProducesResponseType(typeof(byte[]), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -100,8 +108,10 @@ public class BlockController : Controller
     }
 
     /// <summary>
+    /// Retrieves a block from the blockchain by its height.
     /// </summary>
-    /// <returns></returns>
+    /// <param name="height">The height of the block to retrieve.</param>
+    /// <returns>Returns an IActionResult representing the block if found, otherwise returns NotFound().</returns>
     [HttpGet("block/{height}", Name = "GetBlockByHeight")]
     [ProducesResponseType(typeof(byte[]), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -122,9 +132,15 @@ public class BlockController : Controller
     }
 
     /// <summary>
+    /// Retrieves the transaction block by hash.
     /// </summary>
-    /// <param name="hash"></param>
-    /// <returns></returns>
+    /// <param name="hash">The hash of the transaction.</param>
+    /// <returns>
+    /// Returns an <see cref="IActionResult"/> representing the result of the asynchronous operation.
+    /// The result contains the transaction block as a byte array wrapped in an <see cref="ObjectResult"/>.
+    /// If the transaction block is found, the HTTP status code of the response will be 200 (OK).
+    /// If the transaction block is not found, the HTTP status code of the response will be 404 (Not Found).
+    /// </returns>
     [HttpGet("block/transaction/{hash}", Name = "GetTransactionBlock")]
     [ProducesResponseType(typeof(byte[]), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -147,8 +163,14 @@ public class BlockController : Controller
     }
 
     /// <summary>
+    /// Retrieves the height of the blockchain.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>
+    /// An <see cref="IActionResult"/> object that represents the result of the action.
+    /// If the height is successfully retrieved, the <see cref="IActionResult"/> object will have a status code of 200 (OK)
+    /// and the height value will be included in the response body.
+    /// If the height cannot be retrieved, the <see cref="IActionResult"/> object will have a status code of 404 (Not Found).
+    /// </returns>
     [HttpGet("height", Name = "GetBlockHeight")]
     [ProducesResponseType(typeof(long), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -167,9 +189,13 @@ public class BlockController : Controller
     }
 
     /// <summary>
+    /// Retrieves a transaction with the given hash.
     /// </summary>
-    /// <param name="hash"></param>
-    /// <returns></returns>
+    /// <param name="hash">The hash of the transaction.</param>
+    /// <returns>The transaction identified by the given hash.</returns>
+    /// <remarks>
+    /// Returns a 404 NotFound if the transaction is not found.
+    /// </remarks>
     [HttpGet("transaction/{hash}", Name = "GetTransaction")]
     [ProducesResponseType(typeof(byte[]), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -191,8 +217,9 @@ public class BlockController : Controller
     }
 
     /// <summary>
+    /// Retrieves safeguard blocks asynchronously.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains an <see cref="IActionResult"/>.</returns>
     [HttpGet("safeguards", Name = "GetSafeguardBlocks")]
     [ProducesResponseType(typeof(byte[]), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -213,9 +240,14 @@ public class BlockController : Controller
     }
 
     /// <summary>
-    /// 
+    /// Retrieves the running distribution value.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>
+    /// Returns an <see cref="IActionResult"/> representing the result of the operation.
+    /// If the operation is successful, the status code is <see cref="StatusCodes.Status200OK"/> and
+    /// the running distribution value is returned.
+    /// If the operation fails due to an exception, the status code is <see cref="StatusCodes.Status404NotFound"/>.
+    /// </returns>
     [HttpGet("emission", Name = "GetRunningDistribution")]
     [ProducesResponseType(typeof(long), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
