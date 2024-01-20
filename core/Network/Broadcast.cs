@@ -68,6 +68,7 @@ public class Broadcast : ReceivedActor<(TopicType, byte[])>, IBroadcast
             var command = topicType switch
             {
                 TopicType.AddTransaction => ProtocolCommand.Transaction,
+                TopicType.OnNewBlock => ProtocolCommand.OnNewBlock,
                 _ => ProtocolCommand.BlockGraph
             };
             await _systemCore.GossipMemberStore().SendAllAsync(MessagePackSerializer.Serialize(new Parameter[]

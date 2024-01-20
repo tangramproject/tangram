@@ -778,6 +778,9 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
             var saveBlockResponse = await SaveBlockAsync(new SaveBlockRequest(block));
             if (saveBlockResponse.Ok)
             {
+                await _systemCore.Broadcast().PostAsync((TopicType.OnNewBlock,
+                    MessagePackSerializer.Serialize(block)));
+                
                 if (block.BlockPos.PublicKey.ToHashIdentifier() == _systemCore.PeerDiscovery().GetLocalNode().NodeId)
                     AnsiConsole.Write(new FigletText("# Block Winner #").Centered().Color(Color.Magenta1));
                 else

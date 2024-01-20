@@ -5,6 +5,7 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using TangramXtgm.Extensions;
 using Dawn;
@@ -36,7 +37,8 @@ public class P2PDeviceApi : IP2PDeviceApi
 
     private readonly ISystemCore _systemCore;
     private readonly ILogger _logger;
-
+    private readonly SemaphoreSlim _throttleOnNewBlockSemaphore = new(1);
+    
     public P2PDeviceApi(ISystemCore systemCore)
     {
         _systemCore = systemCore;
@@ -78,6 +80,35 @@ public class P2PDeviceApi : IP2PDeviceApi
         Commands.Add((int)ProtocolCommand.Stake, OnStakeAsync);
         Commands.Add((int)ProtocolCommand.StakeEnabled, OnStakeEnabledAsync);
         Commands.Add((int)ProtocolCommand.GetSafeguardBlocks, OnGetSafeguardBlocksAsync);
+        Commands.Add((int)ProtocolCommand.OnNewBlock, OnNewBlockAsync);
+    }
+
+    /// <summary>
+    /// Handles the arrival of a new block asynchronously.
+    /// </summary>
+    /// <param name="parameters">An array of Parameter objects containing the block data.</param>
+    /// <returns>A Task that represents the asynchronous operation. The task result contains a ReadOnlySequence<byte> object.</returns>
+    private async Task<ReadOnlySequence<byte>> OnNewBlockAsync(Parameter[] parameters)
+    {
+        Guard.Argument(parameters, nameof(parameters)).NotNull().NotEmpty();
+
+        await _throttleOnNewBlockSemaphore.WaitAsync();
+        try
+        {
+            var block = MessagePackSerializer.Deserialize<Models.Block>(parameters[0].Value);
+            var blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
+
+            if (block.Height - blockCount >= 3)
+            {
+                await _systemCore.Sync().SynchronizeAsync();
+            }
+
+            return await SerializeAsync(new NewBlockResponse(true));
+        }
+        finally
+        {
+            _throttleOnNewBlockSemaphore.Release();  // Release the semaphore once work is done
+        }
     }
 
     /// <summary>

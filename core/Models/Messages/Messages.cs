@@ -96,6 +96,13 @@ public record NewBlockGraphRequest(BlockGraph BlockGraph);
 /// </summary>
 /// <param name="Ok"></param>
 [MessagePackObject]
+public record NewBlockResponse([property: Key(0)] bool Ok);
+
+/// <summary>
+/// 
+/// </summary>
+/// <param name="Ok"></param>
+[MessagePackObject]
 public record NewTransactionResponse([property: Key(0)] bool Ok);
 public record NewTransactionRequest(Transaction Transaction);
 

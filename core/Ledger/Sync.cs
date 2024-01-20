@@ -14,7 +14,6 @@ using Dawn;
 using MessagePack;
 using Serilog;
 using Spectre.Console;
-using TangramXtgm.Helper;
 using TangramXtgm.Models;
 using TangramXtgm.Models.Messages;
 using TangramXtgm.Network;
@@ -29,6 +28,7 @@ public interface ISync
 {
     bool SyncRunning { get; }
     Task SetSyncRunningAsync(bool isRunning);
+    Task SynchronizeAsync();
 }
 
 /// <summary>
@@ -69,7 +69,7 @@ public class Sync : ISync, IDisposable
     private void Init()
     {
         _disposableInit = Observable
-            .Timer(TimeSpan.Zero, TimeSpan.FromMinutes(_systemCore.Node.Network.AutoSyncEveryMinutes))
+            .Timer(TimeSpan.Zero)
             .SubscribeOn(Scheduler.Default).Subscribe(OnNext);
     }
 
@@ -147,30 +147,22 @@ public class Sync : ISync, IDisposable
                         currentRetry++;
                     }
                 });
-            await SetSyncRunningAsync(true);
             await SynchronizeAsync();
         }
         catch (TaskCanceledException)
         {
             // Ignore
         }
-        finally
-        {
-            await SetSyncRunningAsync(false);
-            var blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
-            _logger.Information("LOCAL NODE block height: [{@LocalHeight}]", blockCount - 1);
-            _logger.Information("End... [SYNCHRONIZATION]");
-            _logger.Information("Next...[SYNCHRONIZATION] in {@Message} minute(s)",
-                _systemCore.Node.Network.AutoSyncEveryMinutes);
-        }
     }
     
     /// <summary>
     /// Synchronizes the local node with the network by checking and updating the blocks.
     /// </summary>
-    private async Task SynchronizeAsync()
+    public async Task SynchronizeAsync()
     {
         _logger.Information("Begin... [SYNCHRONIZATION]");
+        await SetSyncRunningAsync(true);
+        
         try
         {
             var blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
@@ -179,24 +171,10 @@ public class Sync : ISync, IDisposable
             var peers = _systemCore.PeerDiscovery().GetGossipMemberStore();
             _logger.Information("Peer count [{@PeerCount}]", peers.Length);
             if (peers.Any() != true) return;
-            var maxBlockCount =
-                AsyncHelper.RunSync(async () => await _systemCore.PeerDiscovery().NetworkBlockCountAsync());
-
-            if (maxBlockCount <= blockCount)
-            {
-                if (maxBlockCount >= blockCount)
-                {
-                    _logger.Information("Network block height [{@MaxBlockHeight}]", maxBlockCount - 1);
-                    return;
-                }
-
-                _logger.Information("Network block height [{@MaxBlockHeight}]", blockCount - 1);
-            }
-            else
-            {
-                _logger.Information("Network block height [{@MaxBlockHeight}]", maxBlockCount -1);
-            }
-
+            var maxBlockCount = await _systemCore.PeerDiscovery().NetworkBlockCountAsync();
+            _logger.Information("Network block height [{@MaxBlockHeight}]",
+                maxBlockCount = maxBlockCount == 0 ? 0 : maxBlockCount - 1);
+            
             var chunk = maxBlockCount / (ulong)peers.Length;
             var tasks = new List<Task>();
 
@@ -234,6 +212,13 @@ public class Sync : ISync, IDisposable
         catch (Exception ex)
         {
             _logger.Here().Error(ex, "Error while checking");
+        }
+        finally
+        {
+            await SetSyncRunningAsync(false);
+            var blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
+            _logger.Information("LOCAL NODE block height: [{@LocalHeight}]", blockCount - 1);
+            _logger.Information("End... [SYNCHRONIZATION]");
         }
     }
     

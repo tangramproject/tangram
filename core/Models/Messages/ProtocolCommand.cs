@@ -22,4 +22,5 @@ public enum ProtocolCommand : byte
     GetTransactionBlockIndex = 0x25,
     Stake = 0x26,
     StakeEnabled = 0x27,
+    OnNewBlock = 0x28,
 }

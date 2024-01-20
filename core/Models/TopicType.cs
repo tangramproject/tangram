@@ -6,5 +6,6 @@ namespace TangramXtgm.Models;
 public enum TopicType : sbyte
 {
     AddTransaction,
-    AddBlockGraph
+    AddBlockGraph,
+    OnNewBlock,
 }
