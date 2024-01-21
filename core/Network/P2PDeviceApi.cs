@@ -95,6 +95,7 @@ public class P2PDeviceApi : IP2PDeviceApi
         await _throttleOnNewBlockSemaphore.WaitAsync();
         try
         {
+            if (_systemCore.Sync().SyncRunning) return await SerializeAsync(new NewBlockResponse(true));
             var block = MessagePackSerializer.Deserialize<Models.Block>(parameters[0].Value);
             var blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
 
