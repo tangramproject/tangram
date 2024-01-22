@@ -99,7 +99,7 @@ public class P2PDeviceApi : IP2PDeviceApi
             var block = MessagePackSerializer.Deserialize<Models.Block>(parameters[0].Value);
             var blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
 
-            if (block.Height - blockCount >= 3)
+            if ((long)block.Height - (long)blockCount >= 3)
             {
                 await _systemCore.Sync().SynchronizeAsync();
             }
