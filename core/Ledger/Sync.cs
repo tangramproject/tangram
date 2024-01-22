@@ -154,15 +154,16 @@ public class Sync : ISync, IDisposable
             // Ignore
         }
     }
-    
+
     /// <summary>
-    /// Synchronizes the local node with the network by checking and updating the blocks.
+    /// Asynchronously synchronizes the system with other peers in the network.
     /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
     public async Task SynchronizeAsync()
     {
         _logger.Information("Begin... [SYNCHRONIZATION]");
         await SetSyncRunningAsync(true);
-        
+
         try
         {
             var blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
@@ -170,44 +171,57 @@ public class Sync : ISync, IDisposable
                 _systemCore.UnitOfWork().HashChainRepository.Height);
             var peers = _systemCore.PeerDiscovery().GetGossipMemberStore();
             _logger.Information("Peer count [{@PeerCount}]", peers.Length);
-            if (peers.Any() != true) return;
-            var maxBlockCount = await _systemCore.PeerDiscovery().NetworkBlockCountAsync();
-            _logger.Information("Network block height [{@MaxBlockHeight}]",
-                maxBlockCount = maxBlockCount == 0 ? 0 : maxBlockCount - 1);
-            
-            var chunk = maxBlockCount / (ulong)peers.Length;
-            var tasks = new List<Task>();
 
-            var throttle = new SemaphoreSlim(Environment.ProcessorCount); // Restrict to max number of processors.
-
-            foreach (var peer in peers)
+            if (peers.Any())
             {
-                await throttle.WaitAsync(); // blocks if count >= maximum concurrent tasks.
+                var maxBlockCount = await _systemCore.PeerDiscovery().NetworkBlockCountAsync();
+                _logger.Information("Network block height [{@MaxBlockHeight}]",
+                    maxBlockCount = maxBlockCount == 0 ? 0 : maxBlockCount - 1);
 
-                tasks.Add(Task.Run(async () =>
+                // number of total chunks
+                var chunk = (maxBlockCount - blockCount) / (ulong)peers.Length;
+                var remainder = (maxBlockCount - blockCount) % (ulong)peers.Length; // calculate the remainder 
+
+                var tasks = new List<Task>();
+                var throttle = new SemaphoreSlim(Environment.ProcessorCount); // Restrict to max number of processors.
+
+                var startBlockHeight = blockCount;
+
+                foreach (var peer in peers)
                 {
-                    try
+                    await throttle.WaitAsync(); // blocks if count >= maximum concurrent tasks.
+                    tasks.Add(Task.Run(async () =>
                     {
-                        var peerBlockCount = await _systemCore.PeerDiscovery().PeerBlockCountAsync(peer);
-                        if (blockCount >= peerBlockCount) return;
-                        var skip = blockCount <= 6 ? blockCount : blockCount - 6; // +- Depth of blocks to compare.
-                        var take = (int) blockCount + (int) chunk;
-                        if (take > (int) maxBlockCount)
+                        try
                         {
-                            take = (int) (maxBlockCount - blockCount) + (int) blockCount;
+                            var chunkSize = chunk;
+                            // distribute remainder chunks across peers
+                            if (remainder > 0)
+                            {
+                                chunkSize++;
+                                remainder--;
+                            }
+
+                            var endBlockHeight = startBlockHeight + chunkSize;
+                            if (endBlockHeight > maxBlockCount)
+                            {
+                                endBlockHeight = maxBlockCount;
+                            }
+                            
+                            var peerBlockCount = await _systemCore.PeerDiscovery().PeerBlockCountAsync(peer);
+                            if (blockCount >= peerBlockCount) return;
+                            await SynchronizeAsync(peer, startBlockHeight, (int)endBlockHeight + 1);
+                            startBlockHeight += chunkSize; // incrementing start block height for the next peer
                         }
+                        finally
+                        {
+                            throttle.Release();
+                        }
+                    }));
+                }
 
-                        await SynchronizeAsync(peer, skip, take);
-                        blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
-                    }
-                    finally
-                    {
-                        throttle.Release();
-                    }
-                }));
+                await Task.WhenAll(tasks);
             }
-
-            await Task.WhenAll(tasks);
         }
         catch (Exception ex)
         {
@@ -221,7 +235,7 @@ public class Sync : ISync, IDisposable
             _logger.Information("End... [SYNCHRONIZATION]");
         }
     }
-    
+
     /// <summary>
     /// Synchronizes the blockchain with a peer asynchronously.
     /// </summary>
