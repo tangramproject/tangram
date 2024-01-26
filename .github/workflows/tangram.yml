@@ -23,7 +23,7 @@ jobs:
     - name: Setup .NET Core 7.0
       uses: actions/setup-dotnet@v1
       with:
-        dotnet-version: '6.0.x' # Use latest SDK version
+        dotnet-version: '7.0.x' # Use latest SDK version
         
     - name: Checkout latest
       uses: actions/checkout@v2
