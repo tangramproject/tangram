@@ -51,7 +51,7 @@ public interface IGraph
     byte[] HashTransactions(HashTransactionsRequest hashTransactionsRequest);
     Task<bool> BlockCountSynchronizedAsync();
     BlockGraph SignBlockGraph(BlockGraph blockGraph);
-    
+
 }
 
 /// <summary>
@@ -529,7 +529,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
             }
         }
     }
-    
+
     /// <summary>
     /// Validates the blocks in the sync cache that have the same height as the next round.
     /// </summary>
@@ -687,7 +687,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
                     Round = blockGraph.Prev.Round
                 }
             };
-            return SignBlockGraph(copy);;
+            return SignBlockGraph(copy); ;
         }
         catch (Exception ex)
         {
@@ -721,7 +721,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
         {
             _logger.Here().Error("{@Message}", ex.Message);
         }
-    
+
         return null;
     }
 
@@ -780,7 +780,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
             {
                 await _systemCore.Broadcast().PostAsync((TopicType.OnNewBlock,
                     MessagePackSerializer.Serialize(block)));
-                
+
                 if (block.BlockPos.PublicKey.ToHashIdentifier() == _systemCore.PeerDiscovery().GetLocalNode().NodeId)
                     AnsiConsole.Write(new FigletText("# Block Winner #").Centered().Color(Color.Magenta1));
                 else
@@ -807,7 +807,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
                     if (block.BlockPos.PublicKey.ToHashIdentifier() == _systemCore.NodeId())
                         _systemCore.WalletSession().Notify(block.Txs.ToArray());
                 }
-            
+
             _slimDecideWinner.Release();
         }
     }
@@ -821,7 +821,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
     {
         Guard.Argument(deliveredBlocks, nameof(deliveredBlocks)).NotNull().NotEmpty();
         Block block = null;
-        
+
         var minCdfWalk = deliveredBlocks.Select(n =>
             BinomialCdfWalk(
                 Hasher.Hash(n.BlockPos.VrfSig).HexToByte().ToBigInteger() % LedgerConstant.MagicNumber,

@@ -43,7 +43,7 @@ public class Sync : ISync, IDisposable
 
     private bool _disposed;
     private int _syncRunning;
-    
+
     /// <summary>
     /// </summary>
     /// <param name="systemCore"></param>
@@ -91,7 +91,7 @@ public class Sync : ISync, IDisposable
         // Thread-safe way to set _syncRunning.
         Interlocked.Exchange(ref _syncRunning, isRunning ? 1 : 0);
     }
-    
+
     /// <summary>
     /// This method is called when a new value is received.
     /// </summary>
@@ -207,7 +207,7 @@ public class Sync : ISync, IDisposable
                             {
                                 endBlockHeight = maxBlockCount;
                             }
-                            
+
                             var peerBlockCount = await _systemCore.PeerDiscovery().PeerBlockCountAsync(peer);
                             if (blockCount >= peerBlockCount) return;
                             await SynchronizeAsync(peer, startBlockHeight, (int)endBlockHeight + 1);
@@ -231,7 +231,6 @@ public class Sync : ISync, IDisposable
         {
             await SetSyncRunningAsync(false);
             var blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
-            _logger.Information("LOCAL NODE block height: [{@LocalHeight}]", blockCount - 1);
             _logger.Information("End... [SYNCHRONIZATION]");
         }
     }
@@ -393,7 +392,7 @@ public class Sync : ISync, IDisposable
 
         return null;
     }
-    
+
     /// <summary>
     /// Performs application-defined tasks associated with freeing, releasing, or resetting
     /// unmanaged resources and optionally releases managed resources.

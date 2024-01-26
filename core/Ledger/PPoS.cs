@@ -96,7 +96,7 @@ public class PPoS : IPPoS, IDisposable
     private int _running;
 
     private static object _lockRunning = new();
-    
+
     /// <summary>
     /// </summary>
     /// <param name="systemCore"></param>
@@ -157,7 +157,7 @@ public class PPoS : IPPoS, IDisposable
         if (!_systemCore.Node.Staking.Enabled) return;
         if (_systemCore.Sync().SyncRunning) return;
         if (Running) return;
-        Interlocked.Exchange(ref _running, 1); 
+        Interlocked.Exchange(ref _running, 1);
         await RunStakingAsync();
     }
 
@@ -176,8 +176,10 @@ public class PPoS : IPPoS, IDisposable
             {
                 return;
             }
+
             await PullMempoolTransactionsAsync();
             if (_syncCacheTransactions.Count == 0) return;
+
             var height = prevBlock.Height + 1;
             var readyTransaction = new ReadyTransaction
             {
@@ -202,12 +204,14 @@ public class PPoS : IPPoS, IDisposable
             }
             else
             {
-                _logger.Information("SYSTEM KERNEL <selected> for round [{@Round}]", height); // prev round + current + next round
+                _logger.Information("SYSTEM KERNEL <selected> for round [{@Round}]",
+                    height); // prev round + current + next round
                 kernel = CreateNetworkKernel(readyTransaction, StakeType.System);
                 if (kernel is null) return;
                 coinStake = CoinstakeSystem(height);
                 if (coinStake is null) return;
             }
+
             _syncCacheTransactions.Add(coinStake.Transaction.TxnId, coinStake.Transaction);
             var transactions = SortTransactions();
             var newBlock = await NewBlockAsync(transactions, kernel, coinStake, prevBlock);
@@ -231,7 +235,7 @@ public class PPoS : IPPoS, IDisposable
             RemoveAnyCoinstake();
             lock (_lockRunning)
             {
-                Interlocked.Exchange(ref _running, 0);   
+                Interlocked.Exchange(ref _running, 0);
             }
         }
     }
