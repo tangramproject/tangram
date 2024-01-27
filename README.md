@@ -20,9 +20,10 @@
 ## Installation
 
 ### Linux and macOS
-- [Install .NET For Linux](https://dotnet.microsoft.com/en-us/download?initial-os=linux)
-- [Install .NET For macOS](https://dotnet.microsoft.com/en-us/download?initial-os=macOS)
+- [Install .NET 7.0.1](https://github.com/dotnet/core/blob/main/release-notes/7.0/7.0.1/7.0.1.md)
+- [Linux Package Instructions](https://learn.microsoft.com/en-gb/dotnet/core/install/linux?WT.mc_id=dotnet-35129-website)
 
+### After installing .NET 
 For quick installation on Linux and macOS, execute the following command:
 
 ```shell
@@ -81,9 +82,10 @@ Users running Catalina, Mojave, or Big Sur, execute the following command if you
 
 ### Windows
 
--   [Install .NET For Windows](https://dotnet.microsoft.com/en-us/download?initial-os=windows)
+-   [Install .NET 7.0.1](https://github.com/dotnet/core/blob/main/release-notes/7.0/7.0.1/7.0.1.md)
 -   For some versions of Windows, you may need to install [Visual C++ Redistributable](https://docs.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist).
 
+### After installing .NET
 For quick installation, download the latest zip file [**here**](https://github.com/tangramproject/tangram/releases)
 
 
