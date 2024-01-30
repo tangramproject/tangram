@@ -433,7 +433,7 @@ public class NodeWallet : INodeWallet
                                        where verifyLockTime != VerifyResult.UnableToVerify
                                        select tx).ToArray();
                     ringMembers.Shuffle();
-                    
+
                     ringMembers.ElementAt(0).Vout.Shuffle();
                     Vout vout;
                     if (!ContainsCommitment(pcmIn, ringMembers.ElementAt(0).Vout[0].C))

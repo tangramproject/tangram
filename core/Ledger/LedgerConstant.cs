@@ -27,9 +27,9 @@ public static class LedgerConstant
         "E50839F5C63AB6089E85EB8AF6A4E7E1E6344D34737D1B6E7F1868A0CDA03619".HexToByte();
     public static readonly byte[] BlockZeroPrevHash =
         "74616E6772616D5854474DC679A04246DC80CA70696E67706F6E67736E65616B".HexToByte();
-    public static readonly byte[] BlockZeroPrevVrfSig = 
+    public static readonly byte[] BlockZeroPrevVrfSig =
         "2432E332274F150D3CA421DE3304EC88776EA81DE48D329E24EFB5FC7C8CD98B".HexToByte();
-    
+
     // Protocol V3
     public const int TransactionV3Height = 0;
     public const int BlockV3Height = 0;

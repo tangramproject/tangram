@@ -418,7 +418,7 @@ public class Validator : IValidator
     {
         Guard.Argument(block, nameof(block)).NotNull();
         byte[] kernel;
-        
+
         // Short-circuit if else can be removed, if creating a new block zero from scratch..
         if (_systemCore.UnitOfWork().HashChainRepository.Count >= LedgerConstant.BlockV3Height)
         {
