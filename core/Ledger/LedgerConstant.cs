@@ -24,18 +24,18 @@ public static class LedgerConstant
     public const int Bits = 8192;
     public const int MBits = 960;
     public static readonly byte[] BlockZeroMerkel =
-        "D5C174DCBA402D3EE1701FE9C18156C3CD6D719FDEFE8DAF550CCC39D9689E6B".HexToByte();
+        "E50839F5C63AB6089E85EB8AF6A4E7E1E6344D34737D1B6E7F1868A0CDA03619".HexToByte();
     public static readonly byte[] BlockZeroPrevHash =
-        "74616E6772616D5854474DAF915782EBC2C2FA70696E67706F6E67736E65616B".HexToByte();
-
+        "74616E6772616D5854474DC679A04246DC80CA70696E67706F6E67736E65616B".HexToByte();
+    public static readonly byte[] BlockZeroPrevVrfSig = 
+        "2432E332274F150D3CA421DE3304EC88776EA81DE48D329E24EFB5FC7C8CD98B".HexToByte();
+    
     // Protocol V3
-    public const int TransactionV3Height = 19;
-    public const int BlockV3Height = 280;
+    public const int TransactionV3Height = 0;
+    public const int BlockV3Height = 0;
 
     // PPoS
     public const uint BlockProposalTimeFromSeconds = 5;
-    public const uint WaitSyncTimeFromSeconds = 5;
-    public const uint WaitPPoSEnabledTimeFromSeconds = 5;
     public const int SlothCancellationTimeoutFromMilliseconds = 120_000;
 
     // MemPool

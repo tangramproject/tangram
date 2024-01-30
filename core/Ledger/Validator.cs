@@ -28,8 +28,9 @@ using Numerics = System.Numerics;
 
 namespace TangramXtgm.Ledger;
 
-/// Interface for validating various components of a blockchain system.
-/// /
+/// <summary>
+/// Represents an interface for validating various components of the TangramXtgm blockchain.
+/// </summary>
 public interface IValidator
 {
     VerifyResult VerifyBlockGraphNodeRound(ref BlockGraph blockGraph);
@@ -64,7 +65,8 @@ public interface IValidator
     VerifyResult VerifyBlocksWithNoDuplicateHeights(IReadOnlyList<Block> blocks);
     Task<Block> PreviousBlockAdjustedTimeAsync();
     byte[] MembershipProof(byte[] prevMerkelRoot, byte[] txStream, int index, Transaction[] transactions);
-    public Task<byte[]> NodeKernelAsync(byte[] vrfOutput, ulong round);
+    Task<byte[]> NodeKernelAsync(byte[] vrfOutput, ulong round);
+    Task<byte[]> KernelAsync(Block block);
 }
 
 /// <summary>
@@ -76,9 +78,8 @@ public class Validator : IValidator
     private readonly ILogger _logger;
 
     /// <summary>
+    /// Validator class for verifying different aspects of a block.
     /// </summary>
-    /// <param name="systemCore"></param>
-    /// <param name="logger"></param>
     public Validator(ISystemCore systemCore, ILogger logger)
     {
         _systemCore = systemCore;
@@ -413,14 +414,18 @@ public class Validator : IValidator
     /// </summary>
     /// <param name="block">The block for which to calculate the kernel.</param>
     /// <returns>The calculated kernel as a byte array, or null if the kernel calculation failed.</returns>
-    private async Task<byte[]> KernelAsync(Block block)
+    public async Task<byte[]> KernelAsync(Block block)
     {
         Guard.Argument(block, nameof(block)).NotNull();
         byte[] kernel;
+        
+        // Short-circuit if else can be removed, if creating a new block zero from scratch..
         if (_systemCore.UnitOfWork().HashChainRepository.Count >= LedgerConstant.BlockV3Height)
         {
             var prevBlock = await _systemCore.Graph().GetPreviousBlockAsync();
-            kernel = NetworkKernel(prevBlock.Hash, Hasher.Hash(prevBlock.BlockPos.VrfSig).HexToByte(), block.Height);
+            kernel = prevBlock is null && block.Height == 0
+                ? NetworkKernel(LedgerConstant.BlockZeroPrevHash, LedgerConstant.BlockZeroPrevVrfSig, block.Height)
+                : NetworkKernel(prevBlock!.Hash, Hasher.Hash(prevBlock.BlockPos.VrfSig).HexToByte(), block.Height);
         }
         else
         {
