@@ -16,9 +16,9 @@ namespace TangramXtgm.Consensus.Models;
 public record BlockGraph
 {
     [Key(0)] public Block Block { get; init; }
-    [Key(1)] public IList<Dependency> Dependencies { get; } = new List<Dependency>();
+    [Key(1)] public IList<Dependency> Dependencies { get; init; } = new List<Dependency>();
     [Key(2)] public Block Prev { get; init; }
-    [Key(3)] public IList<BlockGraphSignature> Signatures { get; init; }
+    [Key(3)] public IList<BlockGraphSignature> Signatures { get; init; } = new List<BlockGraphSignature>();
     /// <summary>
     /// 
     /// </summary>

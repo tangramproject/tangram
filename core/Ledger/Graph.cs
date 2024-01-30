@@ -677,6 +677,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
                     Node = localNodeId,
                     Round = blockGraph.Block.Round
                 },
+                Dependencies = blockGraph.Dependencies,
                 Prev = new Consensus.Models.Block
                 {
                     BlockHash = blockGraph.Prev.BlockHash,
@@ -685,9 +686,10 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
                     Hash = blockGraph.Prev.Hash,
                     Node = localNodeId,
                     Round = blockGraph.Prev.Round
-                }
+                },
+                Signatures = blockGraph.Signatures
             };
-            return SignBlockGraph(copy); ;
+            return SignBlockGraph(copy);
         }
         catch (Exception ex)
         {
@@ -707,7 +709,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
         Guard.Argument(blockGraph, nameof(blockGraph)).NotNull();
         try
         {
-            var message = Helper.Util.Combine(blockGraph.Serialize(), blockGraph.Serialize());
+            var message = Hasher.Hash(blockGraph.Serialize()).AsSpan().ToArray();
             var blockGraphSignature = _systemCore.Crypto().SignSchnorr(_systemCore.KeyPair.PrivateKey.FromSecureString().HexToByte(), message);
             blockGraph.Signatures.Add(new BlockGraphSignature
             {
