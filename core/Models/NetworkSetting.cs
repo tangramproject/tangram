@@ -28,7 +28,7 @@ public record Node
 public record Network
 {
     public string Environment { get; set; }
-    public int AutoSyncEveryMinutes { get; set; }
+    public int SyncTrailStop { get; set; }
     public LettuceEncrypt LettuceEncrypt { get; set; }
     public X509Certificate X509Certificate { get; set; }
     public TransactionLeakRateConfigurationOption MemoryPoolTransactionRateLimit { get; set; }

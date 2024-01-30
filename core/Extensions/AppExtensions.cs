@@ -96,7 +96,7 @@ public static class AppExtensions
                                 "Node:Network:MemoryPoolTransactionRateLimit:LeakRateNumberOfSeconds"])
                     },
                     SigningKeyRingName = configuration["Node:Network:SigningKeyRingName"],
-                    AutoSyncEveryMinutes = Convert.ToInt16(configuration["Node:Network:AutoSyncEveryMinutes"])
+                    SyncTrailStop = Convert.ToInt16(configuration["Node:Network:SyncTrailStop"])
                 },
                 Staking = new Staking
                 {

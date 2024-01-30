@@ -38,7 +38,7 @@ public class P2PDeviceApi : IP2PDeviceApi
     private readonly ISystemCore _systemCore;
     private readonly ILogger _logger;
     private readonly SemaphoreSlim _throttleOnNewBlockSemaphore = new(1);
-    
+
     public P2PDeviceApi(ISystemCore systemCore)
     {
         _systemCore = systemCore;
@@ -99,7 +99,7 @@ public class P2PDeviceApi : IP2PDeviceApi
             var block = MessagePackSerializer.Deserialize<Models.Block>(parameters[0].Value);
             var blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
 
-            if ((long)block.Height - (long)blockCount >= 3)
+            if ((long)block.Height - (long)blockCount >= _systemCore.Node.Network.SyncTrailStop)
             {
                 await _systemCore.Sync().SynchronizeAsync();
             }
@@ -290,21 +290,25 @@ public class P2PDeviceApi : IP2PDeviceApi
             var packet = _systemCore.Crypto().DecryptChaCha20Poly1305(stakeRequest.Data,
                 _systemCore.KeyPair.PrivateKey.FromSecureString().HexToByte(), stakeRequest.Token,
                 null, stakeRequest.Nonce);
-            if (packet is null)
-                return await SerializeAsync(new StakeCredentialsResponse("Unable to decrypt message", false));
-
-            var walletSession = _systemCore.WalletSession();
-            var stakeCredRequest = MessagePackSerializer.Deserialize<StakeCredentialsRequest>(packet);
-            var (loginSuccess, loginMessage) = await walletSession.LoginAsync(stakeCredRequest.Seed);
-            if (!loginSuccess)
-                return await SerializeAsync(new StakeCredentialsResponse(loginMessage, false));
-
-            var (setupSuccess, setupMessage) = await walletSession.InitializeWalletAsync(stakeCredRequest.Outputs);
-            if (setupSuccess)
+            if (packet is not null && packet.Length != 0)
             {
-                _systemCore.Node.Staking.RewardAddress = stakeCredRequest.RewardAddress.FromBytes();
-                _systemCore.Node.Staking.Enabled = true;
-                return await SerializeAsync(new StakeCredentialsResponse(setupMessage, true));
+                var walletSession = _systemCore.WalletSession();
+                var stakeCredRequest = MessagePackSerializer.Deserialize<StakeCredentialsRequest>(packet);
+                var (loginSuccess, loginMessage) = await walletSession.LoginAsync(stakeCredRequest.Seed);
+                if (!loginSuccess)
+                    return await SerializeAsync(new StakeCredentialsResponse(loginMessage, false));
+
+                var (setupSuccess, setupMessage) = await walletSession.InitializeWalletAsync(stakeCredRequest.Outputs);
+                if (setupSuccess)
+                {
+                    _systemCore.Node.Staking.RewardAddress = stakeCredRequest.RewardAddress.FromBytes();
+                    _systemCore.Node.Staking.Enabled = true;
+                    return await SerializeAsync(new StakeCredentialsResponse(setupMessage, true));
+                }
+            }
+            else
+            {
+                return await SerializeAsync(new StakeCredentialsResponse("Unable to decrypt message", false));
             }
         }
         catch (Exception ex)

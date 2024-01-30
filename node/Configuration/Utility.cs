@@ -26,8 +26,8 @@ public class Utility
     private const string UseDefaultPort = "Use default port";
     private const string ManuallyEnterPort = "Manually enter port";
 
-    private const string UseDefaultSyncTime = "Use default sync time";
-    private const string ManuallyEnterSyncTime = "Manually enter sync time";
+    private const string UseDefaultSyncTrailStop = "Use default sync trail stop";
+    private const string ManuallyEnterSyncTrailStop = "Manually enter sync sync trail stop";
 
     private readonly Node _node;
     private readonly IList<IPService> _ipServices = IPServices.Services;
@@ -74,7 +74,7 @@ public class Utility
                     .AddRow("Http Port", _node.Network.HttpPort.ToString())
                     .AddRow("Tcp Port", _node.Network.P2P.TcpPort.ToString())
                     .AddRow("Web Socket Port", _node.Network.P2P.WsPort.ToString())
-                    .AddRow("Auto Sync Time", _node.Network.AutoSyncEveryMinutes.ToString()));
+                    .AddRow("Sync Trail Stop", _node.Network.SyncTrailStop.ToString()));
         }
         catch (Exception ex)
         {
@@ -293,14 +293,14 @@ public class Utility
     {
         var syncTimeChoice = AnsiConsole.Prompt(new SelectionPrompt<string>()
             .Title("Node automatically starts syncing with network peers on discovery " +
-                   "By default, the auto sync time is set to [bold yellow]10 minutes[/].").AddChoices(UseDefaultSyncTime, ManuallyEnterSyncTime));
-        if (syncTimeChoice == UseDefaultSyncTime)
+                   "By default, the sync trail stop is set to [bold yellow]3 trailing blocks[/].").AddChoices(UseDefaultSyncTrailStop, ManuallyEnterSyncTrailStop));
+        if (syncTimeChoice == UseDefaultSyncTrailStop)
         {
-            _node.Network.AutoSyncEveryMinutes = 10;
+            _node.Network.SyncTrailStop = 3;
         }
         else
         {
-            var time = AnsiConsole.Prompt(new TextPrompt<int>("Enter [bold green]sync time[/]:").ValidationErrorMessage("")
+            var trail = AnsiConsole.Prompt(new TextPrompt<int>("Enter [bold green]sync trail stop[/]:").ValidationErrorMessage("")
                 .Validate(p =>
                 {
                     var pass = p is >= -1 and <= int.MaxValue;
@@ -310,7 +310,7 @@ public class Utility
                         false => ValidationResult.Error("[red]Something went wrong[/]")
                     };
                 }));
-            _node.Network.AutoSyncEveryMinutes = time;
+            _node.Network.SyncTrailStop = trail;
         }
     }
 
