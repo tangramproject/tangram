@@ -40,17 +40,40 @@ public struct Balance
 }
 
 /// <summary>
+/// Represents the types of transactions that can occur.
+/// </summary>
+public enum TransactionType
+{
+    LoginRequired,
+    PaymentsRequired,
+    UnlockFailure,
+    FundsRequired,
+    ExceedsAmount,
+    CoinstakeCreateCFailure,
+    CoinstakeTransactionFailure,
+    Success
+}
+
+/// <summary>
 /// Represents a wallet transaction.
 /// </summary>
 public struct WalletTransaction
 {
     public readonly Transaction Transaction;
     public readonly string Message;
+    public readonly TransactionType TransactionType;
 
-    public WalletTransaction(Transaction transaction, string message)
+    /// <summary>
+    /// Represents a wallet transaction.
+    /// </summary>
+    /// <param name="transaction">The transaction associated with the wallet transaction.</param>
+    /// <param name="transactionType">The type of the wallet transaction.</param>
+    /// <param name="message">The message associated with the wallet transaction.</param>
+    public WalletTransaction(Transaction transaction, TransactionType transactionType, string message)
     {
         Transaction = transaction;
         Message = message;
+        TransactionType = transactionType;
     }
 }
 
@@ -93,26 +116,26 @@ public class NodeWallet : INodeWallet
         try
         {
             var session = _systemCore.WalletSession();
-            if (session.KeySet is null) return new WalletTransaction(default, "Node wallet login required");
+            if (session.KeySet is null) return new WalletTransaction(default, TransactionType.LoginRequired, "Node wallet login required");
             if (session.CacheTransactions.Count == 0)
-                return new WalletTransaction(default, "Node wallet payments required");
+                return new WalletTransaction(default, TransactionType.PaymentsRequired, "Node wallet payments required");
             var (spendKey, scanKey) = Unlock();
             if (spendKey == null || scanKey == null)
-                return new WalletTransaction(default, "Unable to unlock node wallet");
+                return new WalletTransaction(default, TransactionType.UnlockFailure, "Unable to unlock node wallet");
             _logger.Information("Coinstake Amount: [{@Amount}]", amount);
             session.Amount = amount.MulCoin();
             session.Reward = reward;
             session.RecipientAddress = address;
             var (commitment, total) = GetSpending(session.Amount);
             if (commitment is null)
-                return new WalletTransaction(default,
+                return new WalletTransaction(default, TransactionType.FundsRequired,
                     "No available commitment for this payment. Please load more funds");
             session.Spending = commitment;
             session.Change = total - session.Amount;
             if (session.Amount > total)
-                return new WalletTransaction(default, "The stake amount exceeds the available commitment amount");
+                return new WalletTransaction(default, TransactionType.ExceedsAmount, "The stake amount exceeds the available commitment amount");
             var (transaction, message) = RingConfidentialTransaction(session);
-            if (transaction.IsDefault()) return new WalletTransaction(default, message);
+            if (transaction.IsDefault()) return new WalletTransaction(default, TransactionType.CoinstakeTransactionFailure, message);
             var validator = _systemCore.Validator();
             var verifyOutputCommitments = await validator.VerifyCommitmentOutputsAsync(transaction);
             var verifyKeyImage = await validator.VerifyKeyImageNotReusedAsync(transaction);
@@ -120,7 +143,7 @@ public class NodeWallet : INodeWallet
                 verifyKeyImage == VerifyResult.KeyImageAlreadyExists)
             {
                 session.CacheTransactions.Remove(session.Spending.C);
-                return new WalletTransaction(default,
+                return new WalletTransaction(default, TransactionType.CoinstakeCreateCFailure,
                     $"Unable to create coinstake Commitment: [{verifyOutputCommitments}] Key image: [{verifyKeyImage}]");
             }
 
@@ -137,14 +160,14 @@ public class NodeWallet : INodeWallet
 
                 session.CacheTransactions.Add(vout.C, output);
             }
-            return new WalletTransaction(transaction, null);
+            return new WalletTransaction(transaction, TransactionType.Success, null);
         }
         catch (Exception ex)
         {
             _logger.Here().Error("{@Message}", ex.Message);
         }
 
-        return new WalletTransaction(default, "Coinstake transaction failed");
+        return new WalletTransaction(default, TransactionType.CoinstakeTransactionFailure, "Coinstake transaction failed");
     }
 
     /// <summary>
@@ -243,7 +266,7 @@ public class NodeWallet : INodeWallet
             if (!outputs.Any()) return Enumerable.Empty<Balance>().ToArray();
             balances.AddRange(from vout in outputs.ToArray()
                               let coinType = vout.T
-                              where coinType is CoinType.Change or CoinType.Payment or CoinType.Coinstake
+                              where coinType is CoinType.Change or CoinType.Payment or CoinType.Coinstake or CoinType.Mint
                               let isSpent = IsSpent(vout, session)
                               where isSpent != true
                               let amount = Amount(vout, scan)
@@ -410,7 +433,7 @@ public class NodeWallet : INodeWallet
                                        where verifyLockTime != VerifyResult.UnableToVerify
                                        select tx).ToArray();
                     ringMembers.Shuffle();
-
+                    
                     ringMembers.ElementAt(0).Vout.Shuffle();
                     Vout vout;
                     if (!ContainsCommitment(pcmIn, ringMembers.ElementAt(0).Vout[0].C))
