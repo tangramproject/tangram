@@ -786,8 +786,13 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
                 if (block.BlockPos.PublicKey.ToHashIdentifier() == _systemCore.PeerDiscovery().GetLocalNode().NodeId)
                     AnsiConsole.Write(new FigletText("# Block Winner #").Centered().Color(Color.Magenta1));
                 else
-                    _logger.Information("We have a winner {@Hash} Solution {@Sol} Node {@Node}", block.Hash.ByteToHex(),
-                        block.BlockPos.Solution, block.BlockPos.PublicKey.ToHashIdentifier());
+                {
+                    var nodeId = block.BlockPos.PublicKey.ToHashIdentifier();
+                    var peer = _systemCore.PeerDiscovery().GetGossipMemberStore().FirstOrDefault(x => x.NodeId == nodeId);
+                    var node = peer.IsDefault() ? nodeId.ToString() : peer.Name.FromBytes();
+                    _logger.Information("We have a winner {@Hash} Solution {@Sol} Node {@Node} Id {@NodeId}", block.Hash.ByteToHex(),
+                        block.BlockPos.Solution, node, nodeId);
+                }
             }
             else
             {
