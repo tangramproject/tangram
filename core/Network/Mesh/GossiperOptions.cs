@@ -23,8 +23,8 @@ public class GossiperOptions
     }
     public int AckTimeoutMilliseconds => _ackTimeoutMilliseconds;
     public int DeadTimeoutMilliseconds => _deadTimeoutMilliseconds;
-    public int DeadCoolOffMilliseconds { get; set; } = 300000;
-    public int PruneTimeoutMilliseconds { get; set; } = 600000;
+    public int DeadCoolOffMilliseconds { get; set; } = 30000;
+    public int PruneTimeoutMilliseconds { get; set; } = 60000;
     public int FanoutFactor { get; set; } = 3;
     public int NumberOfIndirectEndpoints { get; set; } = 3;
     public IPEndPoint[] SeedMembers { get; set; } = Array.Empty<IPEndPoint>();

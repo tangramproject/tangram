@@ -68,14 +68,15 @@ public class GossipMemberStore : IGossipMemberStore
     }
 
     /// <summary>
-    /// Adds or updates a node in the peer graph based on a MemberEvent.
+    /// Adds or updates a gossip node in the member store based on the provided member event.
     /// </summary>
-    /// <param name="memberEvent">The MemberEvent containing information about the node.</param>
-    /// <returns>The added or updated Peer object.</returns>
+    /// <param name="memberEvent">The member event that contains information about the gossip node.</param>
+    /// <returns>The <see cref="Peer"/> representing the added or updated gossip node.</returns>
     public Peer AddOrUpdateNode(MemberEvent memberEvent)
     {
         Guard.Argument(memberEvent, nameof(memberEvent)).NotNull();
         if (_systemCore.NodeId() == memberEvent.Service) return default;
+
         lock (_memberGraphLocker)
         {
             if (!_peers.TryGetValue(memberEvent.GossipEndPoint, out var peer))
@@ -90,22 +91,20 @@ public class GossipMemberStore : IGossipMemberStore
             }
             else
             {
-                //peer = PeerFactory(memberEvent);
-                if (memberEvent.State == MemberState.Pruned)
+                if (memberEvent.State == MemberState.Dead)
                 {
                     _peers.Remove(memberEvent.GossipEndPoint);
                 }
-                // else
-                // {
-                //     _peers[memberEvent.GossipEndPoint] = peer;
-                // }
+                else if (memberEvent.State == MemberState.Pruned)
+                {
+                    _peers.Remove(memberEvent.GossipEndPoint);
+                }
             }
-
             UpdateServiceClient(memberEvent);
             return peer;
         }
     }
-
+    
     /// <summary>
     /// Returns a new instance of the Peer class based on the provided MemberEvent object.
     /// </summary>
@@ -302,7 +301,7 @@ public class GossipMemberStore : IGossipMemberStore
             newServiceClients = new List<IServiceClient>(serviceClients)
                 { serviceClientFactory.CreateServiceClient(new IPEndPoint(memberEvent.IP, memberEvent.GossipPort)) };
         }
-        else if (serviceClient != null && memberEvent.State >= MemberState.Pruned)
+        else if (serviceClient != null && memberEvent.State >= MemberState.Pruned || memberEvent.State == MemberState.Dead)
         {
             newServiceClients = new List<IServiceClient>(serviceClients);
             newServiceClients.Remove(serviceClient);
