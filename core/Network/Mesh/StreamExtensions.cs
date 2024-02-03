@@ -65,23 +65,28 @@ public static class StreamExtensions
     /// <returns></returns>
     public static byte[] ReadServiceName(this Stream stream)
     {
-        var buffer = new byte[32];
+        if (!stream.CanSeek)
+        {
+            throw new NotSupportedException("The stream does not support seeking.");
+        }
+  
         stream.Position = 42;
+        var buffer = new byte[32];
         using var ms = new MemoryStream();
         int read;
         while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
         {
             ms.Write(buffer, 0, read);
         }
-
-        byte[] trimmed = null;
-        var bufferString = Encoding.UTF8.GetString(buffer);
-        var index = bufferString.IndexOf('\x01');
+  
+        var bufferString = Encoding.UTF8.GetString(ms.ToArray());
+        var index = bufferString.IndexOf('\0');
         if (index >= 0)
         {
-            trimmed = Encoding.UTF8.GetBytes(bufferString[..index]);
+            bufferString = bufferString[..index];
         }
-        return trimmed ?? ms.ToArray();
+  
+        return Encoding.UTF8.GetBytes(bufferString);
     }
 
     /// <summary>

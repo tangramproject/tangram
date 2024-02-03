@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Dawn;
 using MessagePack;
@@ -118,7 +119,7 @@ public class GossipMemberStore : IGossipMemberStore
             NodeId = memberEvent.Service,
             TcpPort = memberEvent.GossipPort.ToBytes(),
             PublicKey = memberEvent.PublicKey[..33],
-            Name = memberEvent.ServiceName
+            Name = Regex.Replace(memberEvent.ServiceName.FromBytes(), @"[^a-zA-Z0-9]", "").ToBytes()
         };
         return peer;
     }
