@@ -112,7 +112,7 @@ public static class AppExtensions
                 {
                     var endpoint = Util.GetIpEndPoint(selection.item.Value);
                     var endpointFromHost = Util.GetIpEndpointFromHostPort(endpoint.Address.ToString(), endpoint.Port);
-                    node.Network.SeedList.Add($"{endpointFromHost.Address.ToString()}:{endpointFromHost.Port}");
+                    node.Network.SeedList.Add($"{endpointFromHost.Address}:{endpointFromHost.Port}");
                 }
                 catch (Exception)
                 {

@@ -9,8 +9,10 @@ using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Blake3;
 using TangramXtgm.Extensions;
 using Dawn;
+using libsignal.ecc;
 using MessagePack;
 using Serilog;
 using Spectre.Console;
@@ -169,7 +171,7 @@ public class Sync : ISync, IDisposable
             var blockCount = _systemCore.UnitOfWork().HashChainRepository.Count;
             _logger.Information("OPENING block height [{@Height}]",
                 _systemCore.UnitOfWork().HashChainRepository.Height);
-            var peers = _systemCore.PeerDiscovery().GetGossipMemberStore();
+            var peers = _systemCore.PeerDiscovery().GetPeerStore();
             _logger.Information("Peer count [{@PeerCount}]", peers.Length);
 
             if (peers.Any())
@@ -363,7 +365,7 @@ public class Sync : ISync, IDisposable
                     while (!ctx.IsFinished)
                         foreach (var chunk in chunks)
                         {
-                            var blocksResponse = await _systemCore.GossipMemberStore().SendAsync<BlocksResponse>(
+                            var blocksResponse = await _systemCore.PeerDiscovery().SendAsync<BlocksResponse>(
                                 new IPEndPoint(IPAddress.Parse(peer.IpAddress.FromBytes()), peer.TcpPort.ToInt32()),
                                 peer.PublicKey,
                                 MessagePackSerializer.Serialize(new Parameter[]

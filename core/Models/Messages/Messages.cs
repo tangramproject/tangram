@@ -74,14 +74,12 @@ public record PeerResponse
 
 public record PeerRequest;
 
-/// <summary>
-/// </summary>
-public record JoinPeerResponse
-{
-    public Peer Peer { get; set; }
-}
+[MessagePackObject]
+public record JoinPeerResponse([property: Key(0)] bool Ok);
+public record JoinPeerRequest(Peer Peer);
 
-public record JoinPeerRequest;
+
+public record PublicKeyResponse([property: Key(0)] string Key);
 
 /// <summary>
 /// 

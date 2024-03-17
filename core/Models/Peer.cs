@@ -2,8 +2,9 @@
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
-using TangramXtgm.Extensions;
 using MessagePack;
+using TangramXtgm.Extensions;
+using TangramXtgm.Network;
 
 namespace TangramXtgm.Models;
 
@@ -16,6 +17,9 @@ public struct Peer : IComparable<Peer>
     [Key(3)] public byte[] Name { get; set; }
     [Key(4)] public byte[] PublicKey { get; set; }
     [Key(5)] public byte[] Version { get; set; }
+    [Key(6)] public PeerState PeerState { get; set; }
+    [IgnoreMember] public DateTime ReceivedDateTime { get; set; }
+    [IgnoreMember] public bool IsSeed { get; set; }
 
     /// <summary>
     /// </summary>s
@@ -34,5 +38,48 @@ public struct Peer : IComparable<Peer>
     public override int GetHashCode()
     {
         return HashCode.Combine(IpAddress, Name, Version, PublicKey);
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns></returns>
+    public byte[] Serialize()
+    {
+        return MessagePackSerializer.Serialize(this);
+    }
+
+    /// <summary>
+    /// Gets the description of a given PeerState.
+    /// </summary>
+    /// <param name="state">The PeerState for which to get the description.</param>
+    /// <returns>The description of the given PeerState.</returns>
+    public static string GetPeerStateDescription(PeerState state)
+    {
+        switch (state)
+        {
+            case PeerState.Alive:
+                return "Alive";
+            case PeerState.Dead:
+                return "Dead";
+            case PeerState.Suspicious:
+                return "Suspicious";
+            case PeerState.Retry:
+                return "Retrying";
+            case PeerState.Unreachable:
+                return "Unreachable";
+            case PeerState.DupBlocks:
+                return "Duplicate Blocks";
+            case PeerState.OrphanBlock:
+                return "Orphan Block";
+            case PeerState.Left:
+                return "Left";
+            case PeerState.Pruned:
+                return "Pruned";
+            case PeerState.Ready:
+                return "Ready";
+            default:
+                return "Unknown peer state";
+        }
     }
 }

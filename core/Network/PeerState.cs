@@ -15,5 +15,7 @@ public enum PeerState : byte
     Unreachable = 0x04,
     DupBlocks = 0x05,
     OrphanBlock = 0x06,
+    Left = 0x07,
+    Pruned = 0x08,
     Ready = 0x99
 }

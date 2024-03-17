@@ -81,6 +81,31 @@ public class P2PDeviceApi : IP2PDeviceApi
         Commands.Add((int)ProtocolCommand.StakeEnabled, OnStakeEnabledAsync);
         Commands.Add((int)ProtocolCommand.GetSafeguardBlocks, OnGetSafeguardBlocksAsync);
         Commands.Add((int)ProtocolCommand.OnNewBlock, OnNewBlockAsync);
+        Commands.Add((int)ProtocolCommand.OnJoin, OnJoinAsync);
+        Commands.Add((int)ProtocolCommand.HandshakeInitiation, OnHandshakeInitiationAsync);
+    }
+
+    /// <summary>
+    /// Handles the 'OnJoin' protocol command asynchronously.
+    /// </summary>
+    /// <param name="parameters">The parameters containing peer information.</param>
+    /// <returns>A ReadOnlySequence<byte> representing the response.</returns>
+    private async Task<ReadOnlySequence<byte>> OnJoinAsync(Parameter[] parameters)
+    {
+        // Ensure that the parameters are not null or empty
+        Guard.Argument(parameters, nameof(parameters)).NotNull().NotEmpty();
+
+        // Deserialize the peer information from the parameters
+        var peer = MessagePackSerializer.Deserialize<Peer>(parameters[0].Value);
+
+        // Set the received datetime for the peer
+        peer.ReceivedDateTime = DateTime.UtcNow;
+
+        // Call the 'Join' method of the PeerDiscovery component to handle the peer joining
+        _systemCore.PeerDiscovery().Join(peer);
+
+        // Serialize the response indicating successful join
+        return await SerializeAsync(new JoinPeerResponse(true));
     }
 
     /// <summary>
@@ -130,7 +155,7 @@ public class P2PDeviceApi : IP2PDeviceApi
     /// <returns>The serialized byte sequence containing the peers.</returns>
     private async Task<ReadOnlySequence<byte>> OnGetPeersAsync(Parameter[] none = default)
     {
-        return await SerializeAsync(_systemCore.PeerDiscovery().GetGossipMemberStore());
+        return await SerializeAsync(new PeerDiscoveryResponse(_systemCore.PeerDiscovery().GetPeerStore()));
     }
 
     /// <summary>

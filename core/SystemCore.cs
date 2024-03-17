@@ -40,7 +40,6 @@ public interface ISystemCore
     IP2PDevice P2PDevice();
     IP2PDeviceApi P2PDeviceApi();
     Cache<object> Cache();
-    IGossipMemberStore GossipMemberStore();
     uint NodeId();
 
 }
@@ -85,7 +84,6 @@ public class SystemCore : ISystemCore
     private IP2PDevice _p2PDevice;
     private IP2PDeviceApi _p2PDeviceApi;
     private ICrypto _crypto;
-    private IGossipMemberStore _gossipMemberStore;
 
 
     /// <summary>
@@ -134,16 +132,6 @@ public class SystemCore : ISystemCore
     /// Represents a node in a data structure.
     /// </summary>
     public Node Node { get; }
-
-    /// <summary>
-    /// Retrieves the GossipMemberStore instance. If it is null, it calls the GetGossipMemberStore method to get a new instance and assigns it to the _gossipMemberStore field.
-    /// </summary>
-    /// <returns>The GossipMemberStore instance.</returns>
-    public IGossipMemberStore GossipMemberStore()
-    {
-        _gossipMemberStore ??= GetGossipMemberStore();
-        return _gossipMemberStore;
-    }
 
     /// <summary>
     /// Creates or retrieves the existing unit of work.
@@ -421,27 +409,6 @@ public class SystemCore : ISystemCore
             using var scope = ServiceScopeFactory.CreateScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return unitOfWork;
-        }
-        catch (Exception ex)
-        {
-            _logger.Here().Error("{@Message}", ex.Message);
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Retrieves the instance of IGossipMemberStore by creating a new service scope
-    /// and resolving the service from the service provider.
-    /// </summary>
-    /// <returns>The instance of IGossipMemberStore if found, otherwise null.</returns>
-    private IGossipMemberStore GetGossipMemberStore()
-    {
-        try
-        {
-            using var scope = ServiceScopeFactory.CreateScope();
-            var gossipMemberStore = scope.ServiceProvider.GetRequiredService<IGossipMemberStore>();
-            return gossipMemberStore;
         }
         catch (Exception ex)
         {

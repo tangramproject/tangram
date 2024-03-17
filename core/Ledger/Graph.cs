@@ -476,7 +476,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
             try
             {
                 blocks.Add(blockByHeight.Block);
-                var peers = blockGraphs.Select(blockGraph => _systemCore.PeerDiscovery().GetGossipMemberStore()
+                var peers = blockGraphs.Select(blockGraph => _systemCore.PeerDiscovery().GetPeerStore()
                     .FirstOrDefault(x => x.NodeId == blockGraph.Block.Node)).ToArray();
                 var random = new Random();
                 var n = peers.Length;
@@ -492,7 +492,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
                 {
                     try
                     {
-                        var blockResponse = await _systemCore.GossipMemberStore().SendAsync<BlockResponse>(
+                        var blockResponse = await _systemCore.PeerDiscovery().SendAsync<BlockResponse>(
                             new IPEndPoint(IPAddress.Parse(peer.IpAddress.FromBytes()), peer.TcpPort.ToInt32()),
                             peer.PublicKey,
                             MessagePackSerializer.Serialize(new Parameter[]
@@ -788,7 +788,7 @@ public sealed class Graph : ReceivedActor<BlockGraph>, IGraph, IDisposable
                 else
                 {
                     var nodeId = block.BlockPos.PublicKey.ToHashIdentifier();
-                    var peer = _systemCore.PeerDiscovery().GetGossipMemberStore().FirstOrDefault(x => x.NodeId == nodeId);
+                    var peer = _systemCore.PeerDiscovery().GetPeerStore().FirstOrDefault(x => x.NodeId == nodeId);
                     var node = peer.IsDefault() ? nodeId.ToString() : peer.Name.FromBytes();
                     _logger.Information("We have a winner {@Hash} Solution {@Sol} Node {@Node} Id {@NodeId}", block.Hash.ByteToHex(),
                         block.BlockPos.Solution, node, nodeId);

@@ -2,7 +2,6 @@
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,7 +20,6 @@ using TangramXtgm.Services;
 using TangramXtgm.Wallet;
 using Serilog;
 using Spectre.Console;
-using TangramXtgm.Network.Mesh;
 using Log = Serilog.Log;
 
 namespace TangramXtgmNode;
@@ -47,22 +45,18 @@ public class Startup
     /// </summary>
     /// <param name="services"></param>
     public void ConfigureServices(IServiceCollection services)
-    {
+    {       
         services.AddResponseCompression();
         services.AddMvc(option => option.EnableEndpointRouting = false);
         services.AddSwaggerGenOptions();
         services.AddHttpContextAccessor();
         services.Configure<BlockmaniaOptions>(_configuration);
-        services.AddDataKeysProtection(_configuration);
+        services.AddDataKeysProtection(_configuration);       
         var certMode = _configuration["Node:Network:CertificateMode"];
         if (certMode == "lettuce")
         {
             services.AddLettuceEncrypt();
-        }
-
-        services.AddSingleton<IGossipMemberStore, GossipMemberStore>();
-        services.AddSingleton<IGossipMemberEventsStore, GossipMemberEventsStore>();
-        services.AddSingleton<IMemberListener, MemberListener>();
+        }      
     }
 
     /// <summary>
@@ -115,7 +109,7 @@ public class Startup
             c.OAuthAppName("Tangram Swagger UI");
         });
         AutofacContainer = app.ApplicationServices.GetAutofacRoot();
-        lifetime.ApplicationStarted.Register(() =>
+        _ = lifetime.ApplicationStarted.Register(() =>
         {
             const string logSectionName = "Log";
             if (((ConfigurationRoot)_configuration).GetSection(logSectionName) != null)
@@ -159,7 +153,9 @@ public class Startup
                 {
                     AutofacContainer.Resolve<IGraph>();
                     AnsiConsole.MarkupLine("Start: [bold green]PEER DISCOVERY[/]");
-                    AutofacContainer.Resolve<IPeerDiscovery>();
+                    var peerDiscovery = AutofacContainer.Resolve<IPeerDiscovery>();
+                    peerDiscovery.InitAsync().SafeFireAndForget(null, false);
+
 
                     AnsiConsole.MarkupLine("Start: [bold green]P2P DEVICE[/]");
                     AutofacContainer.Resolve<IP2PDevice>();

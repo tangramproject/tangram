@@ -71,7 +71,7 @@ public class Broadcast : ReceivedActor<(TopicType, byte[])>, IBroadcast
                 TopicType.OnNewBlock => ProtocolCommand.OnNewBlock,
                 _ => ProtocolCommand.BlockGraph
             };
-            await _systemCore.GossipMemberStore().SendAllAsync(MessagePackSerializer.Serialize(new Parameter[]
+            await _systemCore.PeerDiscovery().SendAllAsync(MessagePackSerializer.Serialize(new Parameter[]
             {
                 new() { ProtocolCommand = command, Value = data }
             }));

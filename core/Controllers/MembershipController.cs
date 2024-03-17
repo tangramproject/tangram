@@ -1,4 +1,4 @@
-﻿// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
+// Tangram by Matthew Hellyer is licensed under CC BY-NC-ND 4.0.
 // To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/4.0
 
 using System;
@@ -77,14 +77,16 @@ public class MembershipController : Controller
     {
         try
         {
-            var peers = _systemCore.PeerDiscovery().GetGossipMemberStore();
+            var peers = _systemCore.PeerDiscovery().GetPeerStore();
             return new ObjectResult(peers.Select(peer => new
             {
                 IPAddress = peer.IpAddress.FromBytes(),
                 peer.NodeId,
                 ServicePort = peer.TcpPort.FromBytes(),
                 Name = peer.Name.FromBytes(),
-                PublicKey = peer.PublicKey.ByteToHex()
+                PublicKey = peer.PublicKey.ByteToHex(),
+                State = Peer.GetPeerStateDescription(peer.PeerState),
+                Version = peer.Version.FromBytes()
             }));
         }
         catch (Exception ex)
