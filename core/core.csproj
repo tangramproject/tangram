@@ -85,7 +85,4 @@
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
     </ItemGroup>
-    <ItemGroup>
-      <Content Include="Network\Mesh\GossipMesh.Core.csproj" />
-    </ItemGroup>
 </Project>
