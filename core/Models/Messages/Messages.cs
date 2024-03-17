@@ -198,7 +198,7 @@ public record PeerDiscoveryResponse([property: Key(0)] Peer[] Peers);
 /// </summary>
 /// <param name="PublicKey"></param>
 [MessagePackObject, Serializable]
-public record PeerPublicKeyResponse([property: Key(0)] byte[] PublicKey);
+public record HandshakeInitiationResponse([property: Key(0)] byte[] PublicKey);
 
 /// <summary>
 /// </summary>

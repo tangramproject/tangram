@@ -23,4 +23,12 @@ public enum ProtocolCommand : byte
     Stake = 0x26,
     StakeEnabled = 0x27,
     OnNewBlock = 0x28,
+    OnJoin = 0x29,
+    Ping = 0x30,
+    Ack = 0x31,
+    RequestPing = 0x32,
+    RequestAck = 0x33,
+    ForwardedPing = 0x34,
+    ForwardedAck = 0x36,
+    HandshakeInitiation = 0x99,
 }

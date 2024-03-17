@@ -149,6 +149,16 @@ public class P2PDeviceApi : IP2PDeviceApi
     }
 
     /// <summary>
+    /// Handles the initiation of a handshake in a communication protocol. It generates a response containing the public key of the system's key pair.
+    /// </summary>
+    /// <param name="none">An optional parameter, typically not used in the method logic.</param>
+    /// <returns>The serialized byte sequence containing the serialized response to the handshake initiation.</returns>
+    private async Task<ReadOnlySequence<byte>> OnHandshakeInitiationAsync(Parameter[] none = default)
+    {       
+        return await SerializeAsync(new HandshakeInitiationResponse(_systemCore.KeyPair.PublicKey));
+    }
+
+    /// <summary>
     /// Retrieves the peers asynchronously.
     /// </summary>
     /// <param name="none">Optional parameter that is not used.</param>

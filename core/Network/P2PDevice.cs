@@ -15,6 +15,7 @@ using Serilog;
 using TangramXtgm.Helper;
 using TangramXtgm.Models;
 using TangramXtgm.Models.Messages;
+using System.Text;
 
 namespace TangramXtgm.Network;
 
@@ -95,12 +96,13 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
     /// <returns>A Task representing the asynchronous decryption operation. The decrypted Message is returned.</returns>
     public unsafe Task<Message> DecryptAsync(INngMsg nngMsg)
     {
+        const int prefixByteLength = 4;
+
         try
         {
             var msg = nngMsg.AsSpan();
             var length = BitConverter.ToInt32(msg);
             if (length != 32) return Task.FromResult(new Message(new Memory<byte>(), Array.Empty<byte>()));
-            const int prefixByteLength = 4;
             var pk = stackalloc byte[length];
             var publicKey = new Span<byte>(pk, length);
             msg.Slice(prefixByteLength, length).CopyTo(publicKey);
@@ -183,6 +185,12 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
             var nngResult = (await ctx.Receive()).Unwrap();
             try
             {
+                if(IsHandshakeInitiationMessage(nngResult))
+                {
+                    await HandshakeInitiationReplyAsync(ctx);
+                    continue;
+                }
+
                 var message = await _systemCore.P2PDevice().DecryptAsync(nngResult);
                 if (message.Memory.Length == 0)
                 {
@@ -235,6 +243,52 @@ public sealed class P2PDevice : IP2PDevice, IDisposable
                 nngResult.Dispose();
             }
         }
+    }
+
+    /// <summary>
+    /// Replies to a handshake initiation request with the appropriate response.
+    /// </summary>
+    /// <param name="ctx">The asynchronous context for request and reply handling.</param>
+    private async Task HandshakeInitiationReplyAsync(IRepReqAsyncContext<INngMsg> ctx)
+    {
+        try
+        {
+            // Create a new NNG message for the reply
+            var newMsg = NngFactorySingleton.Instance.Factory.CreateMessage();
+
+            // Prepare the handshake initiation response and write it to the packetStream
+            await using var packetStream = Util.Manager.GetStream() as RecyclableMemoryStream;
+            packetStream.Write((await _systemCore.P2PDeviceApi().Commands[(int)ProtocolCommand.HandshakeInitiation](null)).First.Span);
+
+            // Append the content of the packetStream to the reply message
+            foreach (var memory in packetStream.GetReadOnlySequence()) newMsg.Append(memory.Span);
+
+            // Send the reply message
+            (await ctx.Reply(newMsg)).Unwrap();
+        }
+        catch (Exception)
+        {
+            // Ignore any exceptions during the reply process
+        }
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="nngMsg"></param>
+    /// <returns></returns>
+    private static bool IsHandshakeInitiationMessage(INngMsg nngMsg)
+    {
+        if (nngMsg.Length == 19)
+        {
+            var handshake = Encoding.ASCII.GetString(nngMsg.AsSpan());
+            if (ProtocolCommand.HandshakeInitiation.ToString() == handshake)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
