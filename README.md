@@ -98,7 +98,7 @@ Tangram's PPoS consensus algorithm is specifically designed to ensure a fair dis
 Tangram is the first release with consensus and should be treated as an experiment! There are no guarantees and we can expect flaws. Use it at your own risk.
 
 ## Whitepaper
-If you’re interested, you can use the [Whitepaper](https://github.com/cypher-network/whitepaper) as a reference.
+New whitepaper coming soon&#8482;
 
 
 ## Who can participate in Tangram
@@ -108,7 +108,7 @@ If you wish to participate in the release of Tangram, you can claim $XTGM throug
 
 ## Contribution and Support
 If you have questions that need answering or a little more detail, feel free to get in touch through any of Tangram’s channels and our community members and managers can point you in the right direction.
-If you'd like to contribute to Tangram Cypher (Node code), please know we're currently accepting issues, forks, fixes, commits and pull requests so that maintainers can review and merge into the main code base. If you wish to submit more complex changes, please check up with the core devs first on [Discord Channel](https://discord.gg/6DT3yFhXCB) to ensure the changes get early feedback which can make both your efforts more effective, and review quick and simple.
+If you'd like to contribute to Tangram (Node code), please know we're currently accepting issues, forks, fixes, commits and pull requests so that maintainers can review and merge into the main code base. If you wish to submit more complex changes, please check up with the core devs first on [Discord Channel](https://discord.gg/6DT3yFhXCB) to ensure the changes get early feedback which can make both your efforts more effective, and review quick and simple.
 
 Licence
 -------
