@@ -1,4 +1,6 @@
+# Repository Archived
 
+This repository has been archived. It is no longer actively maintained.
 
 [![logo](assets/tangram_white.png?raw=true "Tangrm")](https://tangram.network)
 
